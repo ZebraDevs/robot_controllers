@@ -35,6 +35,7 @@
 #include <vector>
 #include <boost/shared_ptr.hpp>
 #include <ros/ros.h>
+#include <robot_controllers_interface/handle.h>
 
 namespace robot_controllers
 {
@@ -42,8 +43,13 @@ namespace robot_controllers
 // Forward define
 class ControllerManager;
 
-/** @brief Base class for a controller. */
-class Controller
+/**
+ * @brief Base class for a controller. Is derived from a Handle, so that
+ *        controllers can be passed from ControllerManager::getHandle(),
+ *        thus allowing controllers to access other controllers (to stack
+ *        their commands.
+ */
+class Controller : public Handle
 {
 public:
   /**

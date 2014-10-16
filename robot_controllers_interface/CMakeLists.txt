@@ -16,10 +16,21 @@ catkin_package(
     roscpp
   DEPENDS
     Boost
+  LIBRARIES
+    robot_controllers_interface
 )
 
 include_directories(
   include
   ${Boost_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
+)
+
+add_library(robot_controllers_interface
+  src/controller_loader.cpp
+  src/controller_manager.cpp
+)
+target_link_libraries(robot_controllers_interface
+  ${Boost_LIBRARIES}
+  ${catkin_LIBRARIES}
 )

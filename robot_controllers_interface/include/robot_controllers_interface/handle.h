@@ -28,68 +28,41 @@
 
 // Author: Michael Ferguson
 
-#ifndef ROBOT_CONTROLLERS_INTERFACE_CONTROLLER_MANAGER_H
-#define ROBOT_CONTROLLERS_INTERFACE_CONTROLLER_MANAGER_H
+#ifndef ROBOT_CONTROLLERS_INTERFACE_HANDLE_H
+#define ROBOT_CONTROLLERS_INTERFACE_HANDLE_H
 
 #include <string>
-#include <ros/ros.h>
-
-#include <robot_controllers_interface/joint_handle.h>
-#include <robot_controllers_interface/controller.h>
-#include <robot_controllers_interface/controller_loader.h>
+#include <boost/shared_ptr.hpp>
 
 namespace robot_controllers
 {
 
-/** @brief Base class for a controller manager. */
-class ControllerManager
+/**
+ * @brief Base class for a handle.
+ */
+class Handle
 {
-  typedef std::vector<ControllerLoaderPtr> ControllerList;
-  typedef std::vector<JointHandlePtr> JointHandleList;
-
 public:
-  ControllerManager();
-
-  /** @brief Ensure proper shutdown with virtual destructor. */
-  virtual ~ControllerManager()
+  Handle()
   {
   }
 
-  /**
-   * @brief Startup the controller manager, loading default controllers.
-   * @param nh The proper node handle for finding parameters.
-   * @returns 0 if success, negative values are error codes.
-   *
-   * Note: JointHandles should be added before this is called.
-   */
-  virtual int init(ros::NodeHandle& nh);
+  /** @brief Ensure proper cleanup with virtual destructor. */
+  virtual ~Handle()
+  {
+  }
 
-  /** @brief Start a controller. */
-  virtual int requestStart(const std::string& name);
-
-  /** @brief Stop a controller. */
-  virtual int requestStop(const std::string& name);
-
-  /** @brief Update active controllers. */
-  virtual void update(const ros::Time& time, const ros::Duration& dt);
-
-  /** @brief Add a joint handle. */
-  bool addJointHandle(JointHandlePtr& j);
-
-  /**
-   * @brief Get the handle associated with a particular joint/controller name.
-   * @param name The name of the joint/controller.
-   */
-  HandlePtr getHandle(const std::string& name);
+  /** @brief Get the name of this joint. */
+  virtual std::string getName() = 0;
 
 private:
-  /** @brief Load a controller. */
-  bool load(const std::string& name);
-
-  ControllerList controllers_;
-  JointHandleList joints_;
+  // No copy
+  Handle(const Handle&);
+  Handle& operator=(const Handle&);
 };
+
+typedef boost::shared_ptr<Handle> HandlePtr;
 
 }  // namespace robot_controllers
 
-#endif  // ROBOT_CONTROLLERS_INTERFACE_CONTROLLER_MANAGER_H
+#endif  // ROBOT_CONTROLLERS_INTERFACE_HANDLE_H

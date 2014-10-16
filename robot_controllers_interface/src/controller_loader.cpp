@@ -28,68 +28,63 @@
 
 // Author: Michael Ferguson
 
-#ifndef ROBOT_CONTROLLERS_INTERFACE_CONTROLLER_MANAGER_H
-#define ROBOT_CONTROLLERS_INTERFACE_CONTROLLER_MANAGER_H
-
-#include <string>
-#include <ros/ros.h>
-
-#include <robot_controllers_interface/joint_handle.h>
-#include <robot_controllers_interface/controller.h>
 #include <robot_controllers_interface/controller_loader.h>
 
 namespace robot_controllers
 {
 
-/** @brief Base class for a controller manager. */
-class ControllerManager
+ControllerLoader::ControllerLoader() :
+    plugin_loader_("robot_controllers", "robot_controllers::Controller"),
+    active_(false)
 {
-  typedef std::vector<ControllerLoaderPtr> ControllerList;
-  typedef std::vector<JointHandlePtr> JointHandleList;
+}
 
-public:
-  ControllerManager();
+bool ControllerLoader::init(const std::string& name, ControllerManager* manager)
+{
+  ros::NodeHandle nh(name);
+  std::string controller_type;
 
-  /** @brief Ensure proper shutdown with virtual destructor. */
-  virtual ~ControllerManager()
+  if (nh.getParam("type", controller_type))
   {
+    controller_ = plugin_loader_.createInstance(controller_type);
+    controller_->init(nh, manager);
+    return true;
   }
 
-  /**
-   * @brief Startup the controller manager, loading default controllers.
-   * @param nh The proper node handle for finding parameters.
-   * @returns 0 if success, negative values are error codes.
-   *
-   * Note: JointHandles should be added before this is called.
-   */
-  virtual int init(ros::NodeHandle& nh);
+  ROS_ERROR_STREAM("Unable to load controller " << name.c_str());
+  return false;
+}
 
-  /** @brief Start a controller. */
-  virtual int requestStart(const std::string& name);
+bool ControllerLoader::start()
+{
+  active_ = controller_->start();
+  return active_;
+}
 
-  /** @brief Stop a controller. */
-  virtual int requestStop(const std::string& name);
+bool ControllerLoader::stop(bool force)
+{
+  bool stopped = controller_->stop(force);
+  if (stopped)
+  {
+    active_ = false;
+  }
+  return stopped;
+}
 
-  /** @brief Update active controllers. */
-  virtual void update(const ros::Time& time, const ros::Duration& dt);
+bool ControllerLoader::isActive()
+{
+  return active_;
+}
 
-  /** @brief Add a joint handle. */
-  bool addJointHandle(JointHandlePtr& j);
+void ControllerLoader::update(const ros::Time& time, const ros::Duration& dt)
+{
+  if (active_)
+    controller_->update(time, dt);
+}
 
-  /**
-   * @brief Get the handle associated with a particular joint/controller name.
-   * @param name The name of the joint/controller.
-   */
-  HandlePtr getHandle(const std::string& name);
-
-private:
-  /** @brief Load a controller. */
-  bool load(const std::string& name);
-
-  ControllerList controllers_;
-  JointHandleList joints_;
-};
+ControllerPtr ControllerLoader::getController()
+{
+  return controller_;
+}
 
 }  // namespace robot_controllers
-
-#endif  // ROBOT_CONTROLLERS_INTERFACE_CONTROLLER_MANAGER_H

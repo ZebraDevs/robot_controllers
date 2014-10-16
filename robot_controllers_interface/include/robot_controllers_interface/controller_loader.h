@@ -28,67 +28,52 @@
 
 // Author: Michael Ferguson
 
-#ifndef ROBOT_CONTROLLERS_INTERFACE_CONTROLLER_MANAGER_H
-#define ROBOT_CONTROLLERS_INTERFACE_CONTROLLER_MANAGER_H
+#ifndef ROBOT_CONTROLLERS_INTERFACE_CONTROLLER_LOADER_H
+#define ROBOT_CONTROLLERS_INTERFACE_CONTROLLER_LOADER_H
 
 #include <string>
 #include <ros/ros.h>
-
-#include <robot_controllers_interface/joint_handle.h>
+#include <pluginlib/class_loader.h>
 #include <robot_controllers_interface/controller.h>
-#include <robot_controllers_interface/controller_loader.h>
 
 namespace robot_controllers
 {
 
-/** @brief Base class for a controller manager. */
-class ControllerManager
+// Forward def
+class ControllerManager;
+
+/** @brief Class for loading and managing a single controller. */
+class ControllerLoader
 {
-  typedef std::vector<ControllerLoaderPtr> ControllerList;
-  typedef std::vector<JointHandlePtr> JointHandleList;
-
 public:
-  ControllerManager();
+  /** @brief Initialize this loader */
+  ControllerLoader();
 
-  /** @brief Ensure proper shutdown with virtual destructor. */
-  virtual ~ControllerManager()
-  {
-  }
+  /** @brief Load the controller. */
+  bool init(const std::string& name, ControllerManager* manager);
 
-  /**
-   * @brief Startup the controller manager, loading default controllers.
-   * @param nh The proper node handle for finding parameters.
-   * @returns 0 if success, negative values are error codes.
-   *
-   * Note: JointHandles should be added before this is called.
-   */
-  virtual int init(ros::NodeHandle& nh);
+  /** @brief This calls through to controller, saves state locally. */
+  bool start();
 
-  /** @brief Start a controller. */
-  virtual int requestStart(const std::string& name);
+  /** @brief This calls through to controller, saves state locally. */
+  bool stop(bool force);
 
-  /** @brief Stop a controller. */
-  virtual int requestStop(const std::string& name);
+  /** @brief If controller is active, calls through to controller. */
+  void update(const ros::Time& time, const ros::Duration& dt);
 
-  /** @brief Update active controllers. */
-  virtual void update(const ros::Time& time, const ros::Duration& dt);
+  /** @brief Returns true if the controller is active. */
+  bool isActive();
 
-  /** @brief Add a joint handle. */
-  bool addJointHandle(JointHandlePtr& j);
-
-  /**
-   * @brief Get the handle associated with a particular joint/controller name.
-   * @param name The name of the joint/controller.
-   */
-  HandlePtr getHandle(const std::string& name);
+  /** @brief Returns the controller held by this loader. */
+  ControllerPtr getController();
 
 private:
-  /** @brief Load a controller. */
-  bool load(const std::string& name);
-
-  ControllerList controllers_;
-  JointHandleList joints_;
+  pluginlib::ClassLoader<robot_controllers::Controller> plugin_loader_;
+  ControllerPtr controller_;
+  bool active_;
 };
+
+typedef boost::shared_ptr<ControllerLoader> ControllerLoaderPtr;
 
 }  // namespace robot_controllers
 

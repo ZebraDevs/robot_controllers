@@ -31,8 +31,7 @@
 #ifndef ROBOT_CONTROLLERS_INTERFACE_JOINT_HANDLE_H
 #define ROBOT_CONTROLLERS_INTERFACE_JOINT_HANDLE_H
 
-#include <string>
-#include <boost/shared_ptr.hpp>
+#include <robot_controllers_interface/handle.h>
 
 namespace robot_controllers
 {
@@ -41,7 +40,7 @@ namespace robot_controllers
  * @brief Base class for a joint handle. This will be implemented for each
  *        type of robot.
  */
-class JointHandle
+class JointHandle : public Handle
 {
 public:
   JointHandle()
