@@ -82,6 +82,14 @@ public:
    */
   HandlePtr getHandle(const std::string& name);
 
+  /**
+   * @brief Get the joint handle associated with a particular joint name.
+   * @param name The name of the joint.
+   *
+   * This is mainly a convienence function.
+   */
+  JointHandlePtr getJointHandle(const std::string& name);
+
 private:
   /** @brief Load a controller. */
   bool load(const std::string& name);

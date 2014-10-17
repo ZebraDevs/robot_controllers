@@ -206,6 +206,19 @@ HandlePtr ControllerManager::getHandle(const std::string& name)
   return HandlePtr();
 }
 
+JointHandlePtr ControllerManager::getJointHandle(const std::string& name)
+{
+  // Try joints first
+  for (JointHandleList::iterator j = joints_.begin(); j != joints_.end(); j++)
+  {
+    if ((*j)->getName() == name)
+      return *j;
+  }
+
+  // Not found
+  return JointHandlePtr();
+}
+
 bool ControllerManager::load(const std::string& name)
 {
   // Create controller (in a loader)
