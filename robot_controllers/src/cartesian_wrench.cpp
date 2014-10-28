@@ -134,6 +134,11 @@ bool CartesianWrenchController::start()
   return true;
 }
 
+bool CartesianWrenchController::stop(bool force)
+{
+  return true;
+}
+
 void CartesianWrenchController::update(const ros::Time& now, const ros::Duration& dt)
 {
   // Need to initialize KDL structs

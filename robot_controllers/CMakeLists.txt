@@ -61,6 +61,7 @@ add_library(robot_controllers
   src/diff_drive_base.cpp
   src/follow_joint_trajectory.cpp
   src/gravity_compensation.cpp
+  src/pid.cpp
   src/point_head.cpp
 )
 target_link_libraries(robot_controllers

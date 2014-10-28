@@ -184,6 +184,7 @@ bool ControllerManager::addJointHandle(JointHandlePtr& j)
 {
   // TODO: check for duplicate names?
   joints_.push_back(j);
+  return true;
 }
 
 HandlePtr ControllerManager::getHandle(const std::string& name)

@@ -74,6 +74,7 @@ public:
   virtual int init(ros::NodeHandle& nh, ControllerManager* manager)
   {
     name_ = nh.getNamespace();
+    return 0;
   }
 
   /**

@@ -91,8 +91,13 @@ int PointHeadController::init(ros::NodeHandle& nh, ControllerManager* manager)
        it != segment_map.end();
        ++it)
   {
+#ifdef KDL_USE_NEW_TREE_INTERFACE
+    if (it->second->segment.getJoint().getName() == head_pan_->getName())
+      root_link_ = it->second->parent->first;
+#else
     if (it->second.segment.getJoint().getName() == head_pan_->getName())
       root_link_ = it->second.parent->first;
+#endif
   }
 
   // Start action server

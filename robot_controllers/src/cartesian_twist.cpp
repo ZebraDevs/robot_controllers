@@ -147,6 +147,11 @@ bool CartesianTwistController::start()
   return true;
 }
 
+bool CartesianTwistController::stop(bool force)
+{
+  return true;
+}
+
 void CartesianTwistController::update(const ros::Time& now, const ros::Duration& dt)
 {
   // Need to initialize KDL structs
