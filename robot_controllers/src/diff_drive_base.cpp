@@ -73,8 +73,11 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
   manager_ = manager;
 
   /* Initialize joints */
-  left_ = manager_->getJointHandle("base_l_wheel_joint");
-  right_ = manager_->getJointHandle("base_r_wheel_joint");
+  std::string l_name, r_name;
+  nh.param<std::string>("l_wheel_joint", l_name, "l_wheel_joint");
+  nh.param<std::string>("r_wheel_joint", r_name, "r_wheel_joint");
+  left_ = manager_->getJointHandle(l_name);
+  right_ = manager_->getJointHandle(r_name);
   if (left_ == NULL || right_ == NULL)
   {
     ROS_ERROR_NAMED("BaseController", "Cannot get wheel joints.");
