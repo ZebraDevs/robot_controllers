@@ -106,7 +106,7 @@ public:
   /** @brief Get the names of joints/controllers which this controller exclusively claims. */
   virtual std::vector<std::string> getClaimedNames();
 
-  /** \brief Controller command. */
+  /** @brief Controller command. */
   void command(const geometry_msgs::Wrench::ConstPtr& goal);
 
 private:

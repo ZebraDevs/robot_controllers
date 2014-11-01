@@ -60,8 +60,8 @@ namespace robot_controllers
 {
 
 /**
- *  \class GravityCompensation
- *  \brief Controller which uses KDL to compute torque needed for static
+ *  @class GravityCompensation
+ *  @brief Controller which uses KDL to compute torque needed for static
  *         holding of the chain at the current pose.
  */
 class GravityCompensation : public Controller
@@ -70,17 +70,17 @@ public:
   GravityCompensation() : initialized_(false) {}
   virtual ~GravityCompensation() {}
 
-  /** \brief Initialize parameters, interfaces */
+  /** @brief Initialize parameters, interfaces */
   virtual int init(ros::NodeHandle& nh, ControllerManager* manager);
 
-  /** \brief Start the controller. */
+  /** @brief Start the controller. */
   virtual bool start();
 
   /**
-   *  \brief Stop this controller.
-   *  \param force If true, this controller will be stopped regardless
+   *  @brief Stop this controller.
+   *  @param force If true, this controller will be stopped regardless
    *         of return value.
-   *  \returns true if controller preempted successfully.
+   *  @returns true if controller preempted successfully.
    */
   virtual bool stop(bool force)
   {
@@ -88,7 +88,7 @@ public:
     return true;
   }
 
-  /** \brief Update controller, called from controller_manager update */
+  /** @brief Update controller, called from controller_manager update */
   virtual void update(const ros::Time& time, const ros::Duration& dt);
 
   /** @brief Get the names of joints/controllers which this controller commands. */

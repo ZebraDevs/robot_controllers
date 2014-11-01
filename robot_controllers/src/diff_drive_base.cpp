@@ -61,7 +61,7 @@ DiffDriveBaseController::DiffDriveBaseController() :
 
 int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manager)
 {
-  /* We absolutely need access to the controller manager */
+  // We absolutely need access to the controller manager
   if (!manager)
   {
     ROS_ERROR_NAMED("BaseController", "No controller manager available.");
@@ -72,7 +72,7 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
   Controller::init(nh, manager);
   manager_ = manager;
 
-  /* Initialize joints */
+  // Initialize joints
   std::string l_name, r_name;
   nh.param<std::string>("l_wheel_joint", l_name, "l_wheel_joint");
   nh.param<std::string>("r_wheel_joint", r_name, "r_wheel_joint");
@@ -88,7 +88,7 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
   right_last_position_ = right_->getPosition();
   last_update_ = ros::Time::now();
 
-  /* Get base parameters */
+  // Get base parameters
   nh.param<double>("track_width", track_width_, 0.33665);
   nh.param<double>("radians_per_meter", radians_per_meter_, 17.4978147374);
   nh.param<bool>("publish_tf", publish_tf_, true);
@@ -100,17 +100,17 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
   nh.param<double>("/timeout", t, 0.25);
   timeout_ = ros::Duration(t);
 
-  /* Get limits of base controller */
+  // Get limits of base controller
   nh.param<double>("max_velocity_x", max_velocity_x_, 1.0);
   nh.param<double>("max_velocity_r", max_velocity_r_, 4.5);
   nh.param<double>("max_acceleration_x", max_acceleration_x_, 0.75);
   nh.param<double>("max_acceleration_r", max_acceleration_r_, 3.0);
 
-  /* Subscribe to base commands */
+  // Subscribe to base commands
   cmd_sub_ = nh.subscribe<geometry_msgs::Twist>("command", 1,
                 boost::bind(&DiffDriveBaseController::command, this, _1));
 
-  /* Publish odometry & tf */
+  // Publish odometry & tf
   ros::NodeHandle n;
   odom_pub_ = n.advertise<nav_msgs::Odometry>("odom", 10);
   if (publish_tf_)
@@ -264,7 +264,7 @@ std::vector<std::string> DiffDriveBaseController::getClaimedNames()
 
 bool DiffDriveBaseController::publish(ros::Time time)
 {
-  /* publish or perish */
+  // Publish or perish
   odom_.header.stamp = time;
   odom_pub_.publish(odom_);
 
@@ -288,7 +288,7 @@ bool DiffDriveBaseController::publish(ros::Time time)
 
 void DiffDriveBaseController::setCommand(float left, float right)
 {
-  /* convert meters/sec into radians/sec */
+  // Convert meters/sec into radians/sec
   left_->setVelocity(left * radians_per_meter_, 0.0);
   right_->setVelocity(right * radians_per_meter_, 0.0);
 }

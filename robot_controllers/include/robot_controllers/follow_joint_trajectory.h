@@ -58,8 +58,8 @@ namespace robot_controllers
 {
 
 /**
- *  \class FollowJointTrajectoryController
- *  \brief This ROS interface implements a FollowJointTrajectoryAction
+ *  @class FollowJointTrajectoryController
+ *  @brief This ROS interface implements a FollowJointTrajectoryAction
  *         interface for controlling (primarily) robot arms.
  */
 class FollowJointTrajectoryController : public Controller

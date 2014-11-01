@@ -58,19 +58,19 @@ int PointHeadController::init(ros::NodeHandle& nh, ControllerManager* manager)
   Controller::init(nh, manager);
   manager_ = manager;
 
-  /* No initial sampler */
+  // No initial sampler
   boost::mutex::scoped_lock lock(sampler_mutex_);
   sampler_.reset();
   preempted_ = false;
 
-  /* Get parameters */
+  // Get parameters
   nh.param<bool>("stop_with_action", stop_with_action_, false);
 
-  /* Setup Joints */
+  // Setup Joints */
   head_pan_ = manager_->getJointHandle("head_pan_joint");
   head_tilt_ = manager_->getJointHandle("head_tilt_joint");
 
-  /* parse UDRF/KDL */
+  // Parse UDRF/KDL
   urdf::Model model;
   if (!model.initParam("robot_description"))
   {
@@ -85,7 +85,7 @@ int PointHeadController::init(ros::NodeHandle& nh, ControllerManager* manager)
     return -1;
   }
 
-  /* find parent of pan joint */
+  // Find parent of pan joint
   KDL::SegmentMap segment_map = kdl_tree_.getSegments();
   for (KDL::SegmentMap::iterator it = segment_map.begin();
        it != segment_map.end();

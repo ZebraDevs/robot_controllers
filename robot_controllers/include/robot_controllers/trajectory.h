@@ -44,7 +44,7 @@ namespace robot_controllers
 {
 
 /**
- *  \brief Basis for a Trajectory Point
+ *  @brief Basis for a Trajectory Point
  */
 struct TrajectoryPoint
 {
@@ -65,11 +65,11 @@ struct Trajectory
 };
 
 /**
- *  \brief Convert message into Trajectory.
- *  \param message The trajectory message.
- *  \param joints Vector of joint names, used to order the values within a TrajectoryPoint
- *  \param trajectory The returned trajectory
- *  \returns True if trajectory generated, false otherwise.
+ *  @brief Convert message into Trajectory.
+ *  @param message The trajectory message.
+ *  @param joints Vector of joint names, used to order the values within a TrajectoryPoint
+ *  @param trajectory The returned trajectory
+ *  @returns True if trajectory generated, false otherwise.
  */
 inline bool trajectoryFromMsg(const trajectory_msgs::JointTrajectory& message,
                               const std::vector<std::string> joints,
@@ -121,11 +121,11 @@ inline bool trajectoryFromMsg(const trajectory_msgs::JointTrajectory& message,
 }
 
 /**
- *  \brief Splice two trajectories.
- *  \param t1 First trajectory to splice
- *  \param t2 Second trajectory to splice (will overwrite first)
- *  \param time The start time for the new trajectory (typically, current system time)
- *  \param t The new trajectory.
+ *  @brief Splice two trajectories.
+ *  @param t1 First trajectory to splice
+ *  @param t2 Second trajectory to splice (will overwrite first)
+ *  @param time The start time for the new trajectory (typically, current system time)
+ *  @param t The new trajectory.
  */
 inline bool spliceTrajectories(const Trajectory& t1,
                                const Trajectory& t2,
@@ -183,7 +183,7 @@ inline bool spliceTrajectories(const Trajectory& t1,
 }
 
 /**
- *  \brief Print trajectory to ROS INFO
+ *  @brief Print trajectory to ROS INFO
  */
 inline void rosPrintTrajectory(Trajectory& t)
 {
@@ -213,22 +213,22 @@ inline void rosPrintTrajectory(Trajectory& t)
 }
 
 /**
- *  \brief Base class for samplers of trajectories.
+ *  @brief Base class for samplers of trajectories.
  */
 class TrajectorySampler
 {
 public:
-  /** \brief Construct a trajectory sampler */
+  /** @brief Construct a trajectory sampler */
   TrajectorySampler() {}
   virtual ~TrajectorySampler() {}
 
-  /** \brief Sample from this trajectory */
+  /** @brief Sample from this trajectory */
   virtual TrajectoryPoint sample(double time) = 0;
 
-  /** \brief Get the end time of our trajectory */
+  /** @brief Get the end time of our trajectory */
   virtual double end_time() = 0;
 
-  /** \brief Get the trajectory that we are sampling from. */
+  /** @brief Get the trajectory that we are sampling from. */
   virtual Trajectory getTrajectory() = 0;
 
 private:

@@ -45,7 +45,7 @@
 namespace robot_controllers
 {
 
-/** \brief Spline */
+/** @brief Spline */
 struct Spline
 {
   double coef[6];
@@ -58,7 +58,7 @@ enum SplineType
   LINEAR
 };
 
-/** \brief Helper function for splines. */
+/** @brief Helper function for splines. */
 static inline void generatePowers(int n, double x, double* powers)
 {
   powers[0] = 1.0;
@@ -69,15 +69,15 @@ static inline void generatePowers(int n, double x, double* powers)
 }
 
 /**
- *  \brief Create a quintic spline with between (p0,v0,a0) and (p1,v1,a1)
- *  \param p0 Starting position.
- *  \param v0 Starting velocity.
- *  \param a0 Starting acceleration.
- *  \param p1 Ending position.
- *  \param v1 Ending velocity.
- *  \param a1 Ending acceleration.
- *  \param t Time between start and end.
- *  \param s The spline
+ *  @brief Create a quintic spline with between (p0,v0,a0) and (p1,v1,a1)
+ *  @param p0 Starting position.
+ *  @param v0 Starting velocity.
+ *  @param a0 Starting acceleration.
+ *  @param p1 Ending position.
+ *  @param v1 Ending velocity.
+ *  @param a1 Ending acceleration.
+ *  @param t Time between start and end.
+ *  @param s The spline
  */
 static void QuinticSpline(double p0, double v0, double a0,
                           double p1, double v1, double a1,
@@ -110,7 +110,7 @@ static void QuinticSpline(double p0, double v0, double a0,
 }
 
 /**
- *  \brief Sample from the spline at time t.
+ *  @brief Sample from the spline at time t.
  */
 static void sampleQuinticSpline(Spline& s, double t,
                                 double& position, double& velocity, double& acceleration)
@@ -138,13 +138,13 @@ static void sampleQuinticSpline(Spline& s, double t,
 }
 
 /**
- *  \brief Constructor for a cubic spline with between (p0,v0) and (p1,v1)
- *  \param p0 Starting position.
- *  \param v0 Starting velocity.
- *  \param p1 Ending position.
- *  \param v1 Ending velocity.
- *  \param t Time between start and end.
- *  \param s Reference to the spline to create.
+ *  @brief Constructor for a cubic spline with between (p0,v0) and (p1,v1)
+ *  @param p0 Starting position.
+ *  @param v0 Starting velocity.
+ *  @param p1 Ending position.
+ *  @param v1 Ending velocity.
+ *  @param t Time between start and end.
+ *  @param s Reference to the spline to create.
  */
 static void CubicSpline(double p0, double v0, double p1, double v1, double t, Spline& s)
 {
@@ -168,7 +168,7 @@ static void CubicSpline(double p0, double v0, double p1, double v1, double t, Sp
 }
 
 /**
- *  \brief Sample from the spline at time t.
+ *  @brief Sample from the spline at time t.
  */
 static void sampleCubicSpline(Spline s, double t, double& position, double& velocity)
 {
@@ -198,7 +198,7 @@ static void sampleLinearSpline(Spline& s, double t, double& position)
 }
 
 /**
- *  \brief Sampler that uses splines
+ *  @brief Sampler that uses splines
  */
 class SplineTrajectorySampler : public TrajectorySampler
 {
@@ -211,7 +211,7 @@ class SplineTrajectorySampler : public TrajectorySampler
   };
 
 public:
-  /** \brief Construct a trajectory sampler */
+  /** @brief Construct a trajectory sampler */
   SplineTrajectorySampler(const Trajectory& trajectory) :
     trajectory_(trajectory)
   {
@@ -312,7 +312,7 @@ public:
     seg_ = -1;
   }
 
-  /** \brief Sample from this trajectory */
+  /** @brief Sample from this trajectory */
   virtual TrajectoryPoint sample(double time)
   {
     // Which segment to sample from.
@@ -354,13 +354,13 @@ public:
     return result;
   }
 
-  /** \brief Get the end time of our trajectory */
+  /** @brief Get the end time of our trajectory */
   virtual double end_time()
   {
     return segments_[segments_.size()-1].end_time;
   }
 
-  /** \brief Get the trajectory that we are sampling from. */
+  /** @brief Get the trajectory that we are sampling from. */
   virtual Trajectory getTrajectory()
   {
     return trajectory_;

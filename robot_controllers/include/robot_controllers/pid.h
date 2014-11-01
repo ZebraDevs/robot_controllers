@@ -46,48 +46,48 @@ class PID
 {
 public:
   /**
-   *  \brief Constructor
-   *  \param p proportional gain
-   *  \param i integral gain
-   *  \param d derivative gain
-   *  \param i_max integral wind-up max value
-   *  \param i_min integral wind-up min value
+   *  @brief Constructor
+   *  @param p proportional gain
+   *  @param i integral gain
+   *  @param d derivative gain
+   *  @param i_max integral wind-up max value
+   *  @param i_min integral wind-up min value
    */
   PID(double p, double i, double d, double i_max, double i_min);
 
-  /** \brief Constructor. Starts all gains and limits at zero */
+  /** @brief Constructor. Starts all gains and limits at zero */
   PID();
 
-  /** \brief initialize gain settings from ROS parameter values */
+  /** @brief initialize gain settings from ROS parameter values */
   bool init(const ros::NodeHandle &nh);
 
-  /** \brief Reset integral wind-up term */
+  /** @brief Reset integral wind-up term */
   void reset();
 
   /**
-   *  \brief Run PID calculation and return control result 
-   *  \param error error term (goal-actual)
-   *  \param dt timestep used for calculating derivative term and integral windup
-   *  \returns calculated PID command
+   *  @brief Run PID calculation and return control result
+   *  @param error error term (goal-actual)
+   *  @param dt timestep used for calculating derivative term and integral windup
+   *  @returns calculated PID command
    * 
    *  PID derivate term is calculated from change in error value and dt   
    */
   double update(double error, double dt);
 
   /**
-   *  \brief Run PID calculation and return control result 
-   *  \param error error term (goal-actual)
-   *  \param error_dot value that is used for derivative term calculation
-   *  \param dt timestep used for integral windup
-   *  \returns calculated PID command   
+   *  @brief Run PID calculation and return control result
+   *  @param error error term (goal-actual)
+   *  @param error_dot value that is used for derivative term calculation
+   *  @param dt timestep used for integral windup
+   *  @returns calculated PID command
    */  
   double update(double error, double error_dot, double dt);
 
 protected:
 
   /**
-   *  \brief Checks and fixes gain settings
-   *  \returns true is gains are ok, false if gains are invalid
+   *  @brief Checks and fixes gain settings
+   *  @returns true is gains are ok, false if gains are invalid
    */
   bool checkGains();
 

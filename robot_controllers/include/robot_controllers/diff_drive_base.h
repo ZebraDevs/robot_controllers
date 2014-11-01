@@ -54,7 +54,7 @@ namespace robot_controllers
 {
 
 /**
- *  \brief ROS-aware controller to manage a differential drive mobile base. This
+ *  @brief ROS-aware controller to manage a differential drive mobile base. This
  *         subcribes to cmd_vel topic, publishes odom and tf, and manages the two
  *         wheel joints.
  */
@@ -102,10 +102,10 @@ public:
   /** @brief Get the names of joints/controllers which this controller exclusively claims. */
   virtual std::vector<std::string> getClaimedNames();
 
-  /** \brief Command callback from either a ROS topic, or a higher controller. */
+  /** @brief Command callback from either a ROS topic, or a higher controller. */
   void command(const geometry_msgs::TwistConstPtr& msg);
 
-  /** \brief Publish odom, possibly tf */
+  /** @brief Publish odom, possibly tf */
   bool publish(ros::Time time);
 
 private:
