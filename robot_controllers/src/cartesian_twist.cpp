@@ -301,7 +301,7 @@ void CartesianTwistController::command(const geometry_msgs::Twist::ConstPtr& goa
   }
 
   // Try to start up
-  if (!manager_->requestStart(getName()))
+  if (manager_->requestStart(getName()) != 0)
   {
     ROS_ERROR("CartesianTwistController: Cannot start, blocked by another controller.");
     return;

@@ -227,7 +227,7 @@ void CartesianPoseController::command(const geometry_msgs::PoseStamped::ConstPtr
   last_command_ = ros::Time::now();
 
   // Try to start up
-  if (!manager_->requestStart(getName()))
+  if (manager_->requestStart(getName()) != 0)
   {
     ROS_ERROR("CartesianPoseController: Cannot start, blocked by another controller.");
     return;

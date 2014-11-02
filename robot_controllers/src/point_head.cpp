@@ -250,7 +250,7 @@ void PointHeadController::executeCb(const control_msgs::PointHeadGoalConstPtr& g
     sampler_.reset(new SplineTrajectorySampler(t));
   }
 
-  if (!manager_->requestStart(getName()))
+  if (manager_->requestStart(getName()) != 0)
   {
     server_->setAborted(result_, "Cannot point head, unable to start controller.");
     ROS_ERROR_NAMED("PointHeadController",

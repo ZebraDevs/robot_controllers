@@ -486,7 +486,7 @@ void FollowJointTrajectoryController::executeCb(const control_msgs::FollowJointT
 
   ROS_DEBUG("Executing new trajectory");
 
-  if (!manager_->requestStart(getName()))
+  if (manager_->requestStart(getName()) != 0)
   {
     result.error_code = control_msgs::FollowJointTrajectoryResult::GOAL_TOLERANCE_VIOLATED;
     server_->setAborted(result, "Cannot execute trajectory, unable to start controller.");
