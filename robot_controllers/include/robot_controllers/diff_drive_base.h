@@ -162,6 +162,8 @@ private:
   bool ready_;
 };
 
+typedef boost::shared_ptr<DiffDriveBaseController> DiffDriveBaseControllerPtr;
+
 }  // namespace robot_controllers
 
 #endif  // ROBOT_CONTROLLERS_DIFF_DRIVE_BASE_H
