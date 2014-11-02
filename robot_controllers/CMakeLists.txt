@@ -42,6 +42,8 @@ catkin_package(
   DEPENDS
     Boost
     orocos_kdl
+  LIBRARIES
+    robot_controllers
 )
 
 include_directories(
@@ -61,12 +63,19 @@ add_library(robot_controllers
   src/diff_drive_base.cpp
   src/follow_joint_trajectory.cpp
   src/gravity_compensation.cpp
+  src/parallel_gripper.cpp
   src/pid.cpp
   src/point_head.cpp
 )
 target_link_libraries(robot_controllers
   ${catkin_LIBRARIES}
   ${orocos_kdl_LIBRARIES}
+)
+
+install(DIRECTORY include/ DESTINATION include)
+
+install(FILES robot_controllers.xml
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
 
 install(TARGETS robot_controllers LIBRARY

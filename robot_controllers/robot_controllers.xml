@@ -42,4 +42,11 @@
     <description>Cartesian Twist Controller</description>
   </class>
 
+  <class name="robot_controllers/ParallelGripperController"
+         type="robot_controllers::ParallelGripperController"
+         base_class_type="robot_controllers::Controller">
+    <description>A simple parallel jaw gripper controller
+                 (mainly for simulation)</description>
+  </class>
+
 </library>
