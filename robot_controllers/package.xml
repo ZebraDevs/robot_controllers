@@ -5,7 +5,7 @@
     Some basic robot controllers for use with robot_controllers_interface.
   </description>
   <author>Michael Ferguson</author>
-  <maintainer email="mferguson@fyssystems.com">Michael Ferguson</maintainer>
+  <maintainer email="mferguson@fetchrobotics.com">Michael Ferguson</maintainer>
   <license>BSD</license>
 
   <buildtool_depend>catkin</buildtool_depend>

@@ -1,7 +1,7 @@
 /*********************************************************************
  *  Software License Agreement (BSD License)
  *
- *  Copyright (c) 2014, FYS Systems Inc.
+ *  Copyright (c) 2014, Fetch Robotics Inc.
  *  Copyright (c) 2014, Unbounded Robotics Inc.
  *  All rights reserved.
  *
@@ -15,7 +15,7 @@
  *     copyright notice, this list of conditions and the following
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
- *   * Neither the name of FYS Systems Inc. nor the names of its
+ *   * Neither the name of Fetch Robotics Inc. nor the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
