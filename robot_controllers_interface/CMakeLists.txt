@@ -34,3 +34,9 @@ target_link_libraries(robot_controllers_interface
   ${Boost_LIBRARIES}
   ${catkin_LIBRARIES}
 )
+
+install(DIRECTORY include/ DESTINATION include)
+
+install(TARGETS robot_controllers_interface LIBRARY
+  DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+)
