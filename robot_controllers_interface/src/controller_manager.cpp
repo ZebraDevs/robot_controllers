@@ -90,11 +90,15 @@ int ControllerManager::requestStart(const std::string& name)
 
   // Does controller exist?
   if (!controller)
+  {
+    ROS_ERROR_STREAM_NAMED("ControllerManager", "Unable to start " << name.c_str() << ": no such controller.");
     return -1;
+  }
 
   // Is controller already running?
   if (controller->isActive())
   {
+    ROS_DEBUG_STREAM_NAMED("ControllerManager", "Unable to start " << name.c_str() << ": already running.");
     return 0;
   }
 
@@ -130,6 +134,9 @@ int ControllerManager::requestStart(const std::string& name)
       else
       {
         // Unable to stop c, cannot start controller
+        ROS_ERROR_STREAM_NAMED("ControllerManager", "Unable to stop " <<
+                                                    (*c)->getController()->getName().c_str() <<
+                                                    " when trying to start " << name.c_str());
         return -1;
       }
     }
