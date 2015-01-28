@@ -57,8 +57,8 @@ int ParallelGripperController::init(ros::NodeHandle& nh, ControllerManager* mana
 
   // Setup Joints */
   std::string l_name, r_name;
-  nh.param<std::string>("l_gripper_joint", l_name, "l_gripper_joint");
-  nh.param<std::string>("r_gripper_joint", r_name, "r_gripper_joint");
+  nh.param<std::string>("l_gripper_joint", l_name, "l_gripper_finger_joint");
+  nh.param<std::string>("r_gripper_joint", r_name, "r_gripper_finger_joint");
   left_ = manager_->getJointHandle(l_name);
   right_ = manager_->getJointHandle(r_name);
 
