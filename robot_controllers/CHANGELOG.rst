@@ -2,8 +2,8 @@
 Changelog for package robot_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.1.3 (2015-01-28)
+------------------
 * add scaled mimic controller (for bellows)
 * Contributors: Michael Ferguson
 
