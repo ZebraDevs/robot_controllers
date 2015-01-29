@@ -66,6 +66,7 @@ add_library(robot_controllers
   src/parallel_gripper.cpp
   src/pid.cpp
   src/point_head.cpp
+  src/scaled_mimic.cpp
 )
 target_link_libraries(robot_controllers
   ${catkin_LIBRARIES}

@@ -49,4 +49,11 @@
                  (mainly for simulation)</description>
   </class>
 
+  <class name="robot_controllers/ScaledMimicController"
+         type="robot_controllers::ScaledMimicController"
+         base_class_type="robot_controllers::Controller">
+    <description>A simple controller that can mimic a joint
+                 (mainly for simulation)</description>
+  </class>
+
 </library>
