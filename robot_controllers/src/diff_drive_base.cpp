@@ -89,7 +89,7 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
   last_update_ = ros::Time::now();
 
   // Get base parameters
-  nh.param<double>("track_width", track_width_, 0.33665);
+  nh.param<double>("track_width", track_width_, 0.37476);
   nh.param<double>("radians_per_meter", radians_per_meter_, 17.4978147374);
   nh.param<bool>("publish_tf", publish_tf_, true);
   nh.param<std::string>("odometry_frame", odometry_frame_, "odom");
