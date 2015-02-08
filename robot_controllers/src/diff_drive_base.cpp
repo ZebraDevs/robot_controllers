@@ -1,7 +1,7 @@
 /*********************************************************************
  *  Software License Agreement (BSD License)
  *
- *  Copyright (c) 2014, Fetch Robotics Inc.
+ *  Copyright (c) 2014-2015, Fetch Robotics Inc.
  *  Copyright (c) 2013, Unbounded Robotics Inc.
  *  All rights reserved.
  *
@@ -94,10 +94,14 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
   nh.param<bool>("publish_tf", publish_tf_, true);
   nh.param<std::string>("odometry_frame", odometry_frame_, "odom");
   nh.param<std::string>("base_frame", base_frame_, "base_link");
-  nh.param<double>("moving_threshold", moving_threshold_, 0.0001);
+
+  // Get various thresholds below which we supress noise
+  nh.param<double>("wheel_rotating_threshold", wheel_rotating_threshold_, 0.001);
+  nh.param<double>("rotating_threshold", rotating_threshold_, 0.05);
+  nh.param<double>("moving_threshold", moving_threshold_, 0.05);
 
   double t;
-  nh.param<double>("/timeout", t, 0.25);
+  nh.param<double>("timeout", t, 0.25);
   timeout_ = ros::Duration(t);
 
   // Get limits of base controller
@@ -173,14 +177,14 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   if (!initialized_)
     return;  // should never really hit this
 
-  /* See if we have timed out and need to stop */
+  // See if we have timed out and need to stop
   if (now - last_command_ >= timeout_)
   {
     ROS_DEBUG_THROTTLE_NAMED(5, "BaseController", "Command timed out.");
     desired_x_ = desired_r_ = 0.0;
   }
 
-  /* Do velocity acceleration/limiting */
+  // Do velocity acceleration/limiting
   if (desired_x_ > last_sent_x_)
   {
     last_sent_x_ += max_acceleration_x_ * (now - last_update_).toSec();
@@ -209,35 +213,54 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   double dx = 0.0;
   double dr = 0.0;
 
-  double left_dx = static_cast<double>((left_->getPosition() - left_last_position_)/radians_per_meter_);
-  double right_dx = static_cast<double>((right_->getPosition() - right_last_position_)/radians_per_meter_);
-  double left_vel = static_cast<double>(left_->getVelocity()/radians_per_meter_);
-  double right_vel = static_cast<double>(right_->getVelocity()/radians_per_meter_);
-  left_last_position_ = left_->getPosition();
-  right_last_position_ = right_->getPosition();
+  double left_pos = left_->getPosition();
+  double right_pos = right_->getPosition();
+  double left_dx = (left_pos - left_last_position_)/radians_per_meter_;
+  double right_dx = (right_pos - right_last_position_)/radians_per_meter_;
+  double left_vel = static_cast<double>(left_->getVelocity())/radians_per_meter_;
+  double right_vel = static_cast<double>(right_->getVelocity())/radians_per_meter_;
 
-  /* Calculate forward and angular differences */
+  // Threshold the odometry to avoid noise (especially in simulation)
+  if (fabs(left_dx) > wheel_rotating_threshold_ ||
+      fabs(right_dx) > wheel_rotating_threshold_ ||
+      last_sent_x_ != 0.0 ||
+      last_sent_r_ != 0.0)
+  {
+    // Above threshold, update last position
+    left_last_position_ = left_->getPosition();
+    right_last_position_ = right_->getPosition();
+  }
+  else
+  {
+    // Below threshold, zero delta/velocities
+    left_dx = right_dx = 0.0;
+    left_vel = right_vel = 0.0;
+  }
+
+  // Calculate forward and angular differences
   double d = (left_dx+right_dx)/2.0;
   double th = (right_dx-left_dx)/track_width_;
 
-  /* Calculate forward and angular velocities */
+  // Calculate forward and angular velocities
   dx = (left_vel + right_vel)/2.0;
   dr = (right_vel - left_vel)/track_width_;
 
-  /* Update store odometry */
+  // Update store odometry
   odom_.pose.pose.position.x += d*cos(theta_);
   odom_.pose.pose.position.y += d*sin(theta_);
   theta_ += th;
 
-  /* Actually set command */
-  if ((last_sent_x_ != 0.0) || (last_sent_r_ != 0.0) ||
-      (fabs(dx) > 0.05) || (fabs(dr) > 0.05))
+  // Actually set command
+  if (fabs(dx) > moving_threshold_ ||
+      fabs(dr) > rotating_threshold_ ||
+      last_sent_x_ != 0.0 ||
+      last_sent_r_ != 0.0)
   {
     setCommand(last_sent_x_ - (last_sent_r_/2.0 * track_width_),
-              last_sent_x_ + (last_sent_r_/2.0 * track_width_));
+               last_sent_x_ + (last_sent_r_/2.0 * track_width_));
   }
 
-  /* Update odometry information. */
+  // Update odometry information
   odom_.pose.pose.orientation.z = sin(theta_/2.0);
   odom_.pose.pose.orientation.w = cos(theta_/2.0);
   odom_.twist.twist.linear.x = dx;

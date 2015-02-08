@@ -1,7 +1,7 @@
 /*********************************************************************
  *  Software License Agreement (BSD License)
  *
- *  Copyright (c) 2014, Fetch Robotics Inc.
+ *  Copyright (c) 2014-2015, Fetch Robotics Inc.
  *  Copyright (c) 2013, Unbounded Robotics Inc.
  *  All rights reserved.
  *
@@ -124,7 +124,9 @@ private:
   double radians_per_meter_;
   double theta_;
 
-  double moving_threshold_;
+  double wheel_rotating_threshold_;  /// Threshold for wheel velocity to be "moving"
+  double rotating_threshold_;  /// Threshold for dr to be considered "moving"
+  double moving_threshold_;    /// Threshold for dx to be considered "moving"
 
   double max_velocity_x_;
   double max_velocity_r_;
