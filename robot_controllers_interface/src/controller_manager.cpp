@@ -227,16 +227,21 @@ JointHandlePtr ControllerManager::getJointHandle(const std::string& name)
   return JointHandlePtr();
 }
 
+// NOTE: this function should be called only by one thread
 bool ControllerManager::load(const std::string& name)
 {
   // Create controller (in a loader)
   ControllerLoaderPtr controller(new ControllerLoader());
-  if (controller->init(name, this))
+  // Push back controller (so that autostart will work)
+  controllers_.push_back(controller);
+  // Now initialize controller
+  if (!controller->init(name, this))
   {
-    controllers_.push_back(controller);
-    return true;
+    // Remove if init fails
+    controllers_.pop_back();
+    return false;
   }
-  return false;
+  return true;
 }
 
 }  // namespace robot_controllers

@@ -74,6 +74,9 @@ public:
   virtual int init(ros::NodeHandle& nh, ControllerManager* manager)
   {
     name_ = nh.getNamespace();
+    // remove leading slash
+    if (name_.at(0) == '/')
+      name_.erase(0, 1);
     return 0;
   }
 
