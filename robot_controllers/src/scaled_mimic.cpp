@@ -62,6 +62,13 @@ int ScaledMimicController::init(ros::NodeHandle& nh, ControllerManager* manager)
   nh.param<double>("mimic_scale", scale_, 1.0);
 
   initialized_ = true;
+
+  // Should we autostart?
+  bool autostart;
+  nh.param("autostart", autostart, false);
+  if (autostart)
+    manager->requestStart(getName());
+
   return 0;
 }
 
