@@ -121,6 +121,13 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
     broadcaster_.reset(new tf::TransformBroadcaster());
 
   initialized_ = true;
+
+  // Should we autostart?
+  bool autostart;
+  nh.param("autostart", autostart, false);
+  if (autostart)
+    manager->requestStart(getName());
+
   return 0;
 }
 
@@ -143,12 +150,6 @@ bool DiffDriveBaseController::start()
   if (!initialized_)
   {
     ROS_ERROR_NAMED("BaseController", "Unable to start, not initialized.");
-    return false;
-  }
-
-  if (ros::Time::now() - last_command_ >= timeout_)
-  {
-    ROS_ERROR_NAMED("BaseController", "Unable to start, command has timed out.");
     return false;
   }
 
