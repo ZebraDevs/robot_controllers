@@ -90,7 +90,7 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
 
   // Get base parameters
   nh.param<double>("track_width", track_width_, 0.37476);
-  nh.param<double>("radians_per_meter", radians_per_meter_, 17.4978147374);
+  nh.param<double>("radians_per_meter", radians_per_meter_, 16.5289);
   nh.param<bool>("publish_tf", publish_tf_, true);
   nh.param<std::string>("odometry_frame", odometry_frame_, "odom");
   nh.param<std::string>("base_frame", base_frame_, "base_link");
