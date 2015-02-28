@@ -253,9 +253,10 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   dr = (right_vel - left_vel)/track_width_;
 
   // Update store odometry
+  theta_ += th/2.0;
   odom_.pose.pose.position.x += d*cos(theta_);
   odom_.pose.pose.position.y += d*sin(theta_);
-  theta_ += th;
+  theta_ += th/2.0;
 
   // Actually set command
   if (fabs(dx) > moving_threshold_ ||
