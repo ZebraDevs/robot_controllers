@@ -50,7 +50,6 @@ DiffDriveBaseController::DiffDriveBaseController() :
 
   odom_.pose.pose.orientation.z = 0.0;
   odom_.pose.pose.orientation.w = 1.0;
-  odom_.header.frame_id = "odom";
 
   last_sent_x_ = desired_x_ = 0.0;
   last_sent_r_ = desired_r_ = 0.0;
@@ -91,9 +90,16 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
   // Get base parameters
   nh.param<double>("track_width", track_width_, 0.37476);
   nh.param<double>("radians_per_meter", radians_per_meter_, 16.5289);
+
+  // If using an external correction (such as robot_pose_ekf or graft)
+  // we should not publish the TF frame from base->odom
   nh.param<bool>("publish_tf", publish_tf_, true);
-  nh.param<std::string>("odometry_frame", odometry_frame_, "odom");
-  nh.param<std::string>("base_frame", base_frame_, "base_link");
+
+  // The pose in the odometry message is specified in terms of the odometry frame
+  nh.param<std::string>("odometry_frame", odom_.header.frame_id, "odom");
+
+  // The twist in the odometry message is specified in the coordinate frame of the base
+  nh.param<std::string>("base_frame", odom_.child_frame_id, "base_link");
 
   // Get various thresholds below which we supress noise
   nh.param<double>("wheel_rotating_threshold", wheel_rotating_threshold_, 0.001);
@@ -304,7 +310,7 @@ bool DiffDriveBaseController::publish(ros::Time time)
      * REP105 (http://ros.org/reps/rep-0105.html)
      *   says: map -> odom -> base_link
      */
-    broadcaster_->sendTransform(tf::StampedTransform(transform, time, odometry_frame_, base_frame_));
+    broadcaster_->sendTransform(tf::StampedTransform(transform, time, odom_.header.frame_id, odom_.child_frame_id));
   }
 
   return true;

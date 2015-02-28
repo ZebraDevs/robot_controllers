@@ -157,9 +157,6 @@ private:
   boost::shared_ptr<tf::TransformBroadcaster> broadcaster_;
   bool publish_tf_;
 
-  std::string odometry_frame_;
-  std::string base_frame_;
-
   bool enabled_;
   bool ready_;
 };
