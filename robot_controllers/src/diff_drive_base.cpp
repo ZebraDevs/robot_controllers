@@ -234,8 +234,8 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
       last_sent_r_ != 0.0)
   {
     // Above threshold, update last position
-    left_last_position_ = left_->getPosition();
-    right_last_position_ = right_->getPosition();
+    left_last_position_ = left_pos;
+    right_last_position_ = right_pos;
   }
   else
   {
