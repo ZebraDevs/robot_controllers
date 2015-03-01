@@ -371,7 +371,7 @@ double DiffDriveBaseController::PiecewiseAccelProfile::interpolate(
   double v = 0.0;
   if (desired > present)
   {
-    if (present > 0.0)
+    if (present >= 0.0)
     {
       a = accel_limits[v_index];
     }
@@ -391,13 +391,13 @@ double DiffDriveBaseController::PiecewiseAccelProfile::interpolate(
   }
   else
   {
-    if (desired > 0.0)
+    if (desired < 0.0)
     {
-      a = decel_limits[v_index];
+      a = accel_limits[v_index];
     }
     else
     {
-      a = accel_limits[v_index];
+      a = decel_limits[v_index];
     }
     v = present - a * timestep;
     if (v < desired)
