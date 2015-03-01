@@ -114,8 +114,8 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
   // Get limits of base controller
   nh.param<double>("max_velocity_x", max_velocity_x_, 1.0);
   nh.param<double>("max_velocity_r", max_velocity_r_, 4.5);
-  nh.param<double>("max_acceleration_x", max_acceleration_x_, 0.75);
-  nh.param<double>("max_acceleration_r", max_acceleration_r_, 3.0);
+  x_accel_profile_.init(nh, "max_acceleration_x");
+  r_accel_profile_.init(nh, "max_acceleration_r");
 
   // Subscribe to base commands
   cmd_sub_ = nh.subscribe<geometry_msgs::Twist>("command", 1,
@@ -193,30 +193,8 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   }
 
   // Do velocity acceleration/limiting
-  if (desired_x_ > last_sent_x_)
-  {
-    last_sent_x_ += max_acceleration_x_ * (now - last_update_).toSec();
-    if (last_sent_x_ > desired_x_)
-      last_sent_x_ = desired_x_;
-  }
-  else
-  {
-    last_sent_x_ -= max_acceleration_x_ * (now - last_update_).toSec();
-    if (last_sent_x_ < desired_x_)
-      last_sent_x_ = desired_x_;
-  }
-  if (desired_r_ > last_sent_r_)
-  {
-    last_sent_r_ += max_acceleration_r_ * (now - last_update_).toSec();
-    if (last_sent_r_ > desired_r_)
-      last_sent_r_ = desired_r_;
-  }
-  else
-  {
-    last_sent_r_ -= max_acceleration_r_ * (now - last_update_).toSec();
-    if (last_sent_r_ < desired_r_)
-      last_sent_r_ = desired_r_;
-  }
+  last_sent_x_ = x_accel_profile_.interpolate(desired_x_, last_sent_x_, (now - last_update_).toSec());
+  last_sent_r_ = r_accel_profile_.interpolate(desired_r_, last_sent_r_, (now - last_update_).toSec());
 
   double dx = 0.0;
   double dr = 0.0;
@@ -323,6 +301,115 @@ void DiffDriveBaseController::setCommand(float left, float right)
   // Convert meters/sec into radians/sec
   left_->setVelocity(left * radians_per_meter_, 0.0);
   right_->setVelocity(right * radians_per_meter_, 0.0);
+}
+
+DiffDriveBaseController::PiecewiseAccelProfile::PiecewiseAccelProfile() :
+  limit_interval(1.0)  // avoid div/0
+{
+}
+
+int DiffDriveBaseController::PiecewiseAccelProfile::init(
+  ros::NodeHandle& nh,
+  const std::string& name)
+{
+  XmlRpc::XmlRpcValue params;
+  if (nh.getParam(name, params))
+  {
+    if (params.getType() ==  XmlRpc::XmlRpcValue::TypeDouble)
+    {
+      ROS_WARN("Interpreting acceleration profile as single acceleration");
+      accel_limits.push_back(static_cast<double>(params));
+      decel_limits.push_back(static_cast<double>(params));
+    }
+    else
+    {
+      nh.getParam(name+"/interval", limit_interval);
+      ros::NodeHandle n(nh, name);
+      if (n.getParam("accel", params))
+      {
+        for (int i = 0; i < params.size(); i++)
+        {
+          accel_limits.push_back(static_cast<double>(params[i]));
+        }
+      }
+      if (n.getParam("decel", params))
+      {
+        for (int i = 0; i < params.size(); i++)
+        {
+          decel_limits.push_back(static_cast<double>(params[i]));
+        }
+      }
+    }
+  }
+  else
+  {
+    // Default to 1.0
+    ROS_WARN("No acceleration profile provided");
+    accel_limits.push_back(1.0);
+    decel_limits.push_back(1.0);
+  }
+
+  ROS_INFO(" ** BASE CONTROLLER ** ");
+  ROS_INFO_STREAM(limit_interval);
+  ROS_INFO("Accel Limits");
+  for (size_t i = 0; i < accel_limits.size(); i++)
+    ROS_INFO_STREAM("  " << accel_limits[i]);
+  ROS_INFO("Decel Limits");
+  for (size_t i = 0; i < decel_limits.size(); i++)
+    ROS_INFO_STREAM("  " << decel_limits[i]);
+}
+
+double DiffDriveBaseController::PiecewiseAccelProfile::interpolate(
+  double desired,
+  double present,
+  double timestep)
+{
+  // Determine index to use within accel/decel curve
+  int v_index = fabs(present) / limit_interval;
+  v_index = std::min(v_index, static_cast<int>(accel_limits.size())-1);
+
+  double a = 0.0;
+  double v = 0.0;
+  if (desired > present)
+  {
+    if (present >= 0.0)
+    {
+      a = accel_limits[v_index];
+    }
+    else
+    {
+      a = decel_limits[v_index];
+    }
+    v = present + a * timestep;
+    if (v > desired)
+    {
+      return desired;
+    }
+    else
+    {
+      return v;
+    }
+  }
+  else
+  {
+    if (desired < 0.0)
+    {
+      a = accel_limits[v_index];
+    }
+    else
+    {
+      a = decel_limits[v_index];
+    }
+    v = present - a * timestep;
+    if (v < desired)
+    {
+      return desired;
+    }
+    else
+    {
+      return v;
+    }
+  }
 }
 
 }  // namespace robot_controllers

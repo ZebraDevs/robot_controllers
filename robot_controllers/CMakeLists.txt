@@ -72,6 +72,7 @@ add_library(robot_controllers
   src/pid.cpp
   src/point_head.cpp
   src/scaled_mimic.cpp
+  src/linear_lookup_table.cpp
 )
 target_link_libraries(robot_controllers
   ${catkin_LIBRARIES}
@@ -80,6 +81,10 @@ target_link_libraries(robot_controllers
 
 if (CATKIN_ENABLE_TESTING)
   add_subdirectory(test)
+endif()
+
+if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 endif()
 
 install(DIRECTORY include/ DESTINATION include)
