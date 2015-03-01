@@ -60,6 +60,23 @@ namespace robot_controllers
  */
 class DiffDriveBaseController : public Controller
 {
+  /** @brief Implements asymmetric piece-wise acceleration curve. */
+  struct PiecewiseAccelProfile
+  {
+    PiecewiseAccelProfile();
+
+    /** @brief Initi from ros parameters */
+    int init(ros::NodeHandle& nh, const std::string& name);
+
+    /** @brief Update velocity, following acceleration limits */
+    double interpolate(double desired, double present, double timestep);
+
+    // Piece wise limits are implemented as fixed-size intervals
+    double limit_interval;
+    std::vector<double> accel_limits;
+    std::vector<double> decel_limits;
+  };
+
 public:
   DiffDriveBaseController();
   virtual ~DiffDriveBaseController() {}
@@ -130,8 +147,8 @@ private:
 
   double max_velocity_x_;
   double max_velocity_r_;
-  double max_acceleration_x_;
-  double max_acceleration_r_;
+  PiecewiseAccelProfile x_accel_profile_;
+  PiecewiseAccelProfile r_accel_profile_;
 
   // These are the inputs from the ROS topic
   float desired_x_;
