@@ -128,6 +128,9 @@ private:
   bool stop_with_action_;  /// should we stop this controller when the
                            /// action has terminated (or hold position)?
 
+  bool stop_on_path_violation_;  /// should we stop this controller when
+                                 /// a path tolerance has been violated?
+
   /*
    * In certain cases, we want to start a trajectory at our last sample,
    * for instance if we were pre-empted (as is often the case with teleop)

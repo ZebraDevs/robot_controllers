@@ -93,6 +93,7 @@ int FollowJointTrajectoryController::init(ros::NodeHandle& nh, ControllerManager
 
   // Get parameters
   nh.param<bool>("stop_with_action", stop_with_action_, false);
+  nh.param<bool>("stop_on_path_violation", stop_on_path_violation_, false);
 
   // Get Joint Handles, setup feedback
   joints_.clear();
@@ -242,6 +243,11 @@ void FollowJointTrajectoryController::update(const ros::Time& now, const ros::Du
             result.error_code = control_msgs::FollowJointTrajectoryResult::PATH_TOLERANCE_VIOLATED;
             server_->setAborted(result, "Trajectory path tolerances violated (position).");
             ROS_ERROR("Trajectory path tolerances violated (position).");
+            if (stop_on_path_violation_)
+            {
+              manager_->requestStop(getName());
+            }
+            break;
           }
 
           if ((path_tolerance_.qd[j] > 0) &&
@@ -251,6 +257,11 @@ void FollowJointTrajectoryController::update(const ros::Time& now, const ros::Du
             result.error_code = control_msgs::FollowJointTrajectoryResult::PATH_TOLERANCE_VIOLATED;
             server_->setAborted(result, "Trajectory path tolerances violated (velocity).");
             ROS_ERROR("Trajectory path tolerances violated (velocity).");
+            if (stop_on_path_violation_)
+            {
+              manager_->requestStop(getName());
+            }
+            break;
           }
         }
       }
@@ -295,7 +306,20 @@ void FollowJointTrajectoryController::update(const ros::Time& now, const ros::Du
   }
   else if (last_sample_.q.size() == joints_.size())
   {
-    // Hold Position
+    // Hold Position Unless Path Tolerance Violated
+    if (has_path_tolerance_ && stop_on_path_violation_)
+    {
+      for (size_t j = 0; j < joints_.size(); ++j)
+      {
+        if ((path_tolerance_.q[j] > 0) &&
+            (fabs(joints_[j]->getPosition() - last_sample_.q[j]) > path_tolerance_.q[j]))
+        {
+          manager_->requestStop(getName());
+          break;
+        }
+      }
+    }
+
     for (size_t j = 0; j < joints_.size(); ++j)
     {
       joints_[j]->setPosition(last_sample_.q[j],
