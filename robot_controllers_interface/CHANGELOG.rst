@@ -2,6 +2,12 @@
 Changelog for package robot_controllers_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* add action server for get/set of controller state
+* make autostart actually work
+* Contributors: Michael Ferguson
+
 0.1.3 (2015-01-28)
 ------------------
 * additional logging when requestStart() fails
