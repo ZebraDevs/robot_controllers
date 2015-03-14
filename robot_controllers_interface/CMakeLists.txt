@@ -38,6 +38,9 @@ target_link_libraries(robot_controllers_interface
   ${Boost_LIBRARIES}
   ${catkin_LIBRARIES}
 )
+add_dependencies(robot_controllers_interface
+  robot_controllers_msgs_gencpp
+)
 
 install(DIRECTORY include/ DESTINATION include)
 
