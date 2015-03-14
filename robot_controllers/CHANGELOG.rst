@@ -2,8 +2,8 @@
 Changelog for package robot_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.1.4 (2015-03-13)
+------------------
 * follow joint trajectory: add stop_on_path_violation parameter
 * diff drive controller: split theta update into two parts
 * diff drive controller: fix frames in odometry message
