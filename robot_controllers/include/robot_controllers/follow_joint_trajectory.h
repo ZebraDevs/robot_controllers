@@ -102,6 +102,12 @@ public:
    */
   virtual void update(const ros::Time& now, const ros::Duration& dt);
 
+  /** @brief Get the type of this controller. */
+  virtual std::string getType()
+  {
+    return "robot_controllers/FollowJointTrajectoryController";
+  }
+
   /** @brief Get the names of joints/controllers which this controller commands. */
   virtual std::vector<std::string> getCommandedNames();
 

@@ -41,7 +41,7 @@ ACTION_NAME = "/query_controller_states"
 if __name__ == "__main__":
 
     if len(sys.argv) < 2:
-        print("usage: start_controller.py <controller_name>")
+        print("usage: start_controller.py <controller_name> [optional_controller_type]")
         exit(-1)
 
     rospy.init_node("start_robot_controllers")
@@ -53,6 +53,8 @@ if __name__ == "__main__":
 
     state = ControllerState()
     state.name = sys.argv[1]
+    if len(sys.argv) > 2:
+        state.type = sys.argv[2]
     state.state = state.RUNNING
 
     goal = QueryControllerStatesGoal()

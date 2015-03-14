@@ -250,6 +250,21 @@ void ControllerManager::execute(const robot_controllers_msgs::QueryControllerSta
     {
       if ((*c)->getController()->getName() == state.name)
       {
+        if (state.type != "")
+        {
+          if (state.type == (*c)->getController()->getType())
+          {
+            exists = true;
+            break;
+          }
+          else
+          {
+            std::stringstream ss;
+            ss << "Controller " << state.name << " is of type " << (*c)->getController()->getType() << " not " << state.type;
+            server_->setAborted(result, ss.str());
+            return;
+          }
+        }
         exists = true;
         break;
       }
@@ -297,7 +312,7 @@ void ControllerManager::execute(const robot_controllers_msgs::QueryControllerSta
   {
     robot_controllers_msgs::ControllerState state;
     state.name = (*c)->getController()->getName();
-    // TODO controller type
+    state.type = (*c)->getController()->getType();
     if ((*c)->isActive())
     {
       state.state = state.RUNNING;

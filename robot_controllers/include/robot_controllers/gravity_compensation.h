@@ -91,6 +91,12 @@ public:
   /** @brief Update controller, called from controller_manager update */
   virtual void update(const ros::Time& time, const ros::Duration& dt);
 
+  /** @brief Get the type of this controller. */
+  virtual std::string getType()
+  {
+    return "robot_controllers/GravityCompensation";
+  }
+
   /** @brief Get the names of joints/controllers which this controller commands. */
   virtual std::vector<std::string> getCommandedNames();
 
