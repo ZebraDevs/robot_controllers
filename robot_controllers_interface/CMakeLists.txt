@@ -4,16 +4,20 @@ project(robot_controllers_interface)
 find_package(Boost REQUIRED system)
 find_package(catkin REQUIRED
   COMPONENTS
+    actionlib
     pluginlib
     roscpp
+    robot_controllers_msgs
 )
 
 catkin_package(
   INCLUDE_DIRS
     include
   CATKIN_DEPENDS
+    actionlib
     pluginlib
     roscpp
+    robot_controllers_msgs
   DEPENDS
     Boost
   LIBRARIES

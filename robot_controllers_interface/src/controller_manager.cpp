@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Fetch Robotics Inc.
+ * Copyright (c) 2014-2015, Fetch Robotics Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,6 +28,7 @@
 
 // Author: Michael Ferguson
 
+#include <sstream>
 #include <robot_controllers_interface/controller_manager.h>
 
 namespace robot_controllers
@@ -71,6 +72,12 @@ int ControllerManager::init(ros::NodeHandle& nh)
     ROS_WARN_NAMED("ControllerManager", "No controllers loaded.");
     return -1;
   }
+
+  // Setup actionlib server
+  server_.reset(new server_t(nh, "/query_controller_states",
+                             boost::bind(&ControllerManager::execute, this, _1),
+                             false));
+  server_->start();
 
   return 0;
 }
@@ -225,6 +232,84 @@ JointHandlePtr ControllerManager::getJointHandle(const std::string& name)
 
   // Not found
   return JointHandlePtr();
+}
+
+void ControllerManager::execute(const robot_controllers_msgs::QueryControllerStatesGoalConstPtr& goal)
+{
+  robot_controllers_msgs::QueryControllerStatesFeedback feedback;
+  robot_controllers_msgs::QueryControllerStatesResult result;
+
+  for (size_t i = 0; i < goal->updates.size(); i++)
+  {
+    // Update this controller
+    robot_controllers_msgs::ControllerState state = goal->updates[i];
+
+    // Make sure controller exists
+    bool exists = false;
+    for (ControllerList::iterator c = controllers_.begin(); c != controllers_.end(); c++)
+    {
+      if ((*c)->getController()->getName() == state.name)
+      {
+        exists = true;
+        break;
+      }
+    }
+    if (!exists)
+    {
+      std::stringstream ss;
+      ss << "No such controller to update: " << state.name;
+      server_->setAborted(result, ss.str());
+      return;
+    }
+
+    // Update state
+    if (state.state == state.STOPPED)
+    {
+      if (requestStop(state.name) != 0)
+      {
+        std::stringstream ss;
+        ss << "Unable to stop " << state.name;
+        server_->setAborted(result, ss.str());
+        return;
+      }
+    }
+    else if (state.state == state.RUNNING)
+    {
+      if (requestStart(state.name) != 0)
+      {
+        std::stringstream ss;
+        ss << "Unable to start " << state.name;
+        server_->setAborted(result, ss.str());
+        return;
+      }
+    }
+    else
+    {
+      std::stringstream ss;
+      ss << "Invalid state for controller " << state.name << ": " << static_cast<int>(state.state);
+      server_->setAborted(result, ss.str());
+      return;
+    }
+  }
+
+  // Send result
+  for (ControllerList::iterator c = controllers_.begin(); c != controllers_.end(); c++)
+  {
+    robot_controllers_msgs::ControllerState state;
+    state.name = (*c)->getController()->getName();
+    // TODO controller type
+    if ((*c)->isActive())
+    {
+      state.state = state.RUNNING;
+    }
+    else
+    {
+      state.state = state.STOPPED;
+    }
+    result.state.push_back(state);
+  }
+
+  server_->setSucceeded(result);
 }
 
 // NOTE: this function should be called only by one thread

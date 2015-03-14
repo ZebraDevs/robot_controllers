@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Fetch Robotics Inc.
+ * Copyright (c) 2014-2015, Fetch Robotics Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,9 @@
 
 #include <string>
 #include <ros/ros.h>
+#include <actionlib/server/simple_action_server.h>
+
+#include <robot_controllers_msgs/QueryControllerStatesAction.h>
 
 #include <robot_controllers_interface/joint_handle.h>
 #include <robot_controllers_interface/controller.h>
@@ -44,6 +47,8 @@ namespace robot_controllers
 /** @brief Base class for a controller manager. */
 class ControllerManager
 {
+  typedef actionlib::SimpleActionServer<robot_controllers_msgs::QueryControllerStatesAction> server_t;
+
   typedef std::vector<ControllerLoaderPtr> ControllerList;
   typedef std::vector<JointHandlePtr> JointHandleList;
 
@@ -91,11 +96,16 @@ public:
   JointHandlePtr getJointHandle(const std::string& name);
 
 private:
+  /** @brief Action callback. */
+  void execute(const robot_controllers_msgs::QueryControllerStatesGoalConstPtr& goal);
+
   /** @brief Load a controller. */
   bool load(const std::string& name);
 
   ControllerList controllers_;
   JointHandleList joints_;
+
+  boost::shared_ptr<server_t> server_;
 };
 
 }  // namespace robot_controllers
