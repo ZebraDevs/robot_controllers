@@ -1,7 +1,7 @@
 /*********************************************************************
  * Software License Agreement (BSD License)
  *
- *  Copyright (c) 2014, Fetch Robotics Inc.
+ *  Copyright (c) 2014-2015, Fetch Robotics Inc.
  *  Copyright (c) 2013, Unbounded Robotics Inc.
  *  All rights reserved.
  *
@@ -132,12 +132,25 @@ inline bool spliceTrajectories(const Trajectory& t1,
                                const double time,
                                Trajectory * t)
 {
-  // Need at least one point in t2 for the following code to work */
+  // Need at least one point in t1 for the following code to work
+  if (t1.size() == 0)
+  {
+    return false;
+  }
+
+  // Need at least one point in t2 for the following code to work
   if (t2.size() == 0)
   {
     *t = t1;
     return true;
   }
+
+  // Check sizes
+  size_t num_joints = t1.points[0].q.size();
+  bool has_velocities = (t1.points[0].qd.size() == num_joints) &&
+                        (t2.points[0].qd.size() == num_joints);
+  bool has_accelerations = (t1.points[0].qdd.size() == num_joints) &&
+                           (t2.points[0].qdd.size() == num_joints);
 
   // Just to be sure
   t->points.clear();
@@ -176,6 +189,24 @@ inline bool spliceTrajectories(const Trajectory& t1,
          t->points.push_back(t1.points[t1.size()-1]);
       }
       t->points.push_back(t2.points[p]);
+    }
+  }
+
+  if (!has_accelerations)
+  {
+    // Remove any accelerations in output trajectory
+    for (size_t i = 0; i < t->points.size(); i++)
+    {
+      t->points[i].qdd.clear();
+    }
+  }
+
+  if (!has_velocities)
+  {
+    // Remove any velocities in output trajectory
+    for (size_t i = 0; i < t->points.size(); i++)
+    {
+      t->points[i].qd.clear();
     }
   }
 
