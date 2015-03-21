@@ -38,6 +38,8 @@
 #ifndef ROBOT_CONTROLLERS_TRAJECTORY_H_
 #define ROBOT_CONTROLLERS_TRAJECTORY_H_
 
+#include <ros/ros.h>
+#include <angles/angles.h>
 #include <trajectory_msgs/JointTrajectory.h>
 
 namespace robot_controllers
@@ -241,6 +243,62 @@ inline void rosPrintTrajectory(Trajectory& t)
       }
     }
   }
+}
+
+/**
+ * @brief Windup the trajectory so that continuous joints do not wrap
+ * @param continuous Which joints in each TrajectoryPoint are continuous.
+ * @param trajectory The trajectory to unwind.
+ */
+inline bool windupTrajectory(std::vector<bool> continuous,
+                             Trajectory& trajectory)
+{
+  for (size_t p = 0; p < trajectory.size(); p++)
+  {
+    if (continuous.size() != trajectory.points[p].q.size())
+    {
+      // Size does not match
+      return false;
+    }
+
+    for (size_t j = 0; j < continuous.size(); j++)
+    {
+      if (continuous[j])
+      {
+        if (p > 0)
+        {
+          // Unwind by taking shortest path from previous point
+          double shortest = angles::shortest_angular_distance(trajectory.points[p-1].q[j], trajectory.points[p].q[j]);
+          trajectory.points[p].q[j]  =  trajectory.points[p-1].q[j] + shortest;
+        }
+        else
+        {
+          // Start between -PI and PI
+          trajectory.points[p].q[j] = angles::normalize_angle(trajectory.points[p].q[j]);
+        }
+      }
+    }
+  }
+  return true;
+}
+
+inline bool unwindTrajectoryPoint(std::vector<bool> continuous,
+                                  TrajectoryPoint& p)
+{
+  if (continuous.size() != p.q.size())
+  {
+    return false;
+  }
+
+  for (size_t j = 0; j < continuous.size(); j++)
+  {
+    if (continuous[j])
+    {
+      p.q[j] = angles::normalize_angle(p.q[j]);
+    }
+  }
+
+  return true;
 }
 
 /**

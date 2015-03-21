@@ -126,6 +126,7 @@ private:
 
   std::vector<JointHandlePtr> joints_;
   std::vector<std::string> joint_names_;
+  std::vector<bool> continuous_;
   boost::shared_ptr<server_t> server_;
 
   boost::shared_ptr<TrajectorySampler> sampler_;

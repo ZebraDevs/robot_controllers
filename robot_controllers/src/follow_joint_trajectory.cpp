@@ -1,7 +1,7 @@
 /*********************************************************************
  *  Software License Agreement (BSD License)
  *
- *  Copyright (c) 2014, Fetch Robotics Inc.
+ *  Copyright (c) 2014-2015, Fetch Robotics Inc.
  *  Copyright (c) 2013, Unbounded Robotics Inc.
  *  All rights reserved.
  *
@@ -102,6 +102,7 @@ int FollowJointTrajectoryController::init(ros::NodeHandle& nh, ControllerManager
     JointHandlePtr j = manager_->getJointHandle(joint_names_[i]);
     feedback_.joint_names.push_back(j->getName());
     joints_.push_back(j);
+    continuous_.push_back(j->isContinuous());
   }
 
   // Update feedback
@@ -185,6 +186,7 @@ void FollowJointTrajectoryController::update(const ros::Time& now, const ros::Du
 
     // Interpolate trajectory
     TrajectoryPoint p = sampler_->sample(now.toSec());
+    unwindTrajectoryPoint(continuous_, p);
     last_sample_ = p;
 
     // Update joints
@@ -228,7 +230,7 @@ void FollowJointTrajectoryController::update(const ros::Time& now, const ros::Du
         feedback_.error.positions[j] = shortest_angular_distance(feedback_.desired.positions[j],
                                                                  feedback_.actual.positions[j]);
         feedback_.error.velocities[j] = feedback_.actual.velocities[j] -
-                                                 feedback_.desired.velocities[j];
+                                        feedback_.desired.velocities[j];
       }
 
       // Check that we are within path tolerance
@@ -427,10 +429,13 @@ void FollowJointTrajectoryController::executeCb(const control_msgs::FollowJointT
       executable_trajectory.points.push_back(
           getPointFromCurrent(new_trajectory.points[0].qd.size() > 0,
                               new_trajectory.points[0].qdd.size() > 0,
-                              false));
+                              true));
       executable_trajectory.points.push_back(new_trajectory.points[0]);
     }
   }
+
+  // Windup executable trajectory so spline is smooth
+  windupTrajectory(continuous_, executable_trajectory);
 
   // Create trajectory sampler
   {
