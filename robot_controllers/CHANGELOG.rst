@@ -2,6 +2,12 @@
 Changelog for package robot_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* improve windup support
+* make spliced trajectory consistent in qd/qdd size
+* Contributors: Michael Ferguson
+
 0.1.4 (2015-03-13)
 ------------------
 * follow joint trajectory: add stop_on_path_violation parameter

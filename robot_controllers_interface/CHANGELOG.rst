@@ -2,6 +2,12 @@
 Changelog for package robot_controllers_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* improve windup support
+* fix potential build issue
+* Contributors: Michael Ferguson
+
 0.1.4 (2015-03-13)
 ------------------
 * add action server for get/set of controller state
