@@ -2,8 +2,8 @@
 Changelog for package robot_controllers_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.3.0 (2015-03-23)
+------------------
 * improve windup support
 * fix potential build issue
 * Contributors: Michael Ferguson

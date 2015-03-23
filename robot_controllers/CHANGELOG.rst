@@ -2,8 +2,8 @@
 Changelog for package robot_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.3.0 (2015-03-23)
+------------------
 * improve windup support
 * make spliced trajectory consistent in qd/qdd size
 * Contributors: Michael Ferguson
