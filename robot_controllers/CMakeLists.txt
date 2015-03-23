@@ -7,6 +7,7 @@ find_package(catkin REQUIRED
   COMPONENTS
     actionlib
     actionlib_msgs
+    angles
     control_msgs
     geometry_msgs
     kdl_parser
@@ -72,6 +73,10 @@ target_link_libraries(robot_controllers
   ${catkin_LIBRARIES}
   ${orocos_kdl_LIBRARIES}
 )
+
+if (CATKIN_ENABLE_TESTING)
+  add_subdirectory(test)
+endif()
 
 install(DIRECTORY include/ DESTINATION include)
 

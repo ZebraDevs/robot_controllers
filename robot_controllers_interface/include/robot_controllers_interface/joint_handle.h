@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Fetch Robotics Inc.
+ * Copyright (c) 2014-2015, Fetch Robotics Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -81,6 +81,9 @@ public:
 
   /** @brief Get applied effort of a joint in Nm or N. */
   virtual double getEffort() = 0;
+
+  /** @brief Is this joint continuous (has no position limits). */
+  virtual bool isContinuous() = 0;
 
   /** @brief Get the minimum valid position command. */
   virtual double getPositionMin() = 0;
