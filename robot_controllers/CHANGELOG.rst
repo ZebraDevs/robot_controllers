@@ -2,6 +2,11 @@
 Changelog for package robot_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* use shortest_angular_distance for diff drive dx calculations
+* Contributors: Michael Ferguson
+
 0.3.0 (2015-03-23)
 ------------------
 * improve windup support
