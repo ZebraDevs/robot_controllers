@@ -35,6 +35,7 @@
 
 // Author: Michael Ferguson
 
+#include <angles/angles.h>
 #include <pluginlib/class_list_macros.h>
 #include <robot_controllers/diff_drive_base.h>
 
@@ -222,8 +223,8 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
 
   double left_pos = left_->getPosition();
   double right_pos = right_->getPosition();
-  double left_dx = (left_pos - left_last_position_)/radians_per_meter_;
-  double right_dx = (right_pos - right_last_position_)/radians_per_meter_;
+  double left_dx = angles::shortest_angular_distance(left_last_position_, left_pos)/radians_per_meter_;
+  double right_dx = angles::shortest_angular_distance(right_last_position_, right_pos)/radians_per_meter_;
   double left_vel = static_cast<double>(left_->getVelocity())/radians_per_meter_;
   double right_vel = static_cast<double>(right_->getVelocity())/radians_per_meter_;
 
