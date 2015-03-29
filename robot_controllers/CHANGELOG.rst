@@ -2,8 +2,8 @@
 Changelog for package robot_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.3.1 (2015-03-28)
+------------------
 * use shortest_angular_distance for diff drive dx calculations
 * Contributors: Michael Ferguson
 
