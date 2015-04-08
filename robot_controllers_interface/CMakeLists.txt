@@ -42,8 +42,21 @@ add_dependencies(robot_controllers_interface
   robot_controllers_msgs_gencpp
 )
 
-install(DIRECTORY include/ DESTINATION include)
+install(
+  DIRECTORY include/
+  DESTINATION include
+)
 
-install(TARGETS robot_controllers_interface LIBRARY
+install(
+  TARGETS robot_controllers_interface LIBRARY
   DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+)
+
+install(
+  PROGRAMS
+    scripts/get_controller_state.py
+    scripts/start_controller.py
+    scripts/stop_controller.py
+  DESTINATION
+    ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
