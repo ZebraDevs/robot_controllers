@@ -56,4 +56,10 @@
                  (mainly for simulation)</description>
   </class>
 
+  <class name="robot_controllers/ForceEstimation"
+         type="robot_controllers::ForceEstimation"
+         base_class_type="robot_controllers::Controller">
+    <description>demo code to measure force</description>
+  </class>
+
 </library>

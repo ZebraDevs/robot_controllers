@@ -63,6 +63,7 @@ add_library(robot_controllers
   src/cartesian_wrench.cpp
   src/diff_drive_base.cpp
   src/follow_joint_trajectory.cpp
+  src/force_estimation.cpp
   src/gravity_compensation.cpp
   src/parallel_gripper.cpp
   src/pid.cpp
