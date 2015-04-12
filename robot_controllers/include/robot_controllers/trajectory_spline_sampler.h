@@ -222,7 +222,7 @@ public:
     }
 
     // Check for number of joints
-    int num_joints = trajectory.points[0].q.size();
+    size_t num_joints = trajectory.points[0].q.size();
 
     // Trajectory length one is special
     if (trajectory.size() == 1)
@@ -316,7 +316,7 @@ public:
   virtual TrajectoryPoint sample(double time)
   {
     // Which segment to sample from.
-    while ((seg_ + 1 < segments_.size()) &&
+    while ((seg_ + 1 < int(segments_.size())) &&
            (segments_[seg_ + 1].start_time < time))
     {
       ++seg_;
