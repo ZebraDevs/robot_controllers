@@ -155,7 +155,7 @@ double PID::update(double error, double dt)
   }
   else
   {
-    double error_dot = (error-error_last_)/dt;
+    error_dot = (error-error_last_)/dt;
   }
   return update(error, error_dot, dt);
   error_last_ = error;
