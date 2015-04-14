@@ -107,6 +107,10 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
   nh.param<double>("rotating_threshold", rotating_threshold_, 0.05);
   nh.param<double>("moving_threshold", moving_threshold_, 0.05);
 
+  ROS_ERROR_STREAM("rotating_threshold " << rotating_threshold_);
+  ROS_ERROR_STREAM("moving_threshold " << moving_threshold_);
+  
+
   double t;
   nh.param<double>("timeout", t, 0.25);
   timeout_ = ros::Duration(t);
@@ -126,6 +130,9 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
     return -1;
   }
 
+  ROS_ERROR_STREAM("x_accel_profile" << std::endl << x_accel_profile_);
+  ROS_ERROR_STREAM("r_accel_profile" << std::endl << r_accel_profile_);
+
   // Subscribe to base commands
   cmd_sub_ = nh.subscribe<geometry_msgs::Twist>("command", 1,
                 boost::bind(&DiffDriveBaseController::command, this, _1));
@@ -141,8 +148,11 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
   // Should we autostart?
   bool autostart;
   nh.param("autostart", autostart, false);
+  ROS_ERROR_STREAM("autostart" << autostart);
   if (autostart)
     manager->requestStart(getName());
+
+  ROS_ERROR_STREAM("init complete");
 
   return 0;
 }
@@ -229,17 +239,28 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
     scale = std::min(scale, x_accel_limit/fabs(desired_x_accel));
   }
 
+  /*
   if (fabs(desired_r_accel) > r_accel_limit)
   {
     scale = std::min(scale, r_accel_limit/fabs(desired_r_accel));
   }
 
+  ROS_ERROR_THROTTLE_NAMED(1, "BaseController", 
+    "desired_x_accel=%f, desired_r_accel=%f, x_accel_limit=%f, r_accel_limit=%f, scale=%f",
+                           desired_x_accel, desired_r_accel, x_accel_limit, r_accel_limit, scale);
+  */
+
+  ROS_ERROR_THROTTLE_NAMED(1, "BaseController", 
+    "desired_x_accel=%f, last_send_x=%f, x_accel_limit=%f, scale=%f",
+                           desired_x_accel, last_sent_x_, x_accel_limit, scale);
+
+
   // Scale back acceleration and determine what next velocity can be based on current velocity
-  double limited_x = x_vel + scale*desired_x_accel*dt_sec;
+  double limited_x = last_sent_x_ + scale*desired_x_accel*dt_sec;
   double limited_r = r_vel + scale*desired_r_accel*dt_sec;
 
   last_sent_x_ = limited_x;
-  last_sent_r_ = limited_r;
+  last_sent_r_ = 0.0; // limited_r;
 
   //last_sent_x_ = x_accel_profile_.interpolate();
   //last_sent_r_ = r_accel_profile_.interpolate(desired_r_, last_sent_r_, (now - last_update_).toSec());
