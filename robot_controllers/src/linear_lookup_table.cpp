@@ -13,7 +13,7 @@ LinearLookupTable::LinearLookupTable()
   off_table_ = ReturnNaN;
 }
 
-bool LinearLookupTable::init(ros::NodeHandle& nh)
+bool LinearLookupTable::init(ros::NodeHandle nh)
 {
   std::string off_table_str;
   if (!nh.getParam("off_table", off_table_str))

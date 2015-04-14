@@ -50,6 +50,8 @@
 #include <geometry_msgs/Twist.h>
 #include <nav_msgs/Odometry.h>
 
+#include <robot_controllers/linear_lookup_table.h>
+
 namespace robot_controllers
 {
 
@@ -153,8 +155,8 @@ private:
 
   double max_velocity_x_;
   double max_velocity_r_;
-  PiecewiseAccelProfile x_accel_profile_;
-  PiecewiseAccelProfile r_accel_profile_;
+  LinearLookupTable x_accel_profile_;
+  LinearLookupTable r_accel_profile_;
 
   // These are the inputs from the ROS topic
   float desired_x_;
@@ -182,6 +184,8 @@ private:
 
   bool enabled_;
   bool ready_;
+
+  static bool checkAccelProfile(const LinearLookupTable &lkup);
 };
 
 typedef boost::shared_ptr<DiffDriveBaseController> DiffDriveBaseControllerPtr;

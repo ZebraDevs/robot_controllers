@@ -25,6 +25,8 @@ class LinearLookupTable
  public:
   LinearLookupTable();
 
+  typedef std::vector< std::pair<double, double> > LookupTableType;
+
   /**
    * @brief Enum used to specify what to do for input values that are off one of the
    * end of the lookup table
@@ -47,7 +49,7 @@ class LinearLookupTable
    *        for input output array, the input is the first element, and the output is the
    *        second element.  Both the input and output should be double values.
    */
-  bool init(ros::NodeHandle& nh);
+  bool init(ros::NodeHandle nh);
 
   /**
    * @brief Initialize the lookup table values used for interpolation using a vector of pairs
@@ -55,7 +57,7 @@ class LinearLookupTable
    * @param what to do when given values that are off end of table
    * @returns true if succesfully configured, false for errors
    */
-  bool init(const std::vector<std::pair<double,double> > &table, OffTableEnum off_table);
+  bool init(const LookupTableType &table, OffTableEnum off_table);
 
   /**
    * @brief Finds two closest neighbors in lookup table and return linear interpolation
@@ -69,6 +71,11 @@ class LinearLookupTable
    */
   inline OffTableEnum getOffTable() const {return off_table_;}
 
+  /**
+   * @brief Returns current off table setting
+   */
+  inline const LookupTableType& getTable() const {return table_;}
+
   friend std::ostream &operator<<(std::ostream &out, const LinearLookupTable &lkup);
 
  protected:
@@ -78,7 +85,7 @@ class LinearLookupTable
    */
   bool orderTable(void);
 
-  std::vector< std::pair<double, double> > table_;
+  LookupTableType table_;
   OffTableEnum off_table_;
 };
 

@@ -114,8 +114,17 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
   // Get limits of base controller
   nh.param<double>("max_velocity_x", max_velocity_x_, 1.0);
   nh.param<double>("max_velocity_r", max_velocity_r_, 4.5);
-  x_accel_profile_.init(nh, "max_acceleration_x");
-  r_accel_profile_.init(nh, "max_acceleration_r");
+
+  if (!x_accel_profile_.init(ros::NodeHandle(nh,"max_accel_x")))
+  {
+    ROS_ERROR_NAMED("BaseController", "Error loading linear accel profile (max_accel_x)");
+    return -1;
+  }
+  if (!r_accel_profile_.init(ros::NodeHandle(nh,"max_accel_r")))
+  {
+    ROS_ERROR_NAMED("BaseController", "Error loading angular accel profile (max_accel_r)");
+    return -1;
+  }
 
   // Subscribe to base commands
   cmd_sub_ = nh.subscribe<geometry_msgs::Twist>("command", 1,
@@ -183,7 +192,9 @@ bool DiffDriveBaseController::stop(bool force)
 void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& dt)
 {
   if (!initialized_)
+  {
     return;  // should never really hit this
+  }
 
   // See if we have timed out and need to stop
   if (now - last_command_ >= timeout_)
@@ -192,19 +203,46 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
     desired_x_ = desired_r_ = 0.0;
   }
 
-  // Do velocity acceleration/limiting
-  last_sent_x_ = x_accel_profile_.interpolate(desired_x_, last_sent_x_, (now - last_update_).toSec());
-  last_sent_r_ = r_accel_profile_.interpolate(desired_r_, last_sent_r_, (now - last_update_).toSec());
-
-  double dx = 0.0;
-  double dr = 0.0;
-
   double left_pos = left_->getPosition();
   double right_pos = right_->getPosition();
   double left_dx = angles::shortest_angular_distance(left_last_position_, left_pos)/radians_per_meter_;
   double right_dx = angles::shortest_angular_distance(right_last_position_, right_pos)/radians_per_meter_;
   double left_vel = static_cast<double>(left_->getVelocity())/radians_per_meter_;
   double right_vel = static_cast<double>(right_->getVelocity())/radians_per_meter_;
+
+  // Calculate forward and angular velocities
+  double x_vel = (left_vel + right_vel)/2.0;
+  double r_vel = (right_vel - left_vel)/track_width_;
+
+  double dt_sec = dt.toSec();
+  double desired_x_accel = (desired_x_ - last_sent_x_) / dt_sec;
+  double desired_r_accel = (desired_r_ - last_sent_r_) / dt_sec;
+
+  // Do velocity acceleration/limiting, while trying to maintaining
+  // relative scale between linear and angular velocities
+  double scale = 1.0;
+  double x_accel_limit = x_accel_profile_.lookup(x_vel);
+  double r_accel_limit = r_accel_profile_.lookup(r_vel);
+
+  if (fabs(desired_x_accel) > x_accel_limit)
+  {
+    scale = std::min(scale, x_accel_limit/fabs(desired_x_accel));
+  }
+
+  if (fabs(desired_r_accel) > r_accel_limit)
+  {
+    scale = std::min(scale, r_accel_limit/fabs(desired_r_accel));
+  }
+
+  // Scale back acceleration and determine what next velocity can be based on current velocity
+  double limited_x = x_vel + scale*desired_x_accel*dt_sec;
+  double limited_r = r_vel + scale*desired_r_accel*dt_sec;
+
+  last_sent_x_ = limited_x;
+  last_sent_r_ = limited_r;
+
+  //last_sent_x_ = x_accel_profile_.interpolate();
+  //last_sent_r_ = r_accel_profile_.interpolate(desired_r_, last_sent_r_, (now - last_update_).toSec());
 
   // Threshold the odometry to avoid noise (especially in simulation)
   if (fabs(left_dx) > wheel_rotating_threshold_ ||
@@ -227,9 +265,6 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   double d = (left_dx+right_dx)/2.0;
   double th = (right_dx-left_dx)/track_width_;
 
-  // Calculate forward and angular velocities
-  dx = (left_vel + right_vel)/2.0;
-  dr = (right_vel - left_vel)/track_width_;
 
   // Update store odometry
   theta_ += th/2.0;
@@ -238,8 +273,8 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   theta_ += th/2.0;
 
   // Actually set command
-  if (fabs(dx) > moving_threshold_ ||
-      fabs(dr) > rotating_threshold_ ||
+  if (fabs(x_vel) > moving_threshold_ ||
+      fabs(r_vel) > rotating_threshold_ ||
       last_sent_x_ != 0.0 ||
       last_sent_r_ != 0.0)
   {
@@ -250,8 +285,8 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   // Update odometry information
   odom_.pose.pose.orientation.z = sin(theta_/2.0);
   odom_.pose.pose.orientation.w = cos(theta_/2.0);
-  odom_.twist.twist.linear.x = dx;
-  odom_.twist.twist.angular.z = dr;
+  odom_.twist.twist.linear.x = x_vel;
+  odom_.twist.twist.angular.z = r_vel;
 
   last_update_ = now;
 }
@@ -357,7 +392,10 @@ int DiffDriveBaseController::PiecewiseAccelProfile::init(
   ROS_INFO("Decel Limits");
   for (size_t i = 0; i < decel_limits.size(); i++)
     ROS_INFO_STREAM("  " << decel_limits[i]);
+
+  return 0;
 }
+
 
 double DiffDriveBaseController::PiecewiseAccelProfile::interpolate(
   double desired,
@@ -410,6 +448,29 @@ double DiffDriveBaseController::PiecewiseAccelProfile::interpolate(
       return v;
     }
   }
+}
+
+
+bool DiffDriveBaseController::checkAccelProfile(const LinearLookupTable &lkup)
+{
+  // Make sure accelerations limits are greater and zero, and table_off is not NaN
+  if (lkup.getOffTable() != LinearLookupTable::ReturnNaN)
+  {
+    ROS_ERROR_NAMED("BaseController", "AccelProfile cannot return NaN for off table inputs.");
+    return false;
+  }
+
+  const LinearLookupTable::LookupTableType &table = lkup.getTable();
+  for (size_t ii=0; ii<table.size(); ++ii)
+  {
+    if (table[ii].second <= 0.0)
+    {
+      ROS_ERROR_NAMED("BaseController", "AccelProfile cannot have zero or negative input velocities.");
+      return false;
+    }
+  }
+
+  return true;
 }
 
 }  // namespace robot_controllers
