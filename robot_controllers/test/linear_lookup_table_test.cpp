@@ -23,22 +23,22 @@ TEST(test_linear_lookup_table, simple_tests)
 
   std::vector<std::pair<double,double> > table;
   // Empty table should not init
-  ASSERT_FALSE(lkup.init(table, LinearLookupTable::RETURN_NAN));
+  ASSERT_FALSE(lkup.init(table, LinearLookupTable::ReturnNaN));
 
   // Empty table should return NaN
   ASSERT_TRUE(isnan(lkup.lookup(0.0)));
 
-  // Table with 1 entry should not allow EXTRAPOLATE
+  // Table with 1 entry should not allow Extrapolate
   table.push_back(std::pair<double,double>(-1,2));
-  ASSERT_FALSE(lkup.init(table, LinearLookupTable::EXTRAPOLATE));
+  ASSERT_FALSE(lkup.init(table, LinearLookupTable::Extrapolate));
 
   // Table with 1 entry should be ok for other things
-  ASSERT_TRUE(lkup.init(table, LinearLookupTable::RETURN_NAN));
+  ASSERT_TRUE(lkup.init(table, LinearLookupTable::ReturnNaN));
 
   table.push_back(std::pair<double,double>(1,-2));
 
   // Table with 2 entries should be fine
-  ASSERT_TRUE(lkup.init(table, LinearLookupTable::RETURN_NAN));
+  ASSERT_TRUE(lkup.init(table, LinearLookupTable::ReturnNaN));
 
   // Make sure values inside normal range return correct values
   simple_tests_helper(lkup);
@@ -48,7 +48,7 @@ TEST(test_linear_lookup_table, simple_tests)
   ASSERT_TRUE(std::isnan(lkup.lookup(1.0001)));
 
   // Change type of table to closest and check values outside normal range,
-  ASSERT_TRUE(lkup.init(table, LinearLookupTable::RETURN_CLOSEST));
+  ASSERT_TRUE(lkup.init(table, LinearLookupTable::ReturnClosest));
   simple_tests_helper(lkup); // Make sure stuff inside range still returns correct values
   double max_error = 1e-6;
   EXPECT_NEAR(lkup.lookup(-1.0001), 2.0, max_error);
@@ -58,7 +58,7 @@ TEST(test_linear_lookup_table, simple_tests)
 
   // Change type of table to linear extrapolate and make
   // sure stuff outside ranges return correct values
-  ASSERT_TRUE(lkup.init(table, LinearLookupTable::EXTRAPOLATE));
+  ASSERT_TRUE(lkup.init(table, LinearLookupTable::Extrapolate));
   simple_tests_helper(lkup); // Make sure stuff inside range still returns correct values
   EXPECT_NEAR(lkup.lookup(-1.0001), 2.0002, max_error);
   EXPECT_NEAR(lkup.lookup(1.0001), -2.0002, max_error);
@@ -67,30 +67,30 @@ TEST(test_linear_lookup_table, simple_tests)
 
   // Make sure init with table that has multiple matching entries returns false
   table.push_back(std::pair<double,double>(1,-3));
-  ASSERT_FALSE(lkup.init(table, LinearLookupTable::RETURN_NAN));
+  ASSERT_FALSE(lkup.init(table, LinearLookupTable::ReturnNaN));
 
   // Make sure init with table that has really close entries returns false
   table.back().first = 1 + 1e-9;
-  ASSERT_FALSE(lkup.init(table, LinearLookupTable::RETURN_NAN));
+  ASSERT_FALSE(lkup.init(table, LinearLookupTable::ReturnNaN));
 
   // Make sure init with table that has nonfinite inputs returns false
   table.back().first = NAN;
-  ASSERT_FALSE(lkup.init(table, LinearLookupTable::RETURN_NAN));
+  ASSERT_FALSE(lkup.init(table, LinearLookupTable::ReturnNaN));
   table.back().first = std::numeric_limits<double>::infinity();
-  ASSERT_FALSE(lkup.init(table, LinearLookupTable::RETURN_NAN));
+  ASSERT_FALSE(lkup.init(table, LinearLookupTable::ReturnNaN));
 
   // Make sure init with table that nonfinite outputs returns false
   table.back().first = 2;
   table.back().second = NAN;
-  ASSERT_FALSE(lkup.init(table, LinearLookupTable::RETURN_NAN));
+  ASSERT_FALSE(lkup.init(table, LinearLookupTable::ReturnNaN));
   table.back().second = std::numeric_limits<double>::infinity();
-  ASSERT_FALSE(lkup.init(table, LinearLookupTable::RETURN_NAN));
+  ASSERT_FALSE(lkup.init(table, LinearLookupTable::ReturnNaN));
 
   // Make sure init with table that relatively close entries also returns false
   table.back().first = 1e9;
   table.back().second = 3;
   table.push_back(std::pair<double,double>(1e9+1,4));
-  ASSERT_FALSE(lkup.init(table, LinearLookupTable::RETURN_NAN));
+  ASSERT_FALSE(lkup.init(table, LinearLookupTable::ReturnNaN));
 }
 
 
@@ -98,7 +98,7 @@ void interpolate_tests_helper(const std::vector<std::pair<double,double> > &orde
                               const std::vector<std::pair<double,double> > &unordered_table)
 {
   robot_controllers::LinearLookupTable lkup;
-  lkup.init(unordered_table, LinearLookupTable::EXTRAPOLATE);
+  lkup.init(unordered_table, LinearLookupTable::Extrapolate);
   //std::cerr << lkup << std::endl;
 
   double max_error = 1e-6;

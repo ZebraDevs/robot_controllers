@@ -10,7 +10,7 @@ namespace robot_controllers
 
 LinearLookupTable::LinearLookupTable()
 {
-  off_table_ = RETURN_NAN;
+  off_table_ = ReturnNaN;
 }
 
 bool LinearLookupTable::init(ros::NodeHandle& nh)
@@ -23,15 +23,15 @@ bool LinearLookupTable::init(ros::NodeHandle& nh)
   }
   else if (off_table_str == "return_nan")
   {
-    off_table_ = RETURN_NAN;
+    off_table_ = ReturnNaN;
   }
   else if (off_table_str == "return_closest")
   {
-    off_table_ = RETURN_CLOSEST;
+    off_table_ = ReturnClosest;
   }
   else if (off_table_str == "extrapolate")
   {
-    off_table_ = EXTRAPOLATE;
+    off_table_ = Extrapolate;
   }
   else
   {
@@ -52,12 +52,13 @@ bool LinearLookupTable::init(ros::NodeHandle& nh)
   }
   else
   {
+    table_.clear();
     for (int ii=0; ii<table.size(); ++ii)
     {
       XmlRpc::XmlRpcValue const &element = table[ii];
       if ((element.getType() != XmlRpc::XmlRpcValue::TypeArray) || (element.size() != 2))
       {
-        ROS_ERROR_NAMED("LinearLookupTable", "table element %d type must be array with two elements [in,out]", ii);
+        ROS_ERROR_NAMED("LinearLookupTable", "table element %d must be array with two elements [in,out]", ii);
         return false;
       }
       if ((element[0].getType() != XmlRpc::XmlRpcValue::TypeDouble) ||
@@ -71,6 +72,7 @@ bool LinearLookupTable::init(ros::NodeHandle& nh)
       table_.push_back(std::pair<double,double>(double(in),double(out)));
     }
   }
+
   return orderTable();
 }
 
@@ -97,11 +99,11 @@ double LinearLookupTable::lookup(double value) const
   // Check if value is off
   if (value < table_.front().first)
   {
-    if (off_table_ == RETURN_NAN)
+    if (off_table_ == ReturnNaN)
     {
       return NAN;
     }
-    else if (off_table_ == RETURN_CLOSEST)
+    else if (off_table_ == ReturnClosest)
     {
       return table_.front().second;
     }
@@ -114,11 +116,11 @@ double LinearLookupTable::lookup(double value) const
   }
   else if (value > table_.back().first)
   {
-    if (off_table_ == RETURN_NAN)
+    if (off_table_ == ReturnNaN)
     {
       return NAN;
     }
-    else if (off_table_ == RETURN_CLOSEST)
+    else if (off_table_ == ReturnClosest)
     {
       return table_.back().second;
     }
@@ -169,7 +171,7 @@ bool LinearLookupTable::orderTable(void)
   }
 
   // Need at least 2 table entries to use extrapolate mode
-  if ((off_table_ == EXTRAPOLATE ) && (table_.size() < 2))
+  if ((off_table_ == Extrapolate ) && (table_.size() < 2))
   {
     ROS_ERROR_NAMED("LinearLookupTable", "Table needs at least 2 entries to use extrapolate mode");
     return false;
@@ -222,9 +224,9 @@ bool LinearLookupTable::orderTable(void)
 std::ostream &operator<<(std::ostream &out, const LinearLookupTable &lkup)
 {
   out << "off_table: " <<
-    ((lkup.off_table_ == LinearLookupTable::RETURN_NAN) ? "return NaN" :
-     (lkup.off_table_ == LinearLookupTable::RETURN_CLOSEST) ? "return closest" :
-     (lkup.off_table_ == LinearLookupTable::EXTRAPOLATE) ? "extrapolate" : "??") << std::endl;
+    ((lkup.off_table_ == LinearLookupTable::ReturnNaN) ? "return NaN" :
+     (lkup.off_table_ == LinearLookupTable::ReturnClosest) ? "return closest" :
+     (lkup.off_table_ == LinearLookupTable::Extrapolate) ? "extrapolate" : "??") << std::endl;
 
   out << "table:" << std::endl;
   for (unsigned ii=0; ii<lkup.table_.size(); ++ii)

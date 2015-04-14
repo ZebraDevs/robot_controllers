@@ -1,0 +1,49 @@
+<launch>
+
+<rosparam>
+test_init_off_table_nan:
+  off_table: return_nan
+  table: [ [0.0, 0.0], [1.0,1.0] ]
+
+test_init_off_table_closest:
+  off_table: return_closest
+  table: [ [0.0, 0.0], [1.0,1.0] ]
+
+test_init_off_table_extrapolate:
+  off_table: extrapolate
+  table: [ [0.0, 0.0], [1.0,1.0] ]
+
+no_parameters:
+  not_a_parameter: foo
+
+no_off_table:
+  table: [ [0.0, 0.0], [1.0,1.0] ]
+
+invalid_off_table:
+  off_table: foo
+  table: [ [0.0, 0.0], [1.0,1.0] ]
+
+no_table:
+  off_table: extrapolate
+
+table_is_not_an_array:
+  off_table: return_nan
+  table: foo
+
+table_element_is_not_an_array:
+  off_table: return_nan
+  table: [ foo, [0.0, 0.0] ]
+
+table_element_does_not_have_2_elements:
+  off_table: return_nan
+  table: [ [0.0, 0.0, 0.0] ]
+
+table_element_is_not_array_of_doubles:
+  off_table: return_nan
+  table: [ [0.0, foo] ]
+</rosparam>
+
+<test time-limit="10" test-name="linear_lookup_table_ros_test" pkg="robot_controllers" type="linear_lookup_table_ros_test">
+</test>
+
+</launch>
