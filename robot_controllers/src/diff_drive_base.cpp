@@ -119,18 +119,15 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
   nh.param<double>("max_velocity_x", max_velocity_x_, 1.0);
   nh.param<double>("max_velocity_r", max_velocity_r_, 4.5);
 
-  if (!x_accel_profile_.init(ros::NodeHandle(nh,"max_accel_x")))
+  if (!loadAccelProfile(x_accel_profile_, nh, "max_accel_x") ||
+      !loadAccelProfile(x_decel_profile_, nh, "max_decel_x") ||
+      !loadAccelProfile(r_accel_profile_, nh, "max_accel_r") )
   {
-    ROS_ERROR_NAMED("BaseController", "Error loading linear accel profile (max_accel_x)");
-    return -1;
-  }
-  if (!r_accel_profile_.init(ros::NodeHandle(nh,"max_accel_r")))
-  {
-    ROS_ERROR_NAMED("BaseController", "Error loading angular accel profile (max_accel_r)");
     return -1;
   }
 
   ROS_ERROR_STREAM("x_accel_profile" << std::endl << x_accel_profile_);
+  ROS_ERROR_STREAM("x_decel_profile" << std::endl << x_accel_profile_);
   ROS_ERROR_STREAM("r_accel_profile" << std::endl << r_accel_profile_);
 
   // Subscribe to base commands
@@ -148,11 +145,8 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
   // Should we autostart?
   bool autostart;
   nh.param("autostart", autostart, false);
-  ROS_ERROR_STREAM("autostart" << autostart);
   if (autostart)
     manager->requestStart(getName());
-
-  ROS_ERROR_STREAM("init complete");
 
   return 0;
 }
@@ -231,12 +225,25 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   // Do velocity acceleration/limiting, while trying to maintaining
   // relative scale between linear and angular velocities
   double scale = 1.0;
-  double x_accel_limit = x_accel_profile_.lookup(x_vel);
   double r_accel_limit = r_accel_profile_.lookup(r_vel);
 
-  if (fabs(desired_x_accel) > x_accel_limit)
+  // Only use x_vel when determining acceleration limits
+  double x_accel_limit = x_accel_profile_.lookup(x_vel);
+  double x_decel_limit = x_decel_profile_.lookup(x_vel);
+  
+  if (desired_x_accel > 0.0)
   {
-    scale = std::min(scale, x_accel_limit/fabs(desired_x_accel));
+    if (desired_x_accel > x_accel_limit)
+    {
+      scale = std::min(scale, x_accel_limit/desired_x_accel);
+    }
+  }
+  else
+  {
+    if (-desired_x_accel > x_decel_limit)
+    {
+      scale = std::min(scale, -x_decel_limit/desired_x_accel);
+    }
   }
 
   /*
@@ -251,8 +258,8 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   */
 
   ROS_ERROR_THROTTLE_NAMED(1, "BaseController", 
-    "desired_x_accel=%f, last_send_x=%f, x_accel_limit=%f, scale=%f",
-                           desired_x_accel, last_sent_x_, x_accel_limit, scale);
+    "desired_x_accel=%f, last_send_x=%f, x_accel_limit=%f, x_decel_limit=%f, scale=%f",
+                           desired_x_accel, last_sent_x_, x_accel_limit, x_decel_limit, scale);
 
 
   // Scale back acceleration and determine what next velocity can be based on current velocity
@@ -359,125 +366,19 @@ void DiffDriveBaseController::setCommand(float left, float right)
   right_->setVelocity(right * radians_per_meter_, 0.0);
 }
 
-DiffDriveBaseController::PiecewiseAccelProfile::PiecewiseAccelProfile() :
-  limit_interval(1.0)  // avoid div/0
-{
-}
 
-int DiffDriveBaseController::PiecewiseAccelProfile::init(
-  ros::NodeHandle& nh,
-  const std::string& name)
+bool DiffDriveBaseController::loadAccelProfile(LinearLookupTable &lkup, ros::NodeHandle &nh, const char* ns)
 {
-  XmlRpc::XmlRpcValue params;
-  if (nh.getParam(name, params))
+  if (!lkup.init(ros::NodeHandle(nh,ns)))
   {
-    if (params.getType() ==  XmlRpc::XmlRpcValue::TypeDouble)
-    {
-      ROS_WARN("Interpreting acceleration profile as single acceleration");
-      accel_limits.push_back(static_cast<double>(params));
-      decel_limits.push_back(static_cast<double>(params));
-    }
-    else
-    {
-      nh.getParam(name+"/interval", limit_interval);
-      ros::NodeHandle n(nh, name);
-      if (n.getParam("accel", params))
-      {
-        for (int i = 0; i < params.size(); i++)
-        {
-          accel_limits.push_back(static_cast<double>(params[i]));
-        }
-      }
-      if (n.getParam("decel", params))
-      {
-        for (int i = 0; i < params.size(); i++)
-        {
-          decel_limits.push_back(static_cast<double>(params[i]));
-        }
-      }
-    }
-  }
-  else
-  {
-    // Default to 1.0
-    ROS_WARN("No acceleration profile provided");
-    accel_limits.push_back(1.0);
-    decel_limits.push_back(1.0);
+    ROS_ERROR_NAMED("BaseController", "Error loading linear decel profile from %s", ns);
+    return false;
   }
 
-  ROS_INFO(" ** BASE CONTROLLER ** ");
-  ROS_INFO_STREAM(limit_interval);
-  ROS_INFO("Accel Limits");
-  for (size_t i = 0; i < accel_limits.size(); i++)
-    ROS_INFO_STREAM("  " << accel_limits[i]);
-  ROS_INFO("Decel Limits");
-  for (size_t i = 0; i < decel_limits.size(); i++)
-    ROS_INFO_STREAM("  " << decel_limits[i]);
-
-  return 0;
-}
-
-
-double DiffDriveBaseController::PiecewiseAccelProfile::interpolate(
-  double desired,
-  double present,
-  double timestep)
-{
-  // Determine index to use within accel/decel curve
-  int v_index = fabs(present) / limit_interval;
-  v_index = std::min(v_index, static_cast<int>(accel_limits.size())-1);
-
-  double a = 0.0;
-  double v = 0.0;
-  if (desired > present)
-  {
-    if (present >= 0.0)
-    {
-      a = accel_limits[v_index];
-    }
-    else
-    {
-      a = decel_limits[v_index];
-    }
-    v = present + a * timestep;
-    if (v > desired)
-    {
-      return desired;
-    }
-    else
-    {
-      return v;
-    }
-  }
-  else
-  {
-    if (desired < 0.0)
-    {
-      a = accel_limits[v_index];
-    }
-    else
-    {
-      a = decel_limits[v_index];
-    }
-    v = present - a * timestep;
-    if (v < desired)
-    {
-      return desired;
-    }
-    else
-    {
-      return v;
-    }
-  }
-}
-
-
-bool DiffDriveBaseController::checkAccelProfile(const LinearLookupTable &lkup)
-{
   // Make sure accelerations limits are greater and zero, and table_off is not NaN
-  if (lkup.getOffTable() != LinearLookupTable::ReturnNaN)
+  if (lkup.getOffTable() == LinearLookupTable::ReturnNaN)
   {
-    ROS_ERROR_NAMED("BaseController", "AccelProfile cannot return NaN for off table inputs.");
+    ROS_ERROR_NAMED("BaseController", "AccelProfile %s cannot use return_nan for off_table.", ns);
     return false;
   }
 
@@ -486,7 +387,7 @@ bool DiffDriveBaseController::checkAccelProfile(const LinearLookupTable &lkup)
   {
     if (table[ii].second <= 0.0)
     {
-      ROS_ERROR_NAMED("BaseController", "AccelProfile cannot have zero or negative input velocities.");
+      ROS_ERROR_NAMED("BaseController", "AccelProfile %s cannot have zero or negative acceleration limits.", ns);
       return false;
     }
   }
