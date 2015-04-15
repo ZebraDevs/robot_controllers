@@ -45,8 +45,8 @@ def cmdVel(vel):
             twist.linear.x = 0.0
             twist.angular.z = 0.0
         elif t < 4:
-            twist.linear.x = 0.0
-            twist.angular.z = 4.0
+            twist.linear.x = vel
+            twist.angular.z = 0.0
         elif t < 6:
             twist.linear.x = 0.0
             twist.angular.z = 0.0
@@ -106,9 +106,10 @@ def cmdVel(vel):
         pylab.plot(t,r_acc,'g')
 
     pylab.figure('z')
-    pylab.plot(t2,imu*180/pi,'b')
-    pylab.plot(t,z*180/pi,'r')
-    pylab.plot(t2,z2*180/pi,'g')
+    pylab.plot(t2,imu*180/pi,'b',label='gyro')
+    pylab.plot(t,z*180/pi,'r',label='odom')
+    pylab.plot(t2,z2*180/pi,'g',label='gyro integral')
+    pylab.legend()
 
 
     pylab.show()
