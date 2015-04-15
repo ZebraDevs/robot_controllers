@@ -138,20 +138,20 @@ private:
 
   double max_velocity_x_;
   double max_velocity_r_;
+  double max_acceleration_r_;
   LinearLookupTable x_accel_profile_;
   LinearLookupTable x_decel_profile_;
-  LinearLookupTable r_accel_profile_;
 
   // These are the inputs from the ROS topic
-  float desired_x_;
-  float desired_r_;
+  double desired_x_;
+  double desired_r_;
 
   // These are from controller update
-  float last_sent_x_;
-  float last_sent_r_;
+  double last_sent_x_;
+  double last_sent_r_;
 
-  float left_last_position_;
-  float right_last_position_;
+  double left_last_position_;
+  double right_last_position_;
   double left_last_timestamp_;
   double right_last_timestamp_;
 

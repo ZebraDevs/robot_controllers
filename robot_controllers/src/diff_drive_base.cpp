@@ -107,10 +107,6 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
   nh.param<double>("rotating_threshold", rotating_threshold_, 0.05);
   nh.param<double>("moving_threshold", moving_threshold_, 0.05);
 
-  ROS_ERROR_STREAM("rotating_threshold " << rotating_threshold_);
-  ROS_ERROR_STREAM("moving_threshold " << moving_threshold_);
-  
-
   double t;
   nh.param<double>("timeout", t, 0.25);
   timeout_ = ros::Duration(t);
@@ -118,17 +114,16 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
   // Get limits of base controller
   nh.param<double>("max_velocity_x", max_velocity_x_, 1.0);
   nh.param<double>("max_velocity_r", max_velocity_r_, 4.5);
+  nh.param<double>("max_acceleration_r", max_acceleration_r_, 3.0);
 
   if (!loadAccelProfile(x_accel_profile_, nh, "max_accel_x") ||
-      !loadAccelProfile(x_decel_profile_, nh, "max_decel_x") ||
-      !loadAccelProfile(r_accel_profile_, nh, "max_accel_r") )
+      !loadAccelProfile(x_decel_profile_, nh, "max_decel_x") )
   {
     return -1;
   }
 
   ROS_ERROR_STREAM("x_accel_profile" << std::endl << x_accel_profile_);
-  ROS_ERROR_STREAM("x_decel_profile" << std::endl << x_accel_profile_);
-  ROS_ERROR_STREAM("r_accel_profile" << std::endl << r_accel_profile_);
+  ROS_ERROR_STREAM("x_decel_profile" << std::endl << x_decel_profile_);
 
   // Subscribe to base commands
   cmd_sub_ = nh.subscribe<geometry_msgs::Twist>("command", 1,
@@ -207,6 +202,9 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
     desired_x_ = desired_r_ = 0.0;
   }
 
+  desired_x_ = std::min(max_velocity_x_, std::max(-max_velocity_x_, desired_x_));
+  desired_r_ = std::min(max_velocity_r_, std::max(-max_velocity_r_, desired_r_));
+
   double left_pos = left_->getPosition();
   double right_pos = right_->getPosition();
   double left_dx = angles::shortest_angular_distance(left_last_position_, left_pos)/radians_per_meter_;
@@ -225,37 +223,32 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   // Do velocity acceleration/limiting, while trying to maintaining
   // relative scale between linear and angular velocities
   double scale = 1.0;
-  double r_accel_limit = r_accel_profile_.lookup(r_vel);
-
-  // Only use x_vel when determining acceleration limits
-  double x_accel_limit = x_accel_profile_.lookup(x_vel);
-  double x_decel_limit = x_decel_profile_.lookup(x_vel);
+  // Only use last_sent_x_ when determining acceleration limits
+  double x_accel_limit = x_accel_profile_.lookup(last_sent_x_);
+  double x_decel_limit = x_decel_profile_.lookup(last_sent_x_);
   
-  if (desired_x_accel > 0.0)
+  // When determining angular limit
+
+  if (desired_x_accel*last_sent_x_ > 0.0) 
   {
-    if (desired_x_accel > x_accel_limit)
+    // positive acceleration
+    if (fabs(desired_x_accel) > x_accel_limit)
     {
-      scale = std::min(scale, x_accel_limit/desired_x_accel);
+      scale = x_accel_limit/fabs(desired_x_accel);
     }
   }
-  else
+  else // negative acceleration
   {
-    if (-desired_x_accel > x_decel_limit)
+    if (fabs(desired_x_accel) > x_decel_limit)
     {
-      scale = std::min(scale, -x_decel_limit/desired_x_accel);
+      scale = x_decel_limit/fabs(desired_x_accel);
     }
   }
 
-  /*
-  if (fabs(desired_r_accel) > r_accel_limit)
+  if (fabs(desired_r_accel) > max_acceleration_r_)
   {
-    scale = std::min(scale, r_accel_limit/fabs(desired_r_accel));
+    scale = std::min(scale, max_acceleration_r_/fabs(desired_r_accel));    
   }
-
-  ROS_ERROR_THROTTLE_NAMED(1, "BaseController", 
-    "desired_x_accel=%f, desired_r_accel=%f, x_accel_limit=%f, r_accel_limit=%f, scale=%f",
-                           desired_x_accel, desired_r_accel, x_accel_limit, r_accel_limit, scale);
-  */
 
   ROS_ERROR_THROTTLE_NAMED(1, "BaseController", 
     "desired_x_accel=%f, last_send_x=%f, x_accel_limit=%f, x_decel_limit=%f, scale=%f",
@@ -266,11 +259,12 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   double limited_x = last_sent_x_ + scale*desired_x_accel*dt_sec;
   double limited_r = r_vel + scale*desired_r_accel*dt_sec;
 
+  limited_x = std::min(max_velocity_x_, std::max(-max_velocity_x_, limited_x));
+  limited_r = std::min(max_velocity_r_, std::max(-max_velocity_r_, limited_r));
+
+
   last_sent_x_ = limited_x;
   last_sent_r_ = 0.0; // limited_r;
-
-  //last_sent_x_ = x_accel_profile_.interpolate();
-  //last_sent_r_ = r_accel_profile_.interpolate(desired_r_, last_sent_r_, (now - last_update_).toSec());
 
   // Threshold the odometry to avoid noise (especially in simulation)
   if (fabs(left_dx) > wheel_rotating_threshold_ ||
