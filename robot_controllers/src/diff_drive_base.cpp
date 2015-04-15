@@ -227,8 +227,6 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   double x_accel_limit = x_accel_profile_.lookup(last_sent_x_);
   double x_decel_limit = x_decel_profile_.lookup(last_sent_x_);
   
-  // When determining angular limit
-
   if (desired_x_accel*last_sent_x_ > 0.0) 
   {
     // positive acceleration
