@@ -250,21 +250,24 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
     scale = std::min(scale, max_acceleration_r_/fabs(desired_r_accel));    
   }
 
+  /*
   ROS_ERROR_THROTTLE_NAMED(1, "BaseController", 
-    "desired_x_accel=%f, last_send_x=%f, x_accel_limit=%f, x_decel_limit=%f, scale=%f",
-                           desired_x_accel, last_sent_x_, x_accel_limit, x_decel_limit, scale);
+    "desired_x_accel=%f, last_send_x=%f, x_accel_limit=%f, x_decel_limit=%f, max_accel_r=%f, scale=%f",
+                           desired_x_accel, last_sent_x_, x_accel_limit, x_decel_limit, max_acceleration_r_, scale);
 
+  ROS_ERROR_THROTTLE_NAMED(1, "BaseController", 
+    "desired_r_accel=%f, last_send_r=%f, max_accel_r=%f, scale=%f",
+     desired_r_accel, last_sent_r_, max_acceleration_r_, scale);
+  */
 
   // Scale back acceleration and determine what next velocity can be based on current velocity
   double limited_x = last_sent_x_ + scale*desired_x_accel*dt_sec;
-  double limited_r = r_vel + scale*desired_r_accel*dt_sec;
-
+  double limited_r = last_sent_r_ + scale*desired_r_accel*dt_sec;
   limited_x = std::min(max_velocity_x_, std::max(-max_velocity_x_, limited_x));
   limited_r = std::min(max_velocity_r_, std::max(-max_velocity_r_, limited_r));
 
-
   last_sent_x_ = limited_x;
-  last_sent_r_ = 0.0; // limited_r;
+  last_sent_r_ = limited_r;
 
   // Threshold the odometry to avoid noise (especially in simulation)
   if (fabs(left_dx) > wheel_rotating_threshold_ ||

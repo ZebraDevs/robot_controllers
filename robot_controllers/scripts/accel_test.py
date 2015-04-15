@@ -30,34 +30,43 @@ def cmdVel(vel):
         t+=dt
         if t < 1:
             twist.linear.x = 0.0
+            twist.angular.z = 0.0
         elif t < 6:
-            twist.linear.x = vel
+            twist.linear.x = 0.0
+            twist.angular.z = vel
         elif t < 10:
             twist.linear.x = 0.0
+            twist.angular.z = 0.0
         else:
             break
     data = msgs
     msgs = None
+
+    filt = pylab.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.55, 0.6, 0.55, 0.5, 0.4, 0.3, 0.2, 0.1])
+    filt /= filt.sum()
+
     t = pylab.array([d.header.stamp.to_sec() for d in data])
     t = t-t[0]
     x_vel = [d.twist.twist.linear.x for d in data]
-    #x_pos = [d.pose.pose.position.x for d in data]
-    #x_vel2 = [0.0] + [ (x_pos[i]-x_pos[i-1])/(t[i]-t[i-1]) for i in range(1,len(x_vel))]
-
-    filt = pylab.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.55, 0.6, 0.55, 0.5, 0.4, 0.3, 0.2, 0.1])
-    #filt = pylab.ones(30)
-    filt /= filt.sum()
     x_vel = pylab.correlate(x_vel,filt,mode='same')
     x_acc = [0.0] + [ (x_vel[i]-x_vel[i-1])/(t[i]-t[i-1]) for i in range(1,len(x_vel))]
     x_acc = pylab.correlate(x_acc,filt,mode='same')
-    #filt = scipy.signal.butter(10,0.5)
-    #print(filt)
-    #x_acc = scipy.signal.lfilter(filt[0],filt[1],x_acc)    
 
-    pylab.figure()
+    r_vel = [d.twist.twist.angular.z for d in data]
+    r_vel = pylab.correlate(r_vel,filt,mode='same')
+    r_acc = [0.0] + [ (r_vel[i]-r_vel[i-1])/(t[i]-t[i-1]) for i in range(1,len(r_vel))]
+    r_acc = pylab.correlate(r_acc,filt,mode='same')
+
+    pylab.figure('x')
     pylab.plot(t,x_vel,'r')
     #pylab.plot(t,x_vel2,'b')
     pylab.plot(t,x_acc,'g')
+
+    pylab.figure('r')
+    pylab.plot(t,r_vel,'r')
+    #pylab.plot(t,x_vel2,'b')
+    pylab.plot(t,r_acc,'g')
+
     pylab.show()
 
 
