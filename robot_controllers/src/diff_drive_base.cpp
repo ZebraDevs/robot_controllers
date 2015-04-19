@@ -115,6 +115,7 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
   nh.param<double>("max_velocity_x", max_velocity_x_, 1.0);
   nh.param<double>("max_velocity_r", max_velocity_r_, 4.5);
   nh.param<double>("max_acceleration_r", max_acceleration_r_, 3.0);
+  nh.param<double>("max_deceleration_r", max_deceleration_r_, 3.0);
 
   if (!loadAccelProfile(x_accel_profile_, nh, "max_accel_x") ||
       !loadAccelProfile(x_decel_profile_, nh, "max_decel_x") )
@@ -243,20 +244,22 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
     }
   }
 
-  if (fabs(desired_r_accel) > max_acceleration_r_)
+  if (desired_r_accel*last_sent_r_ > 0.0)
   {
-    scale = std::min(scale, max_acceleration_r_/fabs(desired_r_accel));    
+    // acceleration
+    if (fabs(desired_r_accel) > max_acceleration_r_)
+    {
+      scale = std::min(scale, max_acceleration_r_/fabs(desired_r_accel));
+    }
   }
-
-  /*
-  ROS_ERROR_THROTTLE_NAMED(1, "BaseController", 
-    "desired_x_accel=%f, last_send_x=%f, x_accel_limit=%f, x_decel_limit=%f, max_accel_r=%f, scale=%f",
-                           desired_x_accel, last_sent_x_, x_accel_limit, x_decel_limit, max_acceleration_r_, scale);
-
-  ROS_ERROR_THROTTLE_NAMED(1, "BaseController", 
-    "desired_r_accel=%f, last_send_r=%f, max_accel_r=%f, scale=%f",
-     desired_r_accel, last_sent_r_, max_acceleration_r_, scale);
-  */
+  else
+  {
+    // deceleration
+    if (fabs(desired_r_accel) > max_deceleration_r_)
+    {
+      scale = std::min(scale, max_deceleration_r_/fabs(desired_r_accel));
+    }
+  }
 
   // Scale back acceleration and determine what next velocity can be based on current velocity
   double limited_x = last_sent_x_ + scale*desired_x_accel*dt_sec;

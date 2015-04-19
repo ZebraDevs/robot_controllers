@@ -139,6 +139,7 @@ private:
   double max_velocity_x_;
   double max_velocity_r_;
   double max_acceleration_r_;
+  double max_deceleration_r_;
   LinearLookupTable x_accel_profile_;
   LinearLookupTable x_decel_profile_;
 
