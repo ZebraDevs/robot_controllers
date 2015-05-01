@@ -45,7 +45,8 @@ namespace robot_controllers
 {
 
 DiffDriveBaseController::DiffDriveBaseController() :
-    initialized_(false)
+    initialized_(false),
+    safety_scaling_(1.0)
 {
   theta_ = 0.0;
 
@@ -134,6 +135,15 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
                               &DiffDriveBaseController::publishCallback,
                               this);
 
+  // Should we use the laser for safety limiting base velocity?
+  nh.param<double>("laser_safety_dist", safety_scaling_distance_, 0.0);
+  nh.param<double>("robot_safety_width", robot_width_, 0.7);
+  if (safety_scaling_distance_ > 0.0)
+  {
+    scan_sub_ = n.subscribe<sensor_msgs::LaserScan>("base_scan", 1,
+                  boost::bind(&DiffDriveBaseController::scanCallback, this, _1));
+  }
+
   initialized_ = true;
 
   // Should we autostart?
@@ -207,8 +217,8 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   double x, r;
   {
     boost::mutex::scoped_lock lock(command_mutex_);
-    x = desired_x_;
-    r = desired_r_;
+    x = std::max(-max_velocity_x_ * safety_scaling_, std::min(desired_x_, max_velocity_x_ * safety_scaling_));
+    r = std::max(-max_velocity_r_, std::min(desired_r_, max_velocity_r_));
   }
   if (x > last_sent_x_)
   {
@@ -340,6 +350,33 @@ void DiffDriveBaseController::publishCallback(const ros::TimerEvent& event)
      */
     broadcaster_->sendTransform(tf::StampedTransform(transform, msg.header.stamp, msg.header.frame_id, msg.child_frame_id));
   }
+}
+
+void DiffDriveBaseController::scanCallback(
+  const sensor_msgs::LaserScanConstPtr& scan)
+{
+  double angle = scan->angle_min;
+  double min_dist = safety_scaling_distance_;
+
+  for (size_t i = 0; i < scan->ranges.size(); ++i, angle += scan->angle_increment)
+  {
+    if (std::isfinite(scan->ranges[i]) &&
+        scan->ranges[i] > scan->range_min &&
+        scan->ranges[i] < min_dist)
+    {
+      // Only test points in the forward 180 degrees
+      if (angle < -1.5 || angle > 1.5)
+        continue;
+
+      // Check if point is inside the width of the robot
+      double py = sin(angle) * scan->ranges[i];
+      if (fabs(py) < (robot_width_/2.0))
+        min_dist = scan->ranges[i];
+    }
+  }
+
+  boost::mutex::scoped_lock lock(command_mutex_);
+  safety_scaling_ = std::max(0.1, min_dist / safety_scaling_distance_);
 }
 
 void DiffDriveBaseController::setCommand(float left, float right)

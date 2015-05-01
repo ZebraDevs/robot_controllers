@@ -50,6 +50,7 @@
 
 #include <geometry_msgs/Twist.h>
 #include <nav_msgs/Odometry.h>
+#include <sensor_msgs/LaserScan.h>
 
 namespace robot_controllers
 {
@@ -115,7 +116,7 @@ public:
   /** @brief Publish odom, possibly tf */
   bool publish(ros::Time time)
   {
-    ROS_WARN("Base controller is now timer based, this API will be removed in next release");
+    ROS_WARN_THROTTLE(300, "Base controller is now timer based, this API will be removed in next release");
     return false;
   }
 
@@ -124,6 +125,7 @@ private:
   ControllerManager* manager_;
 
   void publishCallback(const ros::TimerEvent& event);
+  void scanCallback(const sensor_msgs::LaserScanConstPtr& scan);
 
   // Set base wheel speeds in m/s
   void setCommand(float left, float right);
@@ -144,10 +146,15 @@ private:
   double max_acceleration_x_;
   double max_acceleration_r_;
 
+  // Laser can provide additional safety limits on velocity
+  double safety_scaling_;
+  double safety_scaling_distance_;
+  double robot_width_;
+
   // These are the inputs from the ROS topic
   boost::mutex command_mutex_;
-  float desired_x_;
-  float desired_r_;
+  double desired_x_;
+  double desired_r_;
 
   // These are from controller update
   float last_sent_x_;
@@ -166,7 +173,7 @@ private:
   nav_msgs::Odometry odom_;
   ros::Publisher odom_pub_;
   ros::Timer odom_timer_;
-  ros::Subscriber cmd_sub_;
+  ros::Subscriber cmd_sub_, scan_sub_;
 
   boost::shared_ptr<tf::TransformBroadcaster> broadcaster_;
   bool publish_tf_;
