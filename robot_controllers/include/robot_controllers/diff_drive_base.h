@@ -40,6 +40,7 @@
 
 #include <string>
 #include <boost/shared_ptr.hpp>
+#include <boost/thread/mutex.hpp>
 
 #include <ros/ros.h>
 #include <robot_controllers_interface/controller.h>
@@ -112,13 +113,17 @@ public:
   void command(const geometry_msgs::TwistConstPtr& msg);
 
   /** @brief Publish odom, possibly tf */
-  bool publish(ros::Time time);
+  bool publish(ros::Time time)
+  {
+    ROS_WARN("Base controller is now timer based, this API will be removed in next release");
+    return false;
+  }
 
 private:
   bool initialized_;
   ControllerManager* manager_;
 
-  void updateCallback(const ros::WallTimerEvent& event);
+  void publishCallback(const ros::TimerEvent& event);
 
   // Set base wheel speeds in m/s
   void setCommand(float left, float right);
@@ -140,6 +145,7 @@ private:
   double max_acceleration_r_;
 
   // These are the inputs from the ROS topic
+  boost::mutex command_mutex_;
   float desired_x_;
   float desired_r_;
 
@@ -156,8 +162,10 @@ private:
   ros::Time last_update_;
   ros::Duration timeout_;
 
+  boost::mutex odom_mutex_;
   nav_msgs::Odometry odom_;
   ros::Publisher odom_pub_;
+  ros::Timer odom_timer_;
   ros::Subscriber cmd_sub_;
 
   boost::shared_ptr<tf::TransformBroadcaster> broadcaster_;

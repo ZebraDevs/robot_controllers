@@ -127,6 +127,13 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
   if (publish_tf_)
     broadcaster_.reset(new tf::TransformBroadcaster());
 
+  // Publish timer
+  double publish_frequency;
+  nh.param<double>("publish_frequency", publish_frequency, 100.0);
+  odom_timer_ = n.createTimer(ros::Duration(1/publish_frequency),
+                              &DiffDriveBaseController::publishCallback,
+                              this);
+
   initialized_ = true;
 
   // Should we autostart?
@@ -146,9 +153,12 @@ void DiffDriveBaseController::command(const geometry_msgs::TwistConstPtr& msg)
     return;
   }
 
+  boost::mutex::scoped_lock lock(command_mutex_);
   last_command_ = ros::Time::now();
   desired_x_ = msg->linear.x;
   desired_r_ = msg->angular.z;
+  lock.unlock();
+
   manager_->requestStart(getName());
 }
 
@@ -189,33 +199,40 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   if (now - last_command_ >= timeout_)
   {
     ROS_DEBUG_THROTTLE_NAMED(5, "BaseController", "Command timed out.");
+    boost::mutex::scoped_lock lock(command_mutex_);
     desired_x_ = desired_r_ = 0.0;
   }
 
   // Do velocity acceleration/limiting
-  if (desired_x_ > last_sent_x_)
+  double x, r;
+  {
+    boost::mutex::scoped_lock lock(command_mutex_);
+    x = desired_x_;
+    r = desired_r_;
+  }
+  if (x > last_sent_x_)
   {
     last_sent_x_ += max_acceleration_x_ * (now - last_update_).toSec();
-    if (last_sent_x_ > desired_x_)
-      last_sent_x_ = desired_x_;
+    if (last_sent_x_ > x)
+      last_sent_x_ = x;
   }
   else
   {
     last_sent_x_ -= max_acceleration_x_ * (now - last_update_).toSec();
-    if (last_sent_x_ < desired_x_)
-      last_sent_x_ = desired_x_;
+    if (last_sent_x_ < x)
+      last_sent_x_ = x;
   }
-  if (desired_r_ > last_sent_r_)
+  if (r > last_sent_r_)
   {
     last_sent_r_ += max_acceleration_r_ * (now - last_update_).toSec();
-    if (last_sent_r_ > desired_r_)
-      last_sent_r_ = desired_r_;
+    if (last_sent_r_ > r)
+      last_sent_r_ = r;
   }
   else
   {
     last_sent_r_ -= max_acceleration_r_ * (now - last_update_).toSec();
-    if (last_sent_r_ < desired_r_)
-      last_sent_r_ = desired_r_;
+    if (last_sent_r_ < r)
+      last_sent_r_ = r;
   }
 
   double dx = 0.0;
@@ -253,12 +270,6 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   dx = (left_vel + right_vel)/2.0;
   dr = (right_vel - left_vel)/track_width_;
 
-  // Update store odometry
-  theta_ += th/2.0;
-  odom_.pose.pose.position.x += d*cos(theta_);
-  odom_.pose.pose.position.y += d*sin(theta_);
-  theta_ += th/2.0;
-
   // Actually set command
   if (fabs(dx) > moving_threshold_ ||
       fabs(dr) > rotating_threshold_ ||
@@ -269,9 +280,17 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
                last_sent_x_ + (last_sent_r_/2.0 * track_width_));
   }
 
-  // Update odometry information
+  // Lock mutex before updating
+  boost::mutex::scoped_lock lock(odom_mutex_);
+
+  // Update stored odometry pose...
+  theta_ += th/2.0;
+  odom_.pose.pose.position.x += d*cos(theta_);
+  odom_.pose.pose.position.y += d*sin(theta_);
+  theta_ += th/2.0;
   odom_.pose.pose.orientation.z = sin(theta_/2.0);
   odom_.pose.pose.orientation.w = cos(theta_/2.0);
+  // ...and twist
   odom_.twist.twist.linear.x = dx;
   odom_.twist.twist.angular.z = dr;
 
@@ -294,28 +313,33 @@ std::vector<std::string> DiffDriveBaseController::getClaimedNames()
   return getCommandedNames();
 }
 
-bool DiffDriveBaseController::publish(ros::Time time)
+void DiffDriveBaseController::publishCallback(const ros::TimerEvent& event)
 {
+  // Copy message under lock of mutex
+  nav_msgs::Odometry msg;
+  {
+    boost::mutex::scoped_lock lock(odom_mutex_);
+    msg = odom_;
+  }
+
   // Publish or perish
-  odom_.header.stamp = time;
-  odom_pub_.publish(odom_);
+  msg.header.stamp = ros::Time::now();
+  odom_pub_.publish(msg);
 
   if (publish_tf_)
   {
     tf::Transform transform;
-    transform.setOrigin(tf::Vector3(odom_.pose.pose.position.x, odom_.pose.pose.position.y, 0.0));
-    transform.setRotation(tf::Quaternion(odom_.pose.pose.orientation.x,
-                                         odom_.pose.pose.orientation.y,
-                                         odom_.pose.pose.orientation.z,
-                                         odom_.pose.pose.orientation.w) );
+    transform.setOrigin(tf::Vector3(msg.pose.pose.position.x, msg.pose.pose.position.y, 0.0));
+    transform.setRotation(tf::Quaternion(msg.pose.pose.orientation.x,
+                                         msg.pose.pose.orientation.y,
+                                         msg.pose.pose.orientation.z,
+                                         msg.pose.pose.orientation.w) );
     /*
      * REP105 (http://ros.org/reps/rep-0105.html)
      *   says: map -> odom -> base_link
      */
-    broadcaster_->sendTransform(tf::StampedTransform(transform, time, odom_.header.frame_id, odom_.child_frame_id));
+    broadcaster_->sendTransform(tf::StampedTransform(transform, msg.header.stamp, msg.header.frame_id, msg.child_frame_id));
   }
-
-  return true;
 }
 
 void DiffDriveBaseController::setCommand(float left, float right)
