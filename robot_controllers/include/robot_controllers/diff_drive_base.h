@@ -113,13 +113,6 @@ public:
   /** @brief Command callback from either a ROS topic, or a higher controller. */
   void command(const geometry_msgs::TwistConstPtr& msg);
 
-  /** @brief Publish odom, possibly tf */
-  bool publish(ros::Time time)
-  {
-    ROS_WARN_THROTTLE(300, "Base controller is now timer based, this API will be removed in next release");
-    return false;
-  }
-
 private:
   bool initialized_;
   ControllerManager* manager_;
