@@ -2,8 +2,8 @@
 Changelog for package robot_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.3.3 (2015-05-03)
+------------------
 * use laser to slow base when obstacles are near
 * add mutexes around command/odometry. publish odom in timer
 * add -Wall to compile flags, fix compile warnings
