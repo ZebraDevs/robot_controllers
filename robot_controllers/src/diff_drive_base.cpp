@@ -213,6 +213,13 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
     desired_x_ = desired_r_ = 0.0;
   }
 
+  // Make sure laser has not timed out
+  if ((safety_scaling_distance_ > 0.0) &&
+      (ros::Time::now() - last_laser_scan_ > ros::Duration(0.5)))
+  {
+    safety_scaling_ = 0.1;
+  }
+
   // Do velocity acceleration/limiting
   double x, r;
   {
@@ -377,6 +384,7 @@ void DiffDriveBaseController::scanCallback(
 
   boost::mutex::scoped_lock lock(command_mutex_);
   safety_scaling_ = std::max(0.1, min_dist / safety_scaling_distance_);
+  last_laser_scan_ = ros::Time::now();
 }
 
 void DiffDriveBaseController::setCommand(float left, float right)
