@@ -143,6 +143,7 @@ private:
   double safety_scaling_;
   double safety_scaling_distance_;
   double robot_width_;
+  ros::Time last_laser_scan_;
 
   // These are the inputs from the ROS topic
   boost::mutex command_mutex_;
