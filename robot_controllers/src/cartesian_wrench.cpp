@@ -139,6 +139,12 @@ bool CartesianWrenchController::stop(bool force)
   return true;
 }
 
+bool CartesianWrenchController::reset()
+{
+  // Simply stop
+  return (manager_->requestStop(getName()) == 0);
+}
+
 void CartesianWrenchController::update(const ros::Time& now, const ros::Duration& dt)
 {
   // Need to initialize KDL structs

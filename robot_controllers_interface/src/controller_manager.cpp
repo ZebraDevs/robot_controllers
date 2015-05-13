@@ -194,6 +194,15 @@ void ControllerManager::update(const ros::Time& time, const ros::Duration& dt)
   }
 }
 
+void ControllerManager::reset()
+{
+  // Update controllers
+  for (ControllerList::iterator c = controllers_.begin(); c != controllers_.end(); c++)
+  {
+    (*c)->reset();
+  }
+}
+
 bool ControllerManager::addJointHandle(JointHandlePtr& j)
 {
   // TODO: check for duplicate names?

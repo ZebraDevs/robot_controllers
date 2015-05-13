@@ -78,6 +78,9 @@ public:
   /** @brief Update active controllers. */
   virtual void update(const ros::Time& time, const ros::Duration& dt);
 
+  /** @brief Reset all controllers. */
+  virtual void reset();
+
   /** @brief Add a joint handle. */
   bool addJointHandle(JointHandlePtr& j);
 

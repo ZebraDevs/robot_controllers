@@ -200,6 +200,13 @@ bool DiffDriveBaseController::stop(bool force)
   return false;
 }
 
+bool DiffDriveBaseController::reset()
+{
+  // Reset command
+  last_command_ = ros::Time(0);
+  return true;
+}
+
 void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& dt)
 {
   if (!initialized_)

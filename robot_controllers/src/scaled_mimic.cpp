@@ -89,6 +89,12 @@ bool ScaledMimicController::stop(bool force)
   return true;
 }
 
+bool ScaledMimicController::reset()
+{
+  // Nothing to do here
+  return true;
+}
+
 void ScaledMimicController::update(const ros::Time& now, const ros::Duration& dt)
 {
   if (!initialized_)

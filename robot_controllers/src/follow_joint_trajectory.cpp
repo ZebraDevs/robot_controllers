@@ -174,6 +174,12 @@ bool FollowJointTrajectoryController::stop(bool force)
   return true;
 }
 
+bool FollowJointTrajectoryController::reset()
+{
+  stop(true);  // force stop ourselves
+  return (manager_->requestStop(getName()) == 0);
+}
+
 void FollowJointTrajectoryController::update(const ros::Time& now, const ros::Duration& dt)
 {
   if (!initialized_)

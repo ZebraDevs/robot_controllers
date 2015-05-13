@@ -152,6 +152,12 @@ bool CartesianTwistController::stop(bool force)
   return true;
 }
 
+bool CartesianTwistController::reset()
+{
+  // Simply stop
+  return (manager_->requestStop(getName()) == 0);
+}
+
 void CartesianTwistController::update(const ros::Time& now, const ros::Duration& dt)
 {
   // Need to initialize KDL structs

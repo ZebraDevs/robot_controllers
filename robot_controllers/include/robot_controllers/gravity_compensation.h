@@ -70,10 +70,20 @@ public:
   GravityCompensation() : initialized_(false) {}
   virtual ~GravityCompensation() {}
 
-  /** @brief Initialize parameters, interfaces */
+  /**
+   * @brief Initialize the controller and any required data structures.
+   * @param nh Node handle for this controller.
+   * @param manager The controller manager instance, this is needed for the
+   *        controller to get information about joints, etc.
+   * @returns 0 if succesfully configured, negative values are error codes.
+   */
   virtual int init(ros::NodeHandle& nh, ControllerManager* manager);
 
-  /** @brief Start the controller. */
+  /**
+   * @brief Attempt to start the controller. This should be called only by the
+   *        ControllerManager instance.
+   * @returns True if successfully started, false otherwise.
+   */
   virtual bool start();
 
   /**
@@ -88,7 +98,23 @@ public:
     return true;
   }
 
-  /** @brief Update controller, called from controller_manager update */
+  /**
+   * @brief Cleanly reset the controller to it's initial state. Some controllers
+   *        may choose to stop themselves. This is mainly used in the case of the
+   *        the robot exiting some fault condition.
+   * @returns True if successfully reset, false otherwise.
+   */
+  virtual bool reset()
+  {
+    // Do nothing
+    return true;
+  }
+
+  /**
+   * @brief This is the update loop for the controller.
+   * @param time The system time.
+   * @param dt The timestep since last call to update.
+   */
   virtual void update(const ros::Time& time, const ros::Duration& dt);
 
   /** @brief Get the type of this controller. */
