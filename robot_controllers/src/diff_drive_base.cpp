@@ -224,8 +224,15 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   double x, r;
   {
     boost::mutex::scoped_lock lock(command_mutex_);
+    // Limit linear velocity based on obstacles
     x = std::max(-max_velocity_x_ * safety_scaling_, std::min(desired_x_, max_velocity_x_ * safety_scaling_));
-    r = std::max(-max_velocity_r_, std::min(desired_r_, max_velocity_r_));
+    // Compute how much we actually scaled the linear velocity
+    double actual_scaling = 1.0;
+    if (desired_x_ != 0.0)
+      actual_scaling = x/desired_x_;
+    // Limit angular velocity
+    // Scale same amount as linear velocity so that robot still follows the same "curvature"
+    r = std::max(-max_velocity_r_, std::min(actual_scaling * desired_r_, max_velocity_r_));
   }
   if (x > last_sent_x_)
   {
