@@ -58,6 +58,9 @@ public:
   /** @brief This calls through to controller, saves state locally. */
   bool stop(bool force);
 
+  /** @brief This calls through to controller. */
+  bool reset();
+
   /** @brief If controller is active, calls through to controller. */
   void update(const ros::Time& time, const ros::Duration& dt);
 

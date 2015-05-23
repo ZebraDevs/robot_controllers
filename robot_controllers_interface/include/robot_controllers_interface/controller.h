@@ -97,6 +97,14 @@ public:
   virtual bool stop(bool force) = 0;
 
   /**
+   * @brief Cleanly reset the controller to it's initial state. Some controllers
+   *        may choose to stop themselves. This is mainly used in the case of the
+   *        the robot exiting some fault condition.
+   * @returns True if successfully reset, false otherwise.
+   */
+  virtual bool reset() = 0;
+
+  /**
    * @brief This is the update loop for the controller.
    * @param time The system time.
    * @param dt The timestep since last call to update.

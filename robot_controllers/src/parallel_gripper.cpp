@@ -121,6 +121,12 @@ bool ParallelGripperController::stop(bool force)
   return true;
 }
 
+bool ParallelGripperController::reset()
+{
+  // Nothing to do here
+  return true;
+}
+
 void ParallelGripperController::update(const ros::Time& now, const ros::Duration& dt)
 {
   if (!initialized_)

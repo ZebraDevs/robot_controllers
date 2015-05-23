@@ -155,6 +155,12 @@ bool CartesianPoseController::stop(bool force)
   return true;
 }
 
+bool CartesianPoseController::reset()
+{
+  // Simply stop
+  return (manager_->requestStop(getName()) == 0);
+}
+
 void CartesianPoseController::update(const ros::Time& now, const ros::Duration& dt)
 {
   // Need to initialize KDL structs

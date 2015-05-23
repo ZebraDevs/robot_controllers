@@ -71,6 +71,13 @@ bool ControllerLoader::stop(bool force)
   return stopped;
 }
 
+bool ControllerLoader::reset()
+{
+  if (active_)
+    return controller_->reset();
+  return true;
+}
+
 bool ControllerLoader::isActive()
 {
   return active_;
