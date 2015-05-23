@@ -2,8 +2,8 @@
 Changelog for package robot_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.3.4 (2015-05-22)
+------------------
 * add ability to reset controllers
 * add timeout to laser speed scaling
 * maintain constant curvature when scaling base velocity
