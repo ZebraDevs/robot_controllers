@@ -2,6 +2,14 @@
 Changelog for package robot_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* add ability to reset controllers
+* add timeout to laser speed scaling
+* maintain constant curvature when scaling base velocity
+* remove DiffDriveBaseController::publish()
+* Contributors: Michael Ferguson
+
 0.3.3 (2015-05-03)
 ------------------
 * use laser to slow base when obstacles are near
