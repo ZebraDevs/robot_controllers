@@ -72,6 +72,12 @@ int ParallelGripperController::init(ros::NodeHandle& nh, ControllerManager* mana
   nh.param<double>("max_position", max_position_, 0.1);
   nh.param<double>("max_effort", max_effort_, 10.0);
 
+  // PID controller for centering the gripper
+  if (centering_pid_.init(ros::NodeHandle(nh, "centering")))
+  {
+    use_centering_controller_ = true;
+  }
+
   // Set default to max
   goal_ = max_position_;
   effort_ = max_effort_;
@@ -132,8 +138,25 @@ void ParallelGripperController::update(const ros::Time& now, const ros::Duration
   if (!initialized_)
     return;
 
-  left_->setPosition(goal_/2.0, 0, effort_);
-  right_->setPosition(goal_/2.0, 0, effort_);
+  if (use_centering_controller_)
+  {
+    double position = left_->getPosition() + right_->getPosition();
+    double effort = fabs(effort_);
+    if (goal_ < position)
+    {
+      effort = -effort;
+    }
+
+    double offset = centering_pid_.update(left_->getPosition() - right_->getPosition(), dt.toSec());
+
+    left_->setEffort(effort - offset);
+    right_->setEffort(effort + offset);
+  }
+  else
+  {
+    left_->setPosition(goal_/2.0, 0, effort_);
+    right_->setPosition(goal_/2.0, 0, effort_);
+  }
 }
 
 void ParallelGripperController::executeCb(const control_msgs::GripperCommandGoalConstPtr& goal)

@@ -41,6 +41,7 @@
 #include <vector>
 
 #include <ros/ros.h>
+#include <robot_controllers/pid.h>
 #include <robot_controllers_interface/controller.h>
 #include <robot_controllers_interface/joint_handle.h>
 #include <robot_controllers_interface/controller_manager.h>
@@ -59,7 +60,9 @@ class ParallelGripperController : public Controller
   typedef actionlib::SimpleActionServer<control_msgs::GripperCommandAction> server_t;
 
 public:
-  ParallelGripperController() : initialized_(false) {}
+  ParallelGripperController() :
+    initialized_(false),
+    use_centering_controller_(false) {}
   virtual ~ParallelGripperController() {}
 
   /**
@@ -125,6 +128,9 @@ private:
 
   double goal_, effort_, max_position_, max_effort_;
   boost::shared_ptr<server_t> server_;
+
+  bool use_centering_controller_;
+  robot_controllers::PID centering_pid_;
 };
 
 }  // namespace robot_controllers
