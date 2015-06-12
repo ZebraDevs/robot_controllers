@@ -2,6 +2,11 @@
 Changelog for package robot_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* add centering pid to gripper controller
+* Contributors: Michael Ferguson
+
 0.4.0 (2015-05-23)
 ------------------
 
