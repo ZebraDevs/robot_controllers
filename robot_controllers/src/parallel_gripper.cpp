@@ -59,8 +59,26 @@ int ParallelGripperController::init(ros::NodeHandle& nh, ControllerManager* mana
   std::string l_name, r_name;
   nh.param<std::string>("l_gripper_joint", l_name, "l_gripper_finger_joint");
   nh.param<std::string>("r_gripper_joint", r_name, "r_gripper_finger_joint");
+
   left_ = manager_->getJointHandle(l_name);
   right_ = manager_->getJointHandle(r_name);
+
+  // Checking to see if Joint Handles exists
+  if (!left_)
+  {
+    ROS_ERROR_NAMED("ParallelGripperController",
+                    "Unable to retreive joint (%s), Namespace: %s/l_gripper_joint",
+                    l_name.c_str(), nh.getNamespace().c_str());
+    return -1;  
+  }
+  
+  if (!right_)
+  {
+    ROS_ERROR_NAMED("ParallelGripperController",
+                    "Unable to retreive joint (%s), Namespace: %s/r_gripper_joint",
+                    r_name.c_str(), nh.getNamespace().c_str());
+    return -1;
+  } 
 
   // Start action server
   server_.reset(new server_t(nh, "",
