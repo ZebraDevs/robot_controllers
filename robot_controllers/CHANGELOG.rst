@@ -2,8 +2,8 @@
 Changelog for package robot_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.4.2 (2015-10-22)
+------------------
 * fixed segmentation faults due to misconfiguration
 * Contributors: Arvin Asokan
 
