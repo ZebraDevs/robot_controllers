@@ -455,6 +455,7 @@ void FollowJointTrajectoryController::executeCb(const control_msgs::FollowJointT
     has_path_tolerance_ = true;
     for (size_t j = 0; j < joints_.size(); ++j)
     {
+      // Find corresponding indices between path_tolerance and joints
       int index = -1;
       for (size_t i = 0; i < goal->path_tolerance.size(); ++i)
       {
@@ -463,17 +464,18 @@ void FollowJointTrajectoryController::executeCb(const control_msgs::FollowJointT
           index = i;
           break;
         }
-        if (index == -1)
-        {
-          result.error_code = control_msgs::FollowJointTrajectoryResult::INVALID_JOINTS;
-          server_->setAborted(result, "Unable to convert path tolerances");
-          ROS_ERROR("Unable to convert path tolerances");
-          return;
-        }
-        path_tolerance_.q[j] = goal->path_tolerance[i].position;
-        path_tolerance_.qd[j] = goal->path_tolerance[i].velocity;
-        path_tolerance_.qdd[j] = goal->path_tolerance[i].acceleration;
       }
+      if (index == -1)
+      {
+        // Every joint must have a tolerance and this one does not
+        result.error_code = control_msgs::FollowJointTrajectoryResult::INVALID_JOINTS;
+        server_->setAborted(result, "Unable to convert path tolerances");
+        ROS_ERROR("Unable to convert path tolerances");
+        return;
+      }
+      path_tolerance_.q[j] = goal->path_tolerance[index].position;
+      path_tolerance_.qd[j] = goal->path_tolerance[index].velocity;
+      path_tolerance_.qdd[j] = goal->path_tolerance[index].acceleration;
     }
   }
   else
@@ -486,6 +488,7 @@ void FollowJointTrajectoryController::executeCb(const control_msgs::FollowJointT
   {
     for (size_t j = 0; j < joints_.size(); ++j)
     {
+      // Find corresponding indices between goal_tolerance and joints
       int index = -1;
       for (size_t i = 0; i < goal->goal_tolerance.size(); ++i)
       {
@@ -494,17 +497,18 @@ void FollowJointTrajectoryController::executeCb(const control_msgs::FollowJointT
           index = i;
           break;
         }
-        if (index == -1)
-        {
-          result.error_code = control_msgs::FollowJointTrajectoryResult::INVALID_JOINTS;
-          server_->setAborted(result, "Unable to convert goal tolerances");
-          ROS_ERROR("Unable to convert goal tolerances");
-          return;
-        }
-        goal_tolerance_.q[j] = goal->goal_tolerance[i].position;
-        goal_tolerance_.qd[j] = goal->goal_tolerance[i].velocity;
-        goal_tolerance_.qdd[j] = goal->goal_tolerance[i].acceleration;
       }
+      if (index == -1)
+      {
+        // Every joint must have a tolerance and this one does not
+        result.error_code = control_msgs::FollowJointTrajectoryResult::INVALID_JOINTS;
+        server_->setAborted(result, "Unable to convert goal tolerances");
+        ROS_ERROR("Unable to convert goal tolerances");
+        return;
+      }
+      goal_tolerance_.q[j] = goal->goal_tolerance[index].position;
+      goal_tolerance_.qd[j] = goal->goal_tolerance[index].velocity;
+      goal_tolerance_.qdd[j] = goal->goal_tolerance[index].acceleration;
     }
   }
   else
