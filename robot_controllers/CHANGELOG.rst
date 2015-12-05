@@ -2,8 +2,8 @@
 Changelog for package robot_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.4.3 (2015-12-05)
+------------------
 * fix path/goal tolerance preparation
 * Contributors: Michael Ferguson
 
