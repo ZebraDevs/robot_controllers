@@ -37,6 +37,20 @@
 #include <ros/ros.h>
 #include <robot_controllers_interface/handle.h>
 
+/**
+ * \mainpage
+ * \section overview Overview
+ * The robot_controllers_interface package provides ROS messages and header
+ * files that define how robot controllers are created and managed. There
+ * are several key components:
+ *   - A ControllerManager, which manages the loading, starting and stopping
+ *     of controllers.
+ *   - One or more Controllers, which actually convert ROS messages into
+ *     commands to the mechanism.
+ *   - One or more Handles, which expose an API so that Controllers can pass
+ *     commands to the mechanism.
+ */
+
 namespace robot_controllers
 {
 
