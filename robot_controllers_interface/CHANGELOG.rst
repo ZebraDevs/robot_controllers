@@ -2,6 +2,11 @@
 Changelog for package robot_controllers_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* add mainpage to doxygen
+* Contributors: Michael Ferguson
+
 0.4.2 (2015-10-22)
 ------------------
 * add -Wall to interface package
