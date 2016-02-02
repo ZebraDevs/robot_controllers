@@ -163,11 +163,18 @@ void DiffDriveBaseController::command(const geometry_msgs::TwistConstPtr& msg)
     return;
   }
 
-  boost::mutex::scoped_lock lock(command_mutex_);
-  last_command_ = ros::Time::now();
-  desired_x_ = msg->linear.x;
-  desired_r_ = msg->angular.z;
-  lock.unlock();
+  if (std::isfinite(msg->linear.x) && std::isfinite(msg->angular.z))
+  {
+    boost::mutex::scoped_lock lock(command_mutex_);
+    last_command_ = ros::Time::now();
+    desired_x_ = msg->linear.x;
+    desired_r_ = msg->angular.z;
+  }
+  else
+  {
+    ROS_ERROR_NAMED("BaseController", "Commanded velocities not finite!");
+    return;
+  }
 
   manager_->requestStart(getName());
 }
