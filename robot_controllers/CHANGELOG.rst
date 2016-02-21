@@ -2,6 +2,11 @@
 Changelog for package robot_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* require finite commands to base controller
+* Contributors: Michael Ferguson
+
 0.4.3 (2015-12-05)
 ------------------
 * fix path/goal tolerance preparation
