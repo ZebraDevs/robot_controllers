@@ -2,8 +2,8 @@
 Changelog for package robot_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.5.0 (2016-02-21)
+------------------
 * require finite commands to base controller
 * Contributors: Michael Ferguson
 
