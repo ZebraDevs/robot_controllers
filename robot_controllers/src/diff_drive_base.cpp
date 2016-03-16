@@ -122,6 +122,10 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
   cmd_sub_ = nh.subscribe<geometry_msgs::Twist>("command", 1,
                 boost::bind(&DiffDriveBaseController::command, this, _1));
 
+
+  // Subscribe to imu
+  imu_gyro_z_ = nh_.subscribe("/imu",10, &DiffDriveBaseController::imuCallback, this);
+
   // Publish odometry & tf
   ros::NodeHandle n;
   odom_pub_ = n.advertise<nav_msgs::Odometry>("odom", 10);
@@ -207,6 +211,16 @@ bool DiffDriveBaseController::reset()
   return true;
 }
 
+
+// callback function for imu
+void DiffDriveBaseController::imuCallback(const sensor_msgs::ImuConstPtr & msg)
+{
+  boost::mutex::scoped_lock lock(command_mutex_);
+  gyro_z = msg->angular_velocity.z;
+  lock.unlock();
+}
+
+
 void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& dt)
 {
   if (!initialized_)
@@ -275,6 +289,13 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   double right_dx = angles::shortest_angular_distance(right_last_position_, right_pos)/radians_per_meter_;
   double left_vel = static_cast<double>(left_->getVelocity())/radians_per_meter_;
   double right_vel = static_cast<double>(right_->getVelocity())/radians_per_meter_;
+  double left_effort = static_cast<double>(left_->getEffort());
+  double right_effort = static_cast<double>(right_->getEffort());
+  double err_;
+  int kp;
+  double robot_torque_;
+  float effort_r_ , effort_l_ ;
+  float vel_r_, vel_l_;
 
   // Threshold the odometry to avoid noise (especially in simulation)
   if (fabs(left_dx) > wheel_rotating_threshold_ ||
@@ -301,14 +322,23 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   dx = (left_vel + right_vel)/2.0;
   dr = (right_vel - left_vel)/track_width_;
 
+  // add torque along with velocity for stability
+  err_ = last_sent_r_ - gyro_z;
+  kp = 7.0;
+  robot_torque_ = kp * err_;
+  effort_r_ = robot_torque_;
+  effort_l_ = -robot_torque_;
+
+  vel_r_ = last_sent_x_ - (last_sent_r_/2.0 * track_width_);
+  vel_l_ = last_sent_x_ + (last_sent_r_/2.0 * track_width_);
+
   // Actually set command
   if (fabs(dx) > moving_threshold_ ||
       fabs(dr) > rotating_threshold_ ||
       last_sent_x_ != 0.0 ||
       last_sent_r_ != 0.0)
   {
-    setCommand(last_sent_x_ - (last_sent_r_/2.0 * track_width_),
-               last_sent_x_ + (last_sent_r_/2.0 * track_width_));
+    setCommand(vel_r_, vel_l_, effort_l_, effort_r_);
   }
 
   // Lock mutex before updating
@@ -401,11 +431,11 @@ void DiffDriveBaseController::scanCallback(
   last_laser_scan_ = ros::Time::now();
 }
 
-void DiffDriveBaseController::setCommand(float left, float right)
+void DiffDriveBaseController::setCommand(float left, float right, float effort_l_, float effort_r_)
 {
   // Convert meters/sec into radians/sec
-  left_->setVelocity(left * radians_per_meter_, 0.0);
-  right_->setVelocity(right * radians_per_meter_, 0.0);
+  left_->setVelocity(left * radians_per_meter_, effort_l_);
+  right_->setVelocity(right * radians_per_meter_, effort_r_);
 }
 
 }  // namespace robot_controllers
