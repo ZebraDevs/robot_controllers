@@ -124,7 +124,7 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
 
 
   // Subscribe to imu
-  imu_gyro_z_ = nh_.subscribe("/imu",10, &DiffDriveBaseController::imuCallback, this);
+  imu_sub_ = nh.subscribe<sensor_msgs::Imu>("/imu",1, &DiffDriveBaseController::imuCallback, this);
 
   // Publish odometry & tf
   ros::NodeHandle n;
@@ -176,6 +176,13 @@ void DiffDriveBaseController::command(const geometry_msgs::TwistConstPtr& msg)
   manager_->requestStart(getName());
 }
 
+// callback function for imu
+void DiffDriveBaseController::imuCallback(const sensor_msgs::ImuConstPtr & msg)
+{
+  boost::mutex::scoped_lock lock(command_mutex_);
+  gyro_z_ = msg->angular_velocity.z;
+}
+
 bool DiffDriveBaseController::start()
 {
   if (!initialized_)
@@ -211,16 +218,6 @@ bool DiffDriveBaseController::reset()
   return true;
 }
 
-
-// callback function for imu
-void DiffDriveBaseController::imuCallback(const sensor_msgs::ImuConstPtr & msg)
-{
-  boost::mutex::scoped_lock lock(command_mutex_);
-  gyro_z = msg->angular_velocity.z;
-  lock.unlock();
-}
-
-
 void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& dt)
 {
   if (!initialized_)
@@ -241,8 +238,8 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
     safety_scaling_ = 0.1;
   }
 
-  // Do velocity acceleration/limiting
-  double x, r;
+  // Do velocity acceleration/limiting, get gyro_z with holding lock
+  double x, r, gyro_z;
   {
     boost::mutex::scoped_lock lock(command_mutex_);
     // Limit linear velocity based on obstacles
@@ -254,7 +251,9 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
     // Limit angular velocity
     // Scale same amount as linear velocity so that robot still follows the same "curvature"
     r = std::max(-max_velocity_r_, std::min(actual_scaling * desired_r_, max_velocity_r_));
+    gyro_z = gyro_z_;
   }
+
   if (x > last_sent_x_)
   {
     last_sent_x_ += max_acceleration_x_ * (now - last_update_).toSec();
@@ -289,13 +288,10 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   double right_dx = angles::shortest_angular_distance(right_last_position_, right_pos)/radians_per_meter_;
   double left_vel = static_cast<double>(left_->getVelocity())/radians_per_meter_;
   double right_vel = static_cast<double>(right_->getVelocity())/radians_per_meter_;
-  double left_effort = static_cast<double>(left_->getEffort());
-  double right_effort = static_cast<double>(right_->getEffort());
+  double effort_l = static_cast<double>(left_->getEffort());
+  double effort_r = static_cast<double>(right_->getEffort());
   double err_;
-  int kp;
   double robot_torque_;
-  float effort_r_ , effort_l_ ;
-  float vel_r_, vel_l_;
 
   // Threshold the odometry to avoid noise (especially in simulation)
   if (fabs(left_dx) > wheel_rotating_threshold_ ||
@@ -324,13 +320,11 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
 
   // add torque along with velocity for stability
   err_ = last_sent_r_ - gyro_z;
-  kp = 7.0;
+  double kp = 7.0;
   robot_torque_ = kp * err_;
-  effort_r_ = robot_torque_;
-  effort_l_ = -robot_torque_;
+  effort_r = robot_torque_;
+  effort_l = -robot_torque_;
 
-  vel_r_ = last_sent_x_ - (last_sent_r_/2.0 * track_width_);
-  vel_l_ = last_sent_x_ + (last_sent_r_/2.0 * track_width_);
 
   // Actually set command
   if (fabs(dx) > moving_threshold_ ||
@@ -338,7 +332,9 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
       last_sent_x_ != 0.0 ||
       last_sent_r_ != 0.0)
   {
-    setCommand(vel_r_, vel_l_, effort_l_, effort_r_);
+    double vel_r = last_sent_x_ - (last_sent_r_/2.0 * track_width_);
+    double vel_l = last_sent_x_ + (last_sent_r_/2.0 * track_width_);
+    setCommand(vel_r, vel_l, effort_l, effort_r);
   }
 
   // Lock mutex before updating
@@ -431,7 +427,7 @@ void DiffDriveBaseController::scanCallback(
   last_laser_scan_ = ros::Time::now();
 }
 
-void DiffDriveBaseController::setCommand(float left, float right, float effort_l_, float effort_r_)
+void DiffDriveBaseController::setCommand(float left, float right, double effort_l_, double effort_r_)
 {
   // Convert meters/sec into radians/sec
   left_->setVelocity(left * radians_per_meter_, effort_l_);
