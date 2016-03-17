@@ -125,6 +125,7 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
 
   // Subscribe to imu
   imu_sub_ = nh.subscribe<sensor_msgs::Imu>("/imu",1, &DiffDriveBaseController::imuCallback, this);
+  ROS_INFO("Subscribing to IMU");
 
   // Publish odometry & tf
   ros::NodeHandle n;
@@ -290,8 +291,8 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   double right_vel = static_cast<double>(right_->getVelocity())/radians_per_meter_;
   double effort_l = static_cast<double>(left_->getEffort());
   double effort_r = static_cast<double>(right_->getEffort());
-  double err_;
-  double robot_torque_;
+  double err;
+  double robot_torque;
 
   // Threshold the odometry to avoid noise (especially in simulation)
   if (fabs(left_dx) > wheel_rotating_threshold_ ||
@@ -320,8 +321,8 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
 
   // add torque along with velocity for stability
   err_ = last_sent_r_ - gyro_z;
-  double kp = 7.0;
-  robot_torque_ = kp * err_;
+  double gyro_kp = 0.0; // starting with a gain of 0
+  robot_torque = gyro_kp * err;
   effort_r = robot_torque_;
   effort_l = -robot_torque_;
 
