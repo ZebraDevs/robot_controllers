@@ -150,6 +150,7 @@ private:
   double max_velocity_r_;
   double max_acceleration_x_;
   double max_acceleration_r_;
+  double gyro_kp_;
 
   // Laser can provide additional safety limits on velocity
   double safety_scaling_;

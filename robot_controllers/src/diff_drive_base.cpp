@@ -108,6 +108,9 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
   nh.param<double>("rotating_threshold", rotating_threshold_, 0.05);
   nh.param<double>("moving_threshold", moving_threshold_, 0.05);
 
+  nh.param<double>("gyro_kp",gyro_kp_, 0.0);
+  ROS_INFO("gyro_kp is %f", gyro_kp_);
+
   double t;
   nh.param<double>("timeout", t, 0.25);
   timeout_ = ros::Duration(t);
@@ -321,10 +324,10 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
 
   // add torque along with velocity for stability
   err_ = last_sent_r_ - gyro_z;
-  double gyro_kp = 0.0; // starting with a gain of 0
-  robot_torque = gyro_kp * err;
+  robot_torque = gyro_kp_ * err;
   effort_r = robot_torque_;
   effort_l = -robot_torque_;
+  ROS_ERROR_ONCE("KP is %f", gyro_kp_);
 
 
   // Actually set command
