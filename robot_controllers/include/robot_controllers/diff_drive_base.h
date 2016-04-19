@@ -52,6 +52,7 @@
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/LaserScan.h>
 #include <sensor_msgs/Imu.h>
+#include <sensor_msgs/Joy.h>
 
 namespace robot_controllers
 {
@@ -125,6 +126,9 @@ public:
   /** @brief Imu callback .*/
   void imuCallback(const sensor_msgs::ImuConstPtr& msg);
 
+  /** @brief Joystick Callback.*/
+  void joyCallback(const sensor_msgs::JoyConstPtr &joy);
+
 private:
   bool initialized_;
   ControllerManager* manager_;
@@ -150,7 +154,8 @@ private:
   double max_velocity_r_;
   double max_acceleration_x_;
   double max_acceleration_r_;
-  double gyro_kp_;
+  double gain_effort_;
+  double gain_velocity_;
 
   // Laser can provide additional safety limits on velocity
   double safety_scaling_;
@@ -172,6 +177,7 @@ private:
   float right_last_position_;
   double left_last_timestamp_;
   double right_last_timestamp_;
+  ros::WallTime last_button_press_time_;
 
   ros::Time last_command_;
   ros::Time last_update_;
@@ -181,7 +187,7 @@ private:
   nav_msgs::Odometry odom_;
   ros::Publisher odom_pub_;
   ros::Timer odom_timer_;
-  ros::Subscriber cmd_sub_, scan_sub_, imu_sub_;
+  ros::Subscriber cmd_sub_, scan_sub_, imu_sub_, joy_sub_;
 
   boost::shared_ptr<tf::TransformBroadcaster> broadcaster_;
   bool publish_tf_;
