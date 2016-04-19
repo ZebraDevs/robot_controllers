@@ -51,6 +51,8 @@
 #include <geometry_msgs/Twist.h>
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/LaserScan.h>
+#include <sensor_msgs/Imu.h>
+#include <sensor_msgs/Joy.h>
 
 namespace robot_controllers
 {
@@ -121,6 +123,12 @@ public:
   /** @brief Command callback from either a ROS topic, or a higher controller. */
   void command(const geometry_msgs::TwistConstPtr& msg);
 
+  /** @brief Imu callback .*/
+  void imuCallback(const sensor_msgs::ImuConstPtr& msg);
+
+  /** @brief Joystick Callback.*/
+  void joyCallback(const sensor_msgs::JoyConstPtr &joy);
+
 private:
   bool initialized_;
   ControllerManager* manager_;
@@ -129,7 +137,7 @@ private:
   void scanCallback(const sensor_msgs::LaserScanConstPtr& scan);
 
   // Set base wheel speeds in m/s
-  void setCommand(float left, float right);
+  void setCommand(float left, float right, double effort_l_, double effort_r_);
 
   JointHandlePtr left_;
   JointHandlePtr right_;
@@ -146,6 +154,8 @@ private:
   double max_velocity_r_;
   double max_acceleration_x_;
   double max_acceleration_r_;
+  double gain_effort_;
+  double gain_velocity_;
 
   // Laser can provide additional safety limits on velocity
   double safety_scaling_;
@@ -161,11 +171,13 @@ private:
   // These are from controller update
   float last_sent_x_;
   float last_sent_r_;
+  float gyro_z_;
 
   float left_last_position_;
   float right_last_position_;
   double left_last_timestamp_;
   double right_last_timestamp_;
+  ros::WallTime last_button_press_time_;
 
   ros::Time last_command_;
   ros::Time last_update_;
@@ -175,7 +187,7 @@ private:
   nav_msgs::Odometry odom_;
   ros::Publisher odom_pub_;
   ros::Timer odom_timer_;
-  ros::Subscriber cmd_sub_, scan_sub_;
+  ros::Subscriber cmd_sub_, scan_sub_, imu_sub_, joy_sub_;
 
   boost::shared_ptr<tf::TransformBroadcaster> broadcaster_;
   bool publish_tf_;
