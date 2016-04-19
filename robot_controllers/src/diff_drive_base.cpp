@@ -108,8 +108,11 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
   nh.param<double>("rotating_threshold", rotating_threshold_, 0.05);
   nh.param<double>("moving_threshold", moving_threshold_, 0.05);
 
-  nh.param<double>("gyro_kp",gyro_kp_, 0.0);
-  ROS_INFO("gyro_kp is %f", gyro_kp_);
+  nh.param<double>("gain_effort",gain_effort_, 0.0);
+  ROS_INFO("The gyro gain on the effort is %f", gain_effort_);
+
+  nh.param<double>("gain_velocity", gain_velocity_, 0.0);
+  ROS_INFO("The gyro gain on the velocity is %f", gain_velocity_);
 
   double t;
   nh.param<double>("timeout", t, 0.25);
@@ -120,6 +123,8 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
   nh.param<double>("max_velocity_r", max_velocity_r_, 4.5);
   nh.param<double>("max_acceleration_x", max_acceleration_x_, 0.75);
   nh.param<double>("max_acceleration_r", max_acceleration_r_, 3.0);
+  ROS_INFO("max_acceleration_r is %f", max_acceleration_r_);
+  ROS_INFO("max_acceleration_x is %f", max_acceleration_x_);
 
   // Subscribe to base commands
   cmd_sub_ = nh.subscribe<geometry_msgs::Twist>("command", 1,
@@ -186,6 +191,66 @@ void DiffDriveBaseController::imuCallback(const sensor_msgs::ImuConstPtr & msg)
   boost::mutex::scoped_lock lock(command_mutex_);
   gyro_z_ = msg->angular_velocity.z;
 }
+
+//For easy testing of code with gains set on the joystick
+void DiffDriveBaseController::joyCallback(const sensor_msgs::JoyConstPtr& joy)
+{
+   boost::mutex::scoped_lock lock(command_mutex_);
+   ros::WallTime now = ros::WallTime::now();
+   double time_since_last_button_press = (now - last_button_press_time_).toSec();
+
+   if ((joy->buttons[13] == 1) && (time_since_last_button_press > 2.0))
+   {
+      last_button_press_time_ = now;
+      gain_effort_ <= 11 ? (gain_effort_ += 1):(gain_effort_ = gain_effort_);
+      ROS_DEBUG_DELAYED_THROTTLE(6000,"This button will increment gyro_kp");
+      ROS_INFO("The gyro gain on the effort is %f", gain_effort_);
+   }
+   else if((joy->buttons[15] == 1) && (time_since_last_button_press > 2.0))
+   {
+     last_button_press_time_ = now;
+     gain_effort_ >= -4? (gain_effort_ -= 1):(gain_effort_ = gain_effort_);
+     ROS_DEBUG_DELAYED_THROTTLE(6000, "This button will decrement gyro_kp");
+     ROS_INFO("The gyro gain on the effort is %f", gain_effort_);
+   }
+   else if((joy->buttons[12] == 1) && (time_since_last_button_press > 2.0))
+   {
+     last_button_press_time_ = now;
+     gain_effort_ = 6;
+     ROS_INFO("The gyro gain on the effort is %f", gain_effort_);
+   }
+   else if((joy->buttons[14] == 1) && (time_since_last_button_press > 2.0))
+   {
+     last_button_press_time_ = now;
+     gain_effort_ = 0;
+     ROS_INFO("The gyro gain on the effort is %f", gain_effort_);
+   }
+   else if((joy->buttons[4] == 1) && (time_since_last_button_press > 2.0))
+   {
+     last_button_press_time_ = now;
+     gain_velocity_ = 0.6;
+     ROS_INFO("The gyro gain on the velocity is %f", gain_velocity_);
+   }
+   else if((joy->buttons[6] == 1) && (time_since_last_button_press > 2.0))
+   {
+     last_button_press_time_ = now;
+     gain_velocity_ = 0.0;
+     ROS_INFO("The gyro gain on the velocity is %f", gain_velocity_);
+   }
+   else if((joy->buttons[5] == 1) && (time_since_last_button_press > 2.0))
+   {
+     last_button_press_time_ = now;
+     gain_velocity_ <= 1.2 ? (gain_velocity_ += 0.1):(gain_velocity_ = gain_velocity_);
+     ROS_INFO("The gyro gain on the velocity is %f", gain_velocity_);
+   }
+   else if((joy->buttons[7] == 1) && (time_since_last_button_press > 2.0))
+   {
+     last_button_press_time_ = now;
+     gain_velocity_ >= 0.0 ? (gain_velocity_ -= 0.1):(gain_velocity_ = gain_velocity_);
+     ROS_INFO("The gyro gain on the velocity is %f", gain_velocity_);
+   }
+}
+
 
 bool DiffDriveBaseController::start()
 {
@@ -294,8 +359,8 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   double right_vel = static_cast<double>(right_->getVelocity())/radians_per_meter_;
   double effort_l = static_cast<double>(left_->getEffort());
   double effort_r = static_cast<double>(right_->getEffort());
-  double err;
-  double robot_torque;
+  double ang_err;
+  double p_gain_effort, p_gain_velocity;
 
   // Threshold the odometry to avoid noise (especially in simulation)
   if (fabs(left_dx) > wheel_rotating_threshold_ ||
@@ -323,11 +388,11 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   dr = (right_vel - left_vel)/track_width_;
 
   // add torque along with velocity for stability
-  err_ = last_sent_r_ - gyro_z;
-  robot_torque = gyro_kp_ * err;
-  effort_r = robot_torque_;
-  effort_l = -robot_torque_;
-  ROS_ERROR_ONCE("KP is %f", gyro_kp_);
+  ang_err = dr - gyro_z;
+  p_gain_effort = gain_effort_ * ang_err;
+  effort_r = p_gain_effort;
+  effort_l = -p_gain_effort;
+  p_gain_velocity = gain_velocity_ * ang_err;
 
 
   // Actually set command
@@ -336,8 +401,9 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
       last_sent_x_ != 0.0 ||
       last_sent_r_ != 0.0)
   {
-    double vel_r = last_sent_x_ - (last_sent_r_/2.0 * track_width_);
-    double vel_l = last_sent_x_ + (last_sent_r_/2.0 * track_width_);
+    double vel_r = last_sent_x_ - ((last_sent_r_ + p_gain_velocity)/2.0 * track_width_);
+    double vel_l = last_sent_x_ + ((last_sent_r_ + p_gain_velocity)/2.0 * track_width_);
+
     setCommand(vel_r, vel_l, effort_l, effort_r);
   }
 
