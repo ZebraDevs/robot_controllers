@@ -1,7 +1,7 @@
 /*********************************************************************
  *  Software License Agreement (BSD License)
  *
- *  Copyright (c) 2014-2015, Fetch Robotics Inc.
+ *  Copyright (c) 2014-2016, Fetch Robotics Inc.
  *  Copyright (c) 2013, Unbounded Robotics Inc.
  *  All rights reserved.
  *
@@ -321,16 +321,27 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   // Lock mutex before updating
   boost::mutex::scoped_lock lock(odom_mutex_);
 
-  // Update stored odometry pose...
-  theta_ += th/2.0;
-  odom_.pose.pose.position.x += d*cos(theta_);
-  odom_.pose.pose.position.y += d*sin(theta_);
-  theta_ += th/2.0;
-  odom_.pose.pose.orientation.z = sin(theta_/2.0);
-  odom_.pose.pose.orientation.w = cos(theta_/2.0);
-  // ...and twist
-  odom_.twist.twist.linear.x = dx;
-  odom_.twist.twist.angular.z = dr;
+  if (std::isfinite(left_vel) && std::isfinite(right_vel))
+  {
+    // Update stored odometry pose...
+    theta_ += th/2.0;
+    odom_.pose.pose.position.x += d*cos(theta_);
+    odom_.pose.pose.position.y += d*sin(theta_);
+    theta_ += th/2.0;
+    odom_.pose.pose.orientation.z = sin(theta_/2.0);
+    odom_.pose.pose.orientation.w = cos(theta_/2.0);
+    // ...and twist
+    odom_.twist.twist.linear.x = dx;
+    odom_.twist.twist.angular.z = dr;
+  }
+  else
+  {
+    ROS_ERROR_THROTTLE_NAMED(1.0,
+                             "BaseController",
+                             "Ignoring non-finite base movement (%f,%f)",
+                             left_vel,
+                             right_vel);
+  }
 
   last_update_ = now;
 }
