@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015, Fetch Robotics Inc.
+ * Copyright (c) 2014-2016, Fetch Robotics Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -101,6 +101,9 @@ public:
 private:
   /** @brief Action callback. */
   void execute(const robot_controllers_msgs::QueryControllerStatesGoalConstPtr& goal);
+
+  /** @brief Fill in the current state of controllers. */
+  void getState(robot_controllers_msgs::QueryControllerStatesResult& result);
 
   /** @brief Load a controller. */
   bool load(const std::string& name);
