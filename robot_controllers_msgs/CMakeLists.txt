@@ -11,6 +11,7 @@ find_package(catkin REQUIRED
 add_message_files(
   FILES
     ControllerState.msg
+    DiffDriveLimiterParams.msg
 )
 
 add_action_files(
