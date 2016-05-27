@@ -33,7 +33,7 @@
 #include <limits>
 
 using robot_controllers::DiffDriveLimiter;
-using robot_controllers::DiffDriveLimiterParams;
+using robot_controllers_msgs::DiffDriveLimiterParams;
 
 TEST(DiffDriveLimiterTests, 1_test_velocity_limits)
 {

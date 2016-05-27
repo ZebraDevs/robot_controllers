@@ -36,12 +36,14 @@
 
 #include <boost/python.hpp>
 #include <robot_controllers/diff_drive_limiter.h>
-#include <robot_controllers/DiffDriveLimiterParams.h>
+#include <robot_controllers_msgs/DiffDriveLimiterParams.h>
 
 namespace bp = boost::python;
-namespace rc = robot_controllers;
 
-class pyDiffDriveLimiter : public rc::DiffDriveLimiter
+using robot_controllers::DiffDriveLimiter;
+using robot_controllers_msgs::DiffDriveLimiterParams;
+
+class pyDiffDriveLimiter : public DiffDriveLimiter
 {
 public:
   bp::tuple limit(double desired_linear_velocity,
@@ -78,19 +80,19 @@ public:
 
 BOOST_PYTHON_MODULE(robot_controllers_python)
 {
-  bp::class_<rc::DiffDriveLimiterParams>("DiffDriveLimiterParams")
-    .def_readwrite("max_linear_velocity", &rc::DiffDriveLimiterParams::max_linear_velocity)
+  bp::class_<DiffDriveLimiterParams>("DiffDriveLimiterParams")
+    .def_readwrite("max_linear_velocity", &DiffDriveLimiterParams::max_linear_velocity)
     .def_readwrite("max_linear_acceleration",
-                   &rc::DiffDriveLimiterParams::max_linear_acceleration)
-    .def_readwrite("max_angular_velocity", &rc::DiffDriveLimiterParams::max_angular_velocity)
+                   &DiffDriveLimiterParams::max_linear_acceleration)
+    .def_readwrite("max_angular_velocity", &DiffDriveLimiterParams::max_angular_velocity)
     .def_readwrite("max_angular_acceleration",
-                   &rc::DiffDriveLimiterParams::max_angular_acceleration)
-    .def_readwrite("max_wheel_velocity", &rc::DiffDriveLimiterParams::max_wheel_velocity)
-    .def_readwrite("track_width", &rc::DiffDriveLimiterParams::track_width)
+                   &DiffDriveLimiterParams::max_angular_acceleration)
+    .def_readwrite("max_wheel_velocity", &DiffDriveLimiterParams::max_wheel_velocity)
+    .def_readwrite("track_width", &DiffDriveLimiterParams::track_width)
     .def_readwrite("angular_velocity_limits_linear_velocity",
-                   &rc::DiffDriveLimiterParams::angular_velocity_limits_linear_velocity)
+                   &DiffDriveLimiterParams::angular_velocity_limits_linear_velocity)
     .def_readwrite("scale_to_wheel_velocity_limits",
-                   &rc::DiffDriveLimiterParams::scale_to_wheel_velocity_limits)
+                   &DiffDriveLimiterParams::scale_to_wheel_velocity_limits)
     ;
 
   bp::class_<pyDiffDriveLimiter>("DiffDriveLimiter")
