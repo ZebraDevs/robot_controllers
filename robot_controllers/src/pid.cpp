@@ -157,8 +157,8 @@ double PID::update(double error, double dt)
   {
     error_dot = (error-error_last_)/dt;
   }
-  return update(error, error_dot, dt);
   error_last_ = error;
+  return update(error, error_dot, dt);
 }
 
 double PID::update(double error, double error_dot, double dt)
