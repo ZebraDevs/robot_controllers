@@ -46,11 +46,17 @@ bool ControllerLoader::init(const std::string& name, ControllerManager* manager)
 
   if (nh.getParam("type", controller_type))
   {
-    controller_ = plugin_loader_.createInstance(controller_type);
-    controller_->init(nh, manager);
+    // If plugin is bad, catch pluginlib exception 
+    try
+    {
+      controller_ = plugin_loader_.createInstance(controller_type);
+      controller_->init(nh, manager);
+    }catch( pluginlib::LibraryLoadException e)
+    {
+      return false;
+    }  
     return true;
   }
-
   ROS_ERROR_STREAM("Unable to load controller " << name.c_str());
   return false;
 }
