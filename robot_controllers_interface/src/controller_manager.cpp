@@ -254,7 +254,7 @@ void ControllerManager::execute(const robot_controllers_msgs::QueryControllerSta
     robot_controllers_msgs::ControllerState state = goal->updates[i];
 
     // Make sure controller exists
-    bool in_default_controllers = false;
+    bool in_controller_list = false;
     for (ControllerList::iterator c = controllers_.begin(); c != controllers_.end(); c++)
     {
       if ((*c)->getController()->getName() == state.name)
@@ -263,7 +263,7 @@ void ControllerManager::execute(const robot_controllers_msgs::QueryControllerSta
         {
           if (state.type == (*c)->getController()->getType())
           {
-            in_default_controllers = true;
+            in_controller_list = true;
             break;
           }
           else
@@ -275,11 +275,11 @@ void ControllerManager::execute(const robot_controllers_msgs::QueryControllerSta
             return;
           }
         }
-        in_default_controllers = true;
+        in_controller_list = true;
         break;
       }
     }
-    if (!in_default_controllers)
+    if (!in_controller_list)
     {
       // Check if controller exists on parameter server
       ros::NodeHandle nh;

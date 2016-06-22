@@ -51,7 +51,8 @@ bool ControllerLoader::init(const std::string& name, ControllerManager* manager)
     {
       controller_ = plugin_loader_.createInstance(controller_type);
       controller_->init(nh, manager);
-    }catch( pluginlib::LibraryLoadException e)
+    }
+    catch( pluginlib::LibraryLoadException e)
     {
       return false;
     }  
