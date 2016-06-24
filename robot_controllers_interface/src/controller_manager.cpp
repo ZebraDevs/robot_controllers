@@ -254,7 +254,7 @@ void ControllerManager::execute(const robot_controllers_msgs::QueryControllerSta
     robot_controllers_msgs::ControllerState state = goal->updates[i];
 
     // Make sure controller exists
-    bool exists = false;
+    bool in_controller_list = false;
     for (ControllerList::iterator c = controllers_.begin(); c != controllers_.end(); c++)
     {
       if ((*c)->getController()->getName() == state.name)
@@ -263,7 +263,7 @@ void ControllerManager::execute(const robot_controllers_msgs::QueryControllerSta
         {
           if (state.type == (*c)->getController()->getType())
           {
-            exists = true;
+            in_controller_list = true;
             break;
           }
           else
@@ -275,17 +275,34 @@ void ControllerManager::execute(const robot_controllers_msgs::QueryControllerSta
             return;
           }
         }
-        exists = true;
+        in_controller_list = true;
         break;
       }
     }
-    if (!exists)
+    if (!in_controller_list)
     {
-      std::stringstream ss;
-      ss << "No such controller to update: " << state.name;
-      getState(result);
-      server_->setAborted(result, ss.str());
-      return;
+      // Check if controller exists on parameter server
+      ros::NodeHandle nh;
+      if (nh.hasParam(state.name))
+      { 
+        // Create controller (in a loader)
+        if (!load(static_cast<std::string>(state.name)))
+        {
+          std::stringstream ss;
+          ss << "Failed to load controller: " << state.name;
+          getState(result);
+          server_->setAborted(result, ss.str());
+          return;
+        }
+      }
+      else
+      {
+        std::stringstream ss;
+        ss << "No such controller to update: " << state.name;
+        getState(result);
+        server_->setAborted(result, ss.str());
+        return;
+      }
     }
 
     // Update state
