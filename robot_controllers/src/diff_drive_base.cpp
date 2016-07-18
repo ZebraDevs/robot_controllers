@@ -166,11 +166,7 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
   params_pub_.publish(limiter_.getParams());
 
   // Publish cmd values after they have been limited
-  nh.param<bool>("publish_limited_cmd", publish_limited_cmd_, false);
-  if (publish_limited_cmd_)
-  {
-    limited_cmd_pub_ = nh.advertise<geometry_msgs::Twist>("limited_cmd", 10);
-  }
+  limited_cmd_pub_ = nh.advertise<geometry_msgs::Twist>("command_limited", 10);
 
   // Subscribe to base commands
   cmd_sub_ = nh.subscribe<geometry_msgs::Twist>("command", 1,
@@ -356,17 +352,11 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
     setCommand(left_velocity, right_velocity);
   }
 
-  if (publish_limited_cmd_)
-  {
-    geometry_msgs::Twist limited_cmd;
-    limited_cmd.linear.x = limited_x;
-    limited_cmd.angular.z = limited_r;
-    limited_cmd_pub_.publish(limited_cmd);
-  }
-
-
   // Lock mutex before updating
-  boost::mutex::scoped_lock lock(odom_mutex_);
+  boost::mutex::scoped_lock lock(msg_mutex_);
+
+  command_limited_.linear.x = limited_x;
+  command_limited_.angular.z = limited_r;
 
   if (std::isfinite(left_vel) && std::isfinite(right_vel))
   {
@@ -413,11 +403,13 @@ std::vector<std::string> DiffDriveBaseController::getClaimedNames()
 
 void DiffDriveBaseController::publishCallback(const ros::TimerEvent& event)
 {
-  // Copy message under lock of mutex
+  // Copy messages under lock of mutex
   nav_msgs::Odometry msg;
+  geometry_msgs::Twist command_limited;
   {
-    boost::mutex::scoped_lock lock(odom_mutex_);
+    boost::mutex::scoped_lock lock(msg_mutex_);
     msg = odom_;
+    command_limited = command_limited_;
   }
 
   // Publish or perish
@@ -438,6 +430,8 @@ void DiffDriveBaseController::publishCallback(const ros::TimerEvent& event)
      */
     broadcaster_->sendTransform(tf::StampedTransform(transform, msg.header.stamp, msg.header.frame_id, msg.child_frame_id));
   }
+
+  limited_cmd_pub_.publish(command_limited_);
 }
 
 void DiffDriveBaseController::scanCallback(

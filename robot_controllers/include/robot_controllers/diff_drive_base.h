@@ -169,14 +169,15 @@ private:
   ros::Time last_update_;
   ros::Duration timeout_;
 
-  boost::mutex odom_mutex_;
+  // The odom mutex protects the following variables
+  boost::mutex msg_mutex_;
   nav_msgs::Odometry odom_;
+  geometry_msgs::Twist command_limited_;
+
   ros::Publisher odom_pub_;
   ros::Publisher params_pub_;
   ros::Timer odom_timer_;
   ros::Subscriber cmd_sub_, scan_sub_;
-
-  bool publish_limited_cmd_;
   ros::Publisher limited_cmd_pub_;
 
   boost::shared_ptr<tf::TransformBroadcaster> broadcaster_;
