@@ -2,6 +2,14 @@
 Changelog for package robot_controllers_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Dynamically load controllers (`#23 <https://github.com/fetchrobotics/robot_controllers/issues/23>`_)
+  * When requested controller not in default list, check parameter server for controller
+  * Controller loader catches pluginlib exception when trying to load bad controller
+* Return controller states even if update fails
+* Contributors: Michael Ferguson, Sarah Elliott
+
 0.5.0 (2016-02-21)
 ------------------
 

@@ -2,6 +2,14 @@
 Changelog for package robot_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* base_controller: only update odometry if inputs are finite (prevents NANs to TF)
+* base_controller: add velocity limiting
+* pid: fix error in derivative error calculation
+* allow velocity limiting code be reused for forward simulation `#18 <https://github.com/fetchrobotics/robot_controllers/issues/18>`_
+* Contributors: Cappy Pitts, Derek King, Michael Ferguson
+
 0.5.0 (2016-02-21)
 ------------------
 * require finite commands to base controller
