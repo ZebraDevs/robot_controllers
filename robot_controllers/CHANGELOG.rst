@@ -2,8 +2,8 @@
 Changelog for package robot_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.5.1 (2016-07-18)
+------------------
 * base_controller: only update odometry if inputs are finite (prevents NANs to TF)
 * base_controller: add velocity limiting
 * pid: fix error in derivative error calculation
