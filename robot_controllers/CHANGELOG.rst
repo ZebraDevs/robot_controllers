@@ -2,8 +2,8 @@
 Changelog for package robot_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.5.2 (2016-07-18)
+------------------
 * do not export python library for linking
 * Contributors: Michael Ferguson
 
