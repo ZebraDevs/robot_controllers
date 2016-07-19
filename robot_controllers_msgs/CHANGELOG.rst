@@ -2,6 +2,9 @@
 Changelog for package robot_controllers_msgs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+
 0.5.1 (2016-07-18)
 ------------------
 * Add DiffDriveLimiterParams message

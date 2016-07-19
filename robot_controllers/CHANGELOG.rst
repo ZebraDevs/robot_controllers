@@ -2,6 +2,11 @@
 Changelog for package robot_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* do not export python library for linking
+* Contributors: Michael Ferguson
+
 0.5.1 (2016-07-18)
 ------------------
 * base_controller: only update odometry if inputs are finite (prevents NANs to TF)
