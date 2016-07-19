@@ -53,7 +53,6 @@ catkin_package(
     Python
   LIBRARIES
     robot_controllers
-    robot_controllers_python
 )
 
 include_directories(
