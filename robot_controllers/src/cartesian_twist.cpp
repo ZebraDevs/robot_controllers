@@ -46,12 +46,12 @@
 #include <kdl_parser/kdl_parser.hpp>
 
 #include <tf_conversions/tf_kdl.h>
+#include <iostream>
 
 PLUGINLIB_EXPORT_CLASS(robot_controllers::CartesianTwistController, robot_controllers::Controller)
 
 namespace robot_controllers
 {
-
 CartesianTwistController::CartesianTwistController() :
   initialized_(false)
 {
@@ -72,7 +72,7 @@ int CartesianTwistController::init(ros::NodeHandle& nh, ControllerManager* manag
   // Initialize KDL structures
   std::string tip_link, root_link;
   nh.param<std::string>("root_name", root_link, "torso_lift_link");
-  nh.param<std::string>("tip_name", tip_link, "wrist_roll_link");
+  nh.param<std::string>("tip_name", tip_link, "wrist_roll_link"); //  check if it should be tip_link or gripper_link
 
   // Load URDF
   urdf::Model model;
@@ -99,15 +99,24 @@ int CartesianTwistController::init(ros::NodeHandle& nh, ControllerManager* manag
 
   solver_.reset(new KDL::ChainIkSolverVel_wdls(kdl_chain_)  );
   unsigned num_joints = kdl_chain_.getNrOfJoints();
+  printf("^^^^^^^^^^^^^^^^^The number of joints: %u\n", num_joints);
   tgt_jnt_pos_.resize(num_joints);
   tgt_jnt_vel_.resize(num_joints);
   last_tgt_jnt_vel_.resize(num_joints);
 
   // Init Joint Handles
   joints_.clear();
+  printf("^^^^^^^^^^^^^^^^^The number of segments: %u\n", kdl_chain_.getNrOfSegments());
   for (size_t i = 0; i < kdl_chain_.getNrOfSegments(); ++i)
+  {
     if (kdl_chain_.getSegment(i).getJoint().getType() != KDL::Joint::None)
+    {
       joints_.push_back(manager_->getJointHandle(kdl_chain_.getSegment(i).getJoint().getName()));
+            
+      std::cout<<"^^^^^^Segment["<<i<<"]'s name: "<<kdl_chain_.getSegment(i).getName()<<std::endl;
+      std::cout<<"^^^^^^Segment["<<i<<"]'s Joint's name: "<<kdl_chain_.getSegment(i).getJoint().getName()<<std::endl;
+    }
+  }
 
   if (joints_.size() != num_joints)
   {
@@ -142,6 +151,7 @@ bool CartesianTwistController::start()
   {
     last_tgt_jnt_vel_(ii) = joints_[ii]->getVelocity();
     tgt_jnt_pos_(ii) = joints_[ii]->getPosition();
+    
   }
 
   return true;
@@ -167,9 +177,12 @@ void CartesianTwistController::update(const ros::Time& now, const ros::Duration&
   // Copy desired twist and update time to local var to reduce lock contention
   KDL::Twist twist;
   ros::Time last_command_time;
-  {
+  { // what is this?? no functin? what is this bracket for?
     boost::mutex::scoped_lock lock(mutex_);
     twist = twist_command_;
+    std::cout<<"^^^^UPDATE^^^^^^"<<std::endl;
+    std::cout<<"Twist Vel: "<<twist.vel.data[0]<<", "<<twist.vel.data[1]<<", "<<twist.vel.data[2]<<std::endl;
+    std::cout<<"Twist Rot: "<<twist.rot.data[0]<<", "<<twist.rot.data[1]<<", "<<twist.rot.data[2]<<std::endl;
     last_command_time = last_command_time_;
   }
 
@@ -180,6 +193,7 @@ void CartesianTwistController::update(const ros::Time& now, const ros::Duration&
     manager_->requestStop(getName());
   }
 
+  // change the twist here
   if (solver_->CartToJnt(tgt_jnt_pos_, twist, tgt_jnt_vel_) < 0)
   {
     for (unsigned ii = 0; ii < num_joints; ++ii)
@@ -242,6 +256,7 @@ void CartesianTwistController::update(const ros::Time& now, const ros::Duration&
   // scale = 0.0  final velocity = previous velocity
   for (unsigned ii = 0; ii < num_joints; ++ii)
   {
+    std::cout<<"^^^^^^Scale: "<<scale<<std::endl;
     tgt_jnt_vel_(ii) = (tgt_jnt_vel_(ii) - last_tgt_jnt_vel_(ii))*scale + last_tgt_jnt_vel_(ii);
   }
 
@@ -255,22 +270,32 @@ void CartesianTwistController::update(const ros::Time& now, const ros::Duration&
   // Limit target position of joint
   for (unsigned ii = 0; ii < num_joints; ++ii)
   {
-    if (tgt_jnt_pos_(ii) > joints_[ii]->getPositionMax())
+    if(ii==0||ii==1||ii==3||ii==5)
     {
-      tgt_jnt_pos_(ii) = joints_[ii]->getPositionMax();
-    }
-    else if (tgt_jnt_pos_(ii) < joints_[ii]->getPositionMin())
-    {
-      tgt_jnt_pos_(ii) = joints_[ii]->getPositionMin();
+      if (tgt_jnt_pos_(ii) > joints_[ii]->getPositionMax())
+      {
+        tgt_jnt_pos_(ii) = joints_[ii]->getPositionMax();
+        std::cout<<"Joiint["<<ii<<"] MAX"<<std::endl;
+      }
+      else if (tgt_jnt_pos_(ii) < joints_[ii]->getPositionMin())
+      {
+        tgt_jnt_pos_(ii) = joints_[ii]->getPositionMin();
+        std::cout<<"Joiint["<<ii<<"] MIN"<<std::endl;
+      }  
     }
   }
 
 
   for (size_t ii = 0; ii < joints_.size(); ++ii)
   {
+
+    //printf("joint_pos [ %lu ]  %f\n", ii, tgt_jnt_pos_(ii));
+    //printf("joint_vel [ %lu ]  %f\n", ii, tgt_jnt_vel_(ii));
     joints_[ii]->setPosition(tgt_jnt_pos_(ii), tgt_jnt_vel_(ii), 0.0);
     last_tgt_jnt_vel_(ii) = tgt_jnt_vel_(ii);
   }
+  printf("---------------------------------------------------\n");
+  
 }
 
 void CartesianTwistController::command(const geometry_msgs::Twist::ConstPtr& goal)
@@ -303,6 +328,9 @@ void CartesianTwistController::command(const geometry_msgs::Twist::ConstPtr& goa
   {
     boost::mutex::scoped_lock lock(mutex_);
     twist_command_ = twist;
+    std::cout<<"^^^^COMMAND^^^^^^"<<std::endl;
+    std::cout<<"Twist Vel: "<<twist_command_.vel.data[0]<<", "<<twist_command_.vel.data[1]<<", "<<twist_command_.vel.data[2]<<std::endl;
+    std::cout<<"Twist Rot: "<<twist_command_.rot.data[0]<<", "<<twist_command_.rot.data[1]<<", "<<twist_command_.rot.data[2]<<std::endl;
     last_command_time_ = now;
   }
 
