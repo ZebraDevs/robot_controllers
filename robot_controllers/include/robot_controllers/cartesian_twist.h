@@ -56,6 +56,8 @@
 
 #include <kdl/chain.hpp>
 #include <kdl/chainiksolvervel_wdls.hpp>
+#include <kdl/chainfksolver.hpp>
+#include <kdl/chainfksolverpos_recursive.hpp>
 #include <kdl/frames.hpp>
 
 #include <tf/transform_datatypes.h>
@@ -129,6 +131,7 @@ public:
 
 private:
   KDL::Frame getPose();
+  KDL::Frame cartPose;
 
   bool initialized_;
   ControllerManager* manager_;
@@ -137,6 +140,7 @@ private:
 
   KDL::Chain kdl_chain_;
   boost::shared_ptr<KDL::ChainIkSolverVel_wdls> solver_;
+  boost::shared_ptr<KDL::ChainFkSolverPos_recursive> fksolver_;
   KDL::JntArray tgt_jnt_pos_;
   KDL::JntArray tgt_jnt_vel_;
   KDL::JntArray last_tgt_jnt_vel_;

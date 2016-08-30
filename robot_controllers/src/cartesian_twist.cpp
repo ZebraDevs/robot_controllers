@@ -72,7 +72,7 @@ int CartesianTwistController::init(ros::NodeHandle& nh, ControllerManager* manag
   // Initialize KDL structures
   std::string tip_link, root_link;
   nh.param<std::string>("root_name", root_link, "torso_lift_link");
-  nh.param<std::string>("tip_name", tip_link, "wrist_roll_link"); //  check if it should be tip_link or gripper_link
+  nh.param<std::string>("tip_name", tip_link, "wrist_roll_link");
 
   // Load URDF
   urdf::Model model;
@@ -97,26 +97,18 @@ int CartesianTwistController::init(ros::NodeHandle& nh, ControllerManager* manag
     return -1;
   }
 
-  solver_.reset(new KDL::ChainIkSolverVel_wdls(kdl_chain_)  );
+  solver_.reset(new KDL::ChainIkSolverVel_wdls(kdl_chain_));
+  fksolver_.reset(new KDL::ChainFkSolverPos_recursive(kdl_chain_));
   unsigned num_joints = kdl_chain_.getNrOfJoints();
-  printf("^^^^^^^^^^^^^^^^^The number of joints: %u\n", num_joints);
   tgt_jnt_pos_.resize(num_joints);
   tgt_jnt_vel_.resize(num_joints);
   last_tgt_jnt_vel_.resize(num_joints);
 
   // Init Joint Handles
   joints_.clear();
-  printf("^^^^^^^^^^^^^^^^^The number of segments: %u\n", kdl_chain_.getNrOfSegments());
   for (size_t i = 0; i < kdl_chain_.getNrOfSegments(); ++i)
-  {
     if (kdl_chain_.getSegment(i).getJoint().getType() != KDL::Joint::None)
-    {
       joints_.push_back(manager_->getJointHandle(kdl_chain_.getSegment(i).getJoint().getName()));
-            
-      std::cout<<"^^^^^^Segment["<<i<<"]'s name: "<<kdl_chain_.getSegment(i).getName()<<std::endl;
-      std::cout<<"^^^^^^Segment["<<i<<"]'s Joint's name: "<<kdl_chain_.getSegment(i).getJoint().getName()<<std::endl;
-    }
-  }
 
   if (joints_.size() != num_joints)
   {
@@ -151,7 +143,6 @@ bool CartesianTwistController::start()
   {
     last_tgt_jnt_vel_(ii) = joints_[ii]->getVelocity();
     tgt_jnt_pos_(ii) = joints_[ii]->getPosition();
-    
   }
 
   return true;
@@ -174,17 +165,26 @@ void CartesianTwistController::update(const ros::Time& now, const ros::Duration&
   if (!initialized_)
     return;  // Should never really hit this
 
+  if(fksolver_->JntToCart(tgt_jnt_pos_,cartPose) < 0)
+  {
+    cartPose = KDL::Frame::Identity();
+    ROS_ERROR_THROTTLE(1.0, "FKsolver solver failed");
+  }
+
   // Copy desired twist and update time to local var to reduce lock contention
   KDL::Twist twist;
   ros::Time last_command_time;
   { // what is this?? no functin? what is this bracket for?
     boost::mutex::scoped_lock lock(mutex_);
-    twist = twist_command_;
+
+    twist = cartPose.M*twist_command_; //  convert twist command seen from end-effector frame to the one seen from torso frame.
+
     std::cout<<"^^^^UPDATE^^^^^^"<<std::endl;
     std::cout<<"Twist Vel: "<<twist.vel.data[0]<<", "<<twist.vel.data[1]<<", "<<twist.vel.data[2]<<std::endl;
     std::cout<<"Twist Rot: "<<twist.rot.data[0]<<", "<<twist.rot.data[1]<<", "<<twist.rot.data[2]<<std::endl;
     last_command_time = last_command_time_;
   }
+
 
   unsigned num_joints = joints_.size();
 
