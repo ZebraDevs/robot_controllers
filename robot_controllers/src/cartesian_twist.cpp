@@ -46,7 +46,6 @@
 #include <kdl_parser/kdl_parser.hpp>
 
 #include <tf_conversions/tf_kdl.h>
-#include <iostream>
 
 PLUGINLIB_EXPORT_CLASS(robot_controllers::CartesianTwistController, robot_controllers::Controller)
 
@@ -122,7 +121,7 @@ int CartesianTwistController::init(ros::NodeHandle& nh, ControllerManager* manag
   }
 
   // Subscribe to command
-  command_sub_ = nh.subscribe<geometry_msgs::Twist>("command", 1,
+  command_sub_ = nh.subscribe<geometry_msgs::TwistStamped>("command", 1,
                     boost::bind(&CartesianTwistController::command, this, _1));
   last_command_time_ = ros::Time(0);
 
@@ -176,12 +175,15 @@ void CartesianTwistController::update(const ros::Time& now, const ros::Duration&
   ros::Time last_command_time;
   { // what is this?? no functin? what is this bracket for?
     boost::mutex::scoped_lock lock(mutex_);
-
-    twist = cartPose.M*twist_command_; //  convert twist command seen from end-effector frame to the one seen from torso frame.
-
-    std::cout<<"^^^^UPDATE^^^^^^"<<std::endl;
-    std::cout<<"Twist Vel: "<<twist.vel.data[0]<<", "<<twist.vel.data[1]<<", "<<twist.vel.data[2]<<std::endl;
-    std::cout<<"Twist Rot: "<<twist.rot.data[0]<<", "<<twist.rot.data[1]<<", "<<twist.rot.data[2]<<std::endl;
+    
+    if(twist_command_frame_ == "wrl_f")
+    {
+      twist = cartPose.M*twist_command_; //  convert twist command seen from end-effector frame to the one seen from torso frame.
+    }
+    else
+    {
+      twist = twist_command_;
+    }
     last_command_time = last_command_time_;
   }
 
@@ -256,7 +258,6 @@ void CartesianTwistController::update(const ros::Time& now, const ros::Duration&
   // scale = 0.0  final velocity = previous velocity
   for (unsigned ii = 0; ii < num_joints; ++ii)
   {
-    std::cout<<"^^^^^^Scale: "<<scale<<std::endl;
     tgt_jnt_vel_(ii) = (tgt_jnt_vel_(ii) - last_tgt_jnt_vel_(ii))*scale + last_tgt_jnt_vel_(ii);
   }
 
@@ -288,17 +289,12 @@ void CartesianTwistController::update(const ros::Time& now, const ros::Duration&
 
   for (size_t ii = 0; ii < joints_.size(); ++ii)
   {
-
-    //printf("joint_pos [ %lu ]  %f\n", ii, tgt_jnt_pos_(ii));
-    //printf("joint_vel [ %lu ]  %f\n", ii, tgt_jnt_vel_(ii));
     joints_[ii]->setPosition(tgt_jnt_pos_(ii), tgt_jnt_vel_(ii), 0.0);
     last_tgt_jnt_vel_(ii) = tgt_jnt_vel_(ii);
   }
-  printf("---------------------------------------------------\n");
-  
 }
 
-void CartesianTwistController::command(const geometry_msgs::Twist::ConstPtr& goal)
+void CartesianTwistController::command(const geometry_msgs::TwistStamped::ConstPtr& goal)
 {
   // Need to initialize KDL structs
   if (!initialized_)
@@ -308,13 +304,15 @@ void CartesianTwistController::command(const geometry_msgs::Twist::ConstPtr& goa
   }
 
   KDL::Twist twist;
-  twist(0) = goal->linear.x;
-  twist(1) = goal->linear.y;
-  twist(2) = goal->linear.z;
-  twist(3) = goal->angular.x;
-  twist(4) = goal->angular.y;
-  twist(5) = goal->angular.z;
-  
+  std::string frame;
+  twist(0) = goal->twist.linear.x;
+  twist(1) = goal->twist.linear.y;
+  twist(2) = goal->twist.linear.z;
+  twist(3) = goal->twist.angular.x;
+  twist(4) = goal->twist.angular.y;
+  twist(5) = goal->twist.angular.z;
+  frame = goal->header.frame_id;
+
   for (int ii=0; ii<6; ++ii)
   {
     if (!std::isfinite(twist(ii)))
@@ -327,10 +325,8 @@ void CartesianTwistController::command(const geometry_msgs::Twist::ConstPtr& goa
   ros::Time now(ros::Time::now());
   {
     boost::mutex::scoped_lock lock(mutex_);
+    twist_command_frame_ = frame;
     twist_command_ = twist;
-    std::cout<<"^^^^COMMAND^^^^^^"<<std::endl;
-    std::cout<<"Twist Vel: "<<twist_command_.vel.data[0]<<", "<<twist_command_.vel.data[1]<<", "<<twist_command_.vel.data[2]<<std::endl;
-    std::cout<<"Twist Rot: "<<twist_command_.rot.data[0]<<", "<<twist_command_.rot.data[1]<<", "<<twist_command_.rot.data[2]<<std::endl;
     last_command_time_ = now;
   }
 
