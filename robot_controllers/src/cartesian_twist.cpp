@@ -36,7 +36,7 @@
 
 /*
  * Derived a bit from pr2_controllers/cartesian_pose_controller.cpp
- * Author: Michael Ferguson, Wim Meeussen
+ * Author: Michael Ferguson, Wim Meeussen, Hanjun Song
  */
 
 #include <pluginlib/class_list_macros.h>
@@ -52,7 +52,9 @@ PLUGINLIB_EXPORT_CLASS(robot_controllers::CartesianTwistController, robot_contro
 namespace robot_controllers
 {
 CartesianTwistController::CartesianTwistController() :
-  initialized_(false)
+  initialized_(false),
+  frame_command_enabled_(false),
+  stop_requested_(true)
 {
 }
 
@@ -176,7 +178,7 @@ void CartesianTwistController::update(const ros::Time& now, const ros::Duration&
   { // what is this?? no functin? what is this bracket for?
     boost::mutex::scoped_lock lock(mutex_);
     
-    if(twist_command_frame_ == "wrl_f")
+    if(twist_command_frame_ == "end_effector_frame")
     {
       twist = cartPose.M*twist_command_; //  convert twist command seen from end-effector frame to the one seen from torso frame.
     }
@@ -186,7 +188,6 @@ void CartesianTwistController::update(const ros::Time& now, const ros::Duration&
     }
     last_command_time = last_command_time_;
   }
-
 
   unsigned num_joints = joints_.size();
 
@@ -220,7 +221,7 @@ void CartesianTwistController::update(const ros::Time& now, const ros::Duration&
     {
       tgt_jnt_vel_(ii) *= scale;
     }
-    ROS_ERROR_THROTTLE(1.0, "Jacobian solver failed");
+    ROS_ERROR_THROTTLE(1.0, "Jacobian solver failed: joint velocity limit reached");
   }
 
   // Make sure solver didn't generate any NaNs. 
@@ -330,11 +331,29 @@ void CartesianTwistController::command(const geometry_msgs::TwistStamped::ConstP
     last_command_time_ = now;
   }
 
-  // Try to start up
-  if (manager_->requestStart(getName()) != 0)
+  if(frame=="")
   {
-    ROS_ERROR("CartesianTwistController: Cannot start, blocked by another controller.");
-    return;
+    if(frame_command_enabled_ == false)
+    {
+      last_frame_command_time_ = now;
+      frame_command_enabled_ = true;
+    }
+    if((now-last_frame_command_time_) > ros::Duration(0.5)&&stop_requested_==true)
+    {
+      manager_->requestStop(getName());
+      stop_requested_ = false;
+    }
+  }
+  else
+  {
+    frame_command_enabled_ = false;
+    stop_requested_ = true;
+    // Try to start up
+    if (manager_->requestStart(getName()) != 0)
+    {
+      ROS_ERROR("CartesianTwistController: Cannot start, blocked by another controller.");
+      return;
+    }
   }
 }
 

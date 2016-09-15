@@ -36,7 +36,7 @@
 
 /*
  * Derived a bit from pr2_controllers/cartesian_pose_controller.cpp
- * Author: Michael Ferguson, Wim Meeussen
+ * Author: Michael Ferguson, Wim Meeussen, Hanjun Song
  */
 
 #ifndef ROBOT_CONTROLLERS_CARTESIAN_TWIST_H
@@ -52,7 +52,6 @@
 #include <robot_controllers_interface/controller_manager.h>
 
 #include <geometry_msgs/PoseStamped.h>
-//#include <geometry_msgs/Twist.h>
  #include <geometry_msgs/TwistStamped.h>
 
 #include <kdl/chain.hpp>
@@ -155,6 +154,9 @@ private:
   KDL::Twist twist_command_;
   std::string twist_command_frame_;
   ros::Time last_command_time_;
+  ros::Time last_frame_command_time_;
+  bool frame_command_enabled_;
+  bool stop_requested_;
 };
 
 }  // namespace robot_controllers
