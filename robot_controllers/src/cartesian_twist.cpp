@@ -53,8 +53,7 @@ namespace robot_controllers
 {
 CartesianTwistController::CartesianTwistController() :
   initialized_(false),
-  frame_command_enabled_(false),
-  stop_requested_(true)
+  is_active_(false)
 {
 }
 
@@ -137,6 +136,7 @@ bool CartesianTwistController::start()
   {
     ROS_ERROR_NAMED("CartesianTwistController",
                     "Unable to start, not initialized.");
+    is_active_ = false;
     return false;
   }
 
@@ -145,12 +145,13 @@ bool CartesianTwistController::start()
     last_tgt_jnt_vel_(ii) = joints_[ii]->getVelocity();
     tgt_jnt_pos_(ii) = joints_[ii]->getPosition();
   }
-
+  is_active_ = true;
   return true;
 }
 
 bool CartesianTwistController::stop(bool force)
 {
+  is_active_ = false;
   return true;
 }
 
@@ -166,7 +167,8 @@ void CartesianTwistController::update(const ros::Time& now, const ros::Duration&
   if (!initialized_)
     return;  // Should never really hit this
 
-  if(fksolver_->JntToCart(tgt_jnt_pos_,cartPose) < 0)
+  // FK is used to transform the twist command seen from end-effector frame to the one seen from body frame.
+  if (fksolver_->JntToCart(tgt_jnt_pos_, cartPose) < 0)
   {
     cartPose = KDL::Frame::Identity();
     ROS_ERROR_THROTTLE(1.0, "FKsolver solver failed");
@@ -175,12 +177,12 @@ void CartesianTwistController::update(const ros::Time& now, const ros::Duration&
   // Copy desired twist and update time to local var to reduce lock contention
   KDL::Twist twist;
   ros::Time last_command_time;
-  { // what is this?? no functin? what is this bracket for?
+  {
     boost::mutex::scoped_lock lock(mutex_);
     
-    if(twist_command_frame_ == "end_effector_frame")
+    if (twist_command_frame_ == "end_effector_frame")
     {
-      twist = cartPose.M*twist_command_; //  convert twist command seen from end-effector frame to the one seen from torso frame.
+      twist = cartPose.M*twist_command_;
     }
     else
     {
@@ -272,17 +274,15 @@ void CartesianTwistController::update(const ros::Time& now, const ros::Duration&
   // Limit target position of joint
   for (unsigned ii = 0; ii < num_joints; ++ii)
   {
-    if(ii==0||ii==1||ii==3||ii==5)
+    if (!joints_[ii]->isContinuous())
     {
       if (tgt_jnt_pos_(ii) > joints_[ii]->getPositionMax())
       {
         tgt_jnt_pos_(ii) = joints_[ii]->getPositionMax();
-        std::cout<<"Joiint["<<ii<<"] MAX"<<std::endl;
       }
       else if (tgt_jnt_pos_(ii) < joints_[ii]->getPositionMin())
       {
         tgt_jnt_pos_(ii) = joints_[ii]->getPositionMin();
-        std::cout<<"Joiint["<<ii<<"] MIN"<<std::endl;
       }  
     }
   }
@@ -304,15 +304,20 @@ void CartesianTwistController::command(const geometry_msgs::TwistStamped::ConstP
     return;
   }
 
-  KDL::Twist twist;
   std::string frame;
+  frame = goal->header.frame_id;
+  if (frame.empty())
+  {
+    return;
+  }
+
+  KDL::Twist twist;
   twist(0) = goal->twist.linear.x;
   twist(1) = goal->twist.linear.y;
   twist(2) = goal->twist.linear.z;
   twist(3) = goal->twist.angular.x;
   twist(4) = goal->twist.angular.y;
   twist(5) = goal->twist.angular.z;
-  frame = goal->header.frame_id;
 
   for (int ii=0; ii<6; ++ii)
   {
@@ -324,37 +329,20 @@ void CartesianTwistController::command(const geometry_msgs::TwistStamped::ConstP
   }
 
   ros::Time now(ros::Time::now());
+
   {
     boost::mutex::scoped_lock lock(mutex_);
     twist_command_frame_ = frame;
     twist_command_ = twist;
     last_command_time_ = now;
   }
+  // Try to start up
+  if (!is_active_ && manager_->requestStart(getName()) != 0)
+  {
+    ROS_ERROR("CartesianTwistController: Cannot start, blocked by another controller.");
+    return;
+  }
 
-  if(frame=="")
-  {
-    if(frame_command_enabled_ == false)
-    {
-      last_frame_command_time_ = now;
-      frame_command_enabled_ = true;
-    }
-    if((now-last_frame_command_time_) > ros::Duration(0.5)&&stop_requested_==true)
-    {
-      manager_->requestStop(getName());
-      stop_requested_ = false;
-    }
-  }
-  else
-  {
-    frame_command_enabled_ = false;
-    stop_requested_ = true;
-    // Try to start up
-    if (manager_->requestStart(getName()) != 0)
-    {
-      ROS_ERROR("CartesianTwistController: Cannot start, blocked by another controller.");
-      return;
-    }
-  }
 }
 
 std::vector<std::string> CartesianTwistController::getCommandedNames()
