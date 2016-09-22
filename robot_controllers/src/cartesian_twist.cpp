@@ -167,26 +167,28 @@ void CartesianTwistController::update(const ros::Time& now, const ros::Duration&
   if (!initialized_)
     return;  // Should never really hit this
 
-  // FK is used to transform the twist command seen from end-effector frame to the one seen from body frame.
-  if (fksolver_->JntToCart(tgt_jnt_pos_, cartPose) < 0)
-  {
-    ROS_ERROR_THROTTLE(1.0, "FKsolver solver failed");
-    return;
-  }
-
+  KDL::Frame cart_pose;
   // Copy desired twist and update time to local var to reduce lock contention
   KDL::Twist twist;
   ros::Time last_command_time;
   {
     boost::mutex::scoped_lock lock(mutex_);
-    
-    if (twist_command_frame_ == "end_effector_frame")
+    // FK is used to transform the twist command seen from end-effector frame to the one seen from body frame.
+    if (fksolver_->JntToCart(tgt_jnt_pos_, cart_pose) < 0)
     {
-      twist = cartPose.M*twist_command_;
+      twist.Zero();
+      ROS_ERROR_THROTTLE(1.0, "FKsolver solver failed");
     }
     else
     {
-      twist = twist_command_;
+      if (twist_command_frame_ == "end_effector_frame")
+      {
+        twist = cart_pose.M*twist_command_;
+      }
+      else
+      {
+        twist = twist_command_;
+      }
     }
     last_command_time = last_command_time_;
   }
@@ -223,7 +225,7 @@ void CartesianTwistController::update(const ros::Time& now, const ros::Duration&
     {
       tgt_jnt_vel_(ii) *= scale;
     }
-    ROS_ERROR_THROTTLE(1.0, "Jacobian solver failed: joint velocity limit reached");
+    ROS_DEBUG_THROTTLE(1.0, "Joint velocity limit reached.");
   }
 
   // Make sure solver didn't generate any NaNs. 
@@ -304,10 +306,9 @@ void CartesianTwistController::command(const geometry_msgs::TwistStamped::ConstP
     return;
   }
 
-  std::string frame;
-  frame = goal->header.frame_id;
-  if (frame.empty())
+  if (goal->header.frame_id.empty())
   {
+    //manager_->requestStop(getName());
     return;
   }
 
@@ -332,7 +333,7 @@ void CartesianTwistController::command(const geometry_msgs::TwistStamped::ConstP
 
   {
     boost::mutex::scoped_lock lock(mutex_);
-    twist_command_frame_ = frame;
+    twist_command_frame_ = goal->header.frame_id;
     twist_command_ = twist;
     last_command_time_ = now;
   }
@@ -342,7 +343,6 @@ void CartesianTwistController::command(const geometry_msgs::TwistStamped::ConstP
     ROS_ERROR("CartesianTwistController: Cannot start, blocked by another controller.");
     return;
   }
-
 }
 
 std::vector<std::string> CartesianTwistController::getCommandedNames()

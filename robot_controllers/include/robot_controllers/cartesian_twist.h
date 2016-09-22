@@ -131,7 +131,6 @@ public:
 
 private:
   KDL::Frame getPose();
-  KDL::Frame cartPose;
 
   bool initialized_;
   ControllerManager* manager_;
