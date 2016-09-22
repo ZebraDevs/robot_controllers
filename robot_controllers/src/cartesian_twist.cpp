@@ -170,8 +170,8 @@ void CartesianTwistController::update(const ros::Time& now, const ros::Duration&
   // FK is used to transform the twist command seen from end-effector frame to the one seen from body frame.
   if (fksolver_->JntToCart(tgt_jnt_pos_, cartPose) < 0)
   {
-    cartPose = KDL::Frame::Identity();
     ROS_ERROR_THROTTLE(1.0, "FKsolver solver failed");
+    return;
   }
 
   // Copy desired twist and update time to local var to reduce lock contention
