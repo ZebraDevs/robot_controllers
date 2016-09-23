@@ -308,7 +308,7 @@ void CartesianTwistController::command(const geometry_msgs::TwistStamped::ConstP
 
   if (goal->header.frame_id.empty())
   {
-    //manager_->requestStop(getName());
+    manager_->requestStop(getName());
     return;
   }
 
