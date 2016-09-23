@@ -36,7 +36,7 @@
 
 /*
  * Derived a bit from pr2_controllers/cartesian_pose_controller.cpp
- * Author: Michael Ferguson, Wim Meeussen
+ * Author: Michael Ferguson, Wim Meeussen, Hanjun Song
  */
 
 #ifndef ROBOT_CONTROLLERS_CARTESIAN_TWIST_H
@@ -52,10 +52,12 @@
 #include <robot_controllers_interface/controller_manager.h>
 
 #include <geometry_msgs/PoseStamped.h>
-#include <geometry_msgs/Twist.h>
+#include <geometry_msgs/TwistStamped.h>
 
 #include <kdl/chain.hpp>
 #include <kdl/chainiksolvervel_wdls.hpp>
+#include <kdl/chainfksolver.hpp>
+#include <kdl/chainfksolverpos_recursive.hpp>
 #include <kdl/frames.hpp>
 
 #include <tf/transform_datatypes.h>
@@ -125,7 +127,7 @@ public:
   virtual std::vector<std::string> getClaimedNames();
 
   /** @brief Controller command. */
-  void command(const geometry_msgs::Twist::ConstPtr& goal);
+  void command(const geometry_msgs::TwistStamped::ConstPtr& goal);
 
 private:
   KDL::Frame getPose();
@@ -137,6 +139,7 @@ private:
 
   KDL::Chain kdl_chain_;
   boost::shared_ptr<KDL::ChainIkSolverVel_wdls> solver_;
+  boost::shared_ptr<KDL::ChainFkSolverPos_recursive> fksolver_;
   KDL::JntArray tgt_jnt_pos_;
   KDL::JntArray tgt_jnt_vel_;
   KDL::JntArray last_tgt_jnt_vel_;
@@ -148,7 +151,9 @@ private:
 
   boost::mutex mutex_;
   KDL::Twist twist_command_;
+  std::string twist_command_frame_;
   ros::Time last_command_time_;
+  bool is_active_;
 };
 
 }  // namespace robot_controllers

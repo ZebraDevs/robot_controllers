@@ -36,7 +36,7 @@
 
 /*
  * Derived a bit from pr2_controllers/cartesian_pose_controller.cpp
- * Author: Michael Ferguson, Wim Meeussen
+ * Author: Michael Ferguson, Wim Meeussen, Hanjun Song
  */
 
 #include <pluginlib/class_list_macros.h>
@@ -51,9 +51,9 @@ PLUGINLIB_EXPORT_CLASS(robot_controllers::CartesianTwistController, robot_contro
 
 namespace robot_controllers
 {
-
 CartesianTwistController::CartesianTwistController() :
-  initialized_(false)
+  initialized_(false),
+  is_active_(false)
 {
 }
 
@@ -97,7 +97,8 @@ int CartesianTwistController::init(ros::NodeHandle& nh, ControllerManager* manag
     return -1;
   }
 
-  solver_.reset(new KDL::ChainIkSolverVel_wdls(kdl_chain_)  );
+  solver_.reset(new KDL::ChainIkSolverVel_wdls(kdl_chain_));
+  fksolver_.reset(new KDL::ChainFkSolverPos_recursive(kdl_chain_));
   unsigned num_joints = kdl_chain_.getNrOfJoints();
   tgt_jnt_pos_.resize(num_joints);
   tgt_jnt_vel_.resize(num_joints);
@@ -121,7 +122,7 @@ int CartesianTwistController::init(ros::NodeHandle& nh, ControllerManager* manag
   }
 
   // Subscribe to command
-  command_sub_ = nh.subscribe<geometry_msgs::Twist>("command", 1,
+  command_sub_ = nh.subscribe<geometry_msgs::TwistStamped>("command", 1,
                     boost::bind(&CartesianTwistController::command, this, _1));
   last_command_time_ = ros::Time(0);
 
@@ -135,6 +136,7 @@ bool CartesianTwistController::start()
   {
     ROS_ERROR_NAMED("CartesianTwistController",
                     "Unable to start, not initialized.");
+    is_active_ = false;
     return false;
   }
 
@@ -143,12 +145,13 @@ bool CartesianTwistController::start()
     last_tgt_jnt_vel_(ii) = joints_[ii]->getVelocity();
     tgt_jnt_pos_(ii) = joints_[ii]->getPosition();
   }
-
+  is_active_ = true;
   return true;
 }
 
 bool CartesianTwistController::stop(bool force)
 {
+  is_active_ = false;
   return true;
 }
 
@@ -164,12 +167,29 @@ void CartesianTwistController::update(const ros::Time& now, const ros::Duration&
   if (!initialized_)
     return;  // Should never really hit this
 
+  KDL::Frame cart_pose;
   // Copy desired twist and update time to local var to reduce lock contention
   KDL::Twist twist;
   ros::Time last_command_time;
   {
     boost::mutex::scoped_lock lock(mutex_);
-    twist = twist_command_;
+    // FK is used to transform the twist command seen from end-effector frame to the one seen from body frame.
+    if (fksolver_->JntToCart(tgt_jnt_pos_, cart_pose) < 0)
+    {
+      twist.Zero();
+      ROS_ERROR_THROTTLE(1.0, "FKsolver solver failed");
+    }
+    else
+    {
+      if (twist_command_frame_ == "end_effector_frame")
+      {
+        twist = cart_pose.M*twist_command_;
+      }
+      else
+      {
+        twist = twist_command_;
+      }
+    }
     last_command_time = last_command_time_;
   }
 
@@ -180,6 +200,7 @@ void CartesianTwistController::update(const ros::Time& now, const ros::Duration&
     manager_->requestStop(getName());
   }
 
+  // change the twist here
   if (solver_->CartToJnt(tgt_jnt_pos_, twist, tgt_jnt_vel_) < 0)
   {
     for (unsigned ii = 0; ii < num_joints; ++ii)
@@ -204,7 +225,7 @@ void CartesianTwistController::update(const ros::Time& now, const ros::Duration&
     {
       tgt_jnt_vel_(ii) *= scale;
     }
-    ROS_ERROR_THROTTLE(1.0, "Jacobian solver failed");
+    ROS_DEBUG_THROTTLE(1.0, "Joint velocity limit reached.");
   }
 
   // Make sure solver didn't generate any NaNs. 
@@ -255,13 +276,16 @@ void CartesianTwistController::update(const ros::Time& now, const ros::Duration&
   // Limit target position of joint
   for (unsigned ii = 0; ii < num_joints; ++ii)
   {
-    if (tgt_jnt_pos_(ii) > joints_[ii]->getPositionMax())
+    if (!joints_[ii]->isContinuous())
     {
-      tgt_jnt_pos_(ii) = joints_[ii]->getPositionMax();
-    }
-    else if (tgt_jnt_pos_(ii) < joints_[ii]->getPositionMin())
-    {
-      tgt_jnt_pos_(ii) = joints_[ii]->getPositionMin();
+      if (tgt_jnt_pos_(ii) > joints_[ii]->getPositionMax())
+      {
+        tgt_jnt_pos_(ii) = joints_[ii]->getPositionMax();
+      }
+      else if (tgt_jnt_pos_(ii) < joints_[ii]->getPositionMin())
+      {
+        tgt_jnt_pos_(ii) = joints_[ii]->getPositionMin();
+      }  
     }
   }
 
@@ -273,7 +297,7 @@ void CartesianTwistController::update(const ros::Time& now, const ros::Duration&
   }
 }
 
-void CartesianTwistController::command(const geometry_msgs::Twist::ConstPtr& goal)
+void CartesianTwistController::command(const geometry_msgs::TwistStamped::ConstPtr& goal)
 {
   // Need to initialize KDL structs
   if (!initialized_)
@@ -282,14 +306,20 @@ void CartesianTwistController::command(const geometry_msgs::Twist::ConstPtr& goa
     return;
   }
 
+  if (goal->header.frame_id.empty())
+  {
+    manager_->requestStop(getName());
+    return;
+  }
+
   KDL::Twist twist;
-  twist(0) = goal->linear.x;
-  twist(1) = goal->linear.y;
-  twist(2) = goal->linear.z;
-  twist(3) = goal->angular.x;
-  twist(4) = goal->angular.y;
-  twist(5) = goal->angular.z;
-  
+  twist(0) = goal->twist.linear.x;
+  twist(1) = goal->twist.linear.y;
+  twist(2) = goal->twist.linear.z;
+  twist(3) = goal->twist.angular.x;
+  twist(4) = goal->twist.angular.y;
+  twist(5) = goal->twist.angular.z;
+
   for (int ii=0; ii<6; ++ii)
   {
     if (!std::isfinite(twist(ii)))
@@ -300,14 +330,15 @@ void CartesianTwistController::command(const geometry_msgs::Twist::ConstPtr& goa
   }
 
   ros::Time now(ros::Time::now());
+
   {
     boost::mutex::scoped_lock lock(mutex_);
+    twist_command_frame_ = goal->header.frame_id;
     twist_command_ = twist;
     last_command_time_ = now;
   }
-
   // Try to start up
-  if (manager_->requestStart(getName()) != 0)
+  if (!is_active_ && manager_->requestStart(getName()) != 0)
   {
     ROS_ERROR("CartesianTwistController: Cannot start, blocked by another controller.");
     return;
