@@ -43,7 +43,7 @@ target_link_libraries(robot_controllers_interface
   ${catkin_LIBRARIES}
 )
 add_dependencies(robot_controllers_interface
-  robot_controllers_msgs_gencpp
+  robot_controllers_msgs_generate_messages_cpp
 )
 
 install(
