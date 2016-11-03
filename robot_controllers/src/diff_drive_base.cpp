@@ -35,6 +35,7 @@
 
 // Author: Michael Ferguson
 
+#include <std_msgs/Float64.h>
 #include <angles/angles.h>
 #include <pluginlib/class_list_macros.h>
 #include <robot_controllers/diff_drive_base.h>
@@ -168,6 +169,9 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
   // Publish cmd values after they have been limited
   limited_cmd_pub_ = nh.advertise<geometry_msgs::Twist>("command_limited", 10);
 
+  // Publish current linear acceleration limit
+  velocity_scaling_pub_ = nh.advertise<std_msgs::Float64>("command_velocity_scaling", 10);
+
   // Subscribe to base commands
   cmd_sub_ = nh.subscribe<geometry_msgs::Twist>("command", 1,
                 boost::bind(&DiffDriveBaseController::command, this, _1));
@@ -295,14 +299,6 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
     safety_scaling = 0.1;
   }
 
-  // Perform velocity and acceleration limiting
-  double last_update_dt = (now-last_update_).toSec();
-  double limited_x, limited_r;
-  limiter_.limit(&limited_x, &limited_r,
-                 desired_x, desired_r,
-                 last_sent_x_, last_sent_r_,
-                 safety_scaling, last_update_dt);
-
   double dx = 0.0;
   double dr = 0.0;
 
@@ -312,6 +308,31 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   double right_dx = angles::shortest_angular_distance(right_last_position_, right_pos)/radians_per_meter_;
   double left_vel = static_cast<double>(left_->getVelocity())/radians_per_meter_;
   double right_vel = static_cast<double>(right_->getVelocity())/radians_per_meter_;
+
+  double track_width = limiter_.getTrackWidth();
+
+  // Calculate forward and angular velocities
+  dx = (left_vel + right_vel)/2.0;
+  dr = (right_vel - left_vel)/track_width;
+
+  // Get feedback values
+  DiffDriveLimiter::Feedback fb;
+  fb.left_wheel_velocity  = left_vel;
+  fb.right_wheel_velocity = right_vel;
+
+  // Perform velocity and acceleration limiting
+  double last_update_dt = (now-last_update_).toSec();
+  double limited_x, limited_r;
+  limiter_.limit(&limited_x, &limited_r,
+                 desired_x, desired_r,
+                 last_sent_x_, last_sent_r_,
+                 safety_scaling, last_update_dt,
+                 &fb);
+
+  // Publish desired-velocity backoff factor
+  std_msgs::Float64 value;
+  value.data = limiter_.getVelocityBackoffFactor();
+  velocity_scaling_pub_.publish(value);
 
   // Threshold the odometry to avoid noise (especially in simulation)
   if (fabs(left_dx) > wheel_rotating_threshold_ ||
@@ -330,15 +351,9 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
     left_vel = right_vel = 0.0;
   }
 
-  double track_width = limiter_.getTrackWidth();
-
   // Calculate forward and angular differences
   double d = (left_dx+right_dx)/2.0;
   double th = (right_dx-left_dx)/track_width;
-
-  // Calculate forward and angular velocities
-  dx = (left_vel + right_vel)/2.0;
-  dr = (right_vel - left_vel)/track_width;
 
   // Actually set command
   if (fabs(dx) > moving_threshold_ ||
@@ -347,8 +362,10 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
       limited_r != 0.0)
   {
     double left_velocity, right_velocity;
-    limiter_.calcWheelVelocities(&left_velocity, &right_velocity,
-                                 limited_x, limited_r);
+    limiter_.calcWheelVelocities(left_velocity,
+                                 right_velocity,
+                                 limited_x,
+                                 limited_r);
     setCommand(left_velocity, right_velocity);
   }
 

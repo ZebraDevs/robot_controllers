@@ -70,10 +70,10 @@ public:
                                 double angular_velocity)
   {
     double left_velocity, right_velocity;
-    DiffDriveLimiter::calcWheelVelocities(&left_velocity,
-                                              &right_velocity,
-                                              linear_velocity,
-                                              angular_velocity);
+    DiffDriveLimiter::calcWheelVelocities(left_velocity,
+                                          right_velocity,
+                                          linear_velocity,
+                                          angular_velocity);
     return bp::make_tuple(left_velocity, right_velocity);
   }
 };

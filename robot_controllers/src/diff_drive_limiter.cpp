@@ -45,7 +45,8 @@ namespace robot_controllers
 {
 
 
-DiffDriveLimiter::DiffDriveLimiter()
+DiffDriveLimiter::DiffDriveLimiter() :
+  backoff_factor_(1.0)
 {
   setParams(getDefaultParams());
 }
@@ -68,7 +69,6 @@ inline double saturate(double value, double limit)
   return std::max(-limit, std::min(limit, value));
 }
 
-
 /**
  * @brief determines value needed to scale value between +/- limit
  * @param value value to be limited
@@ -84,7 +84,6 @@ inline double scaleToLimit(double value, double limit)
   }
   return 1.0;
 }
-
 
 /**
  * @brief limits acceleration without dividing by dt
@@ -105,15 +104,15 @@ inline double limitAccel(double desired_velocity, double last_velocity,
   return last_velocity + saturate(velocity_delta, max_velocity_delta);
 }
 
-
 void DiffDriveLimiter::limit(double *limited_linear_velocity,
-                                 double *limited_angular_velocity,
-                                 double desired_linear_velocity,
-                                 double desired_angular_velocity,
-                                 double last_linear_velocity,
-                                 double last_angular_velocity,
-                                 double safety_scaling,
-                                 double dt)
+                             double *limited_angular_velocity,
+                             double desired_linear_velocity,
+                             double desired_angular_velocity,
+                             double last_linear_velocity,
+                             double last_angular_velocity,
+                             double safety_scaling,
+                             double dt,
+                             Feedback *feedback)
 {
   // Make sure dt is ever negative, and warn if it is 0.0 (since it really shouldn't be)
   if (dt <= 0.0)
@@ -174,30 +173,81 @@ void DiffDriveLimiter::limit(double *limited_linear_velocity,
     desired_linear_velocity *= linear_scale;
   }
 
+  // Scale back linear velocity based on scaling state
+  // NOTE: A large backoff_factor_ value indicates that we are
+  //       not tracking our desired linear velocity commands
+  if (desired_linear_velocity > 0.0)
+  {
+    desired_linear_velocity  *= backoff_factor_;
+    desired_angular_velocity *= backoff_factor_;
+  }
+  else
+  {
+    backoff_factor_ = 1.0;
+  }
+
   // Calculate right wheel velocity and left wheel velocity from linear velocities
   double left, right;
-  calcWheelVelocities(&left, &right, desired_linear_velocity, desired_angular_velocity);
+  calcWheelVelocities(left, right, desired_linear_velocity, desired_angular_velocity);
 
-  // Limit right and left wheel velocites
-  if (params_.scale_to_wheel_velocity_limits)
+  // Limit right and left wheel velocities
+  if (params_.scale_to_wheel_velocity_limits && feedback)
   {
-    // Scale wheel velocities together, to maintain curvature
-    double wheel_velocity = std::max(fabs(left), fabs(right));
-    double wheel_scale = scaleToLimit(wheel_velocity, params_.max_wheel_velocity);
-    left *= wheel_scale;
-    right *= wheel_scale;
+    // Shouldn't care if we are just rotating
+    if (std::abs(desired_linear_velocity) < std::numeric_limits<double>::epsilon())
+    {
+      backoff_factor_ += backoff_config_.ramp_up_gain * (1.0 - backoff_factor_) * dt;
+    }
+    else
+    {
+      // Get current velocities from wheel feedback
+      double feedback_linear_velocity, feedback_angular_velocity;
+      calcDriveVelocities(feedback->left_wheel_velocity,
+                          feedback->right_wheel_velocity,
+                          feedback_linear_velocity,
+                          feedback_angular_velocity);
+
+      // Get error values + deadband
+      double v_error = desired_linear_velocity - feedback_linear_velocity;
+      double w_error = std::abs(desired_angular_velocity - feedback_angular_velocity);
+
+      // Get error values + deadband
+      double w_error_db = std::max(w_error - backoff_config_.angular_velocity_error_deadband, 0.0);
+      double v_error_db = std::max(v_error - backoff_config_.linear_velocity_error_deadband, 0.0);
+
+      // Compute instantaneous backoff value
+      double new_backoff =
+        std::exp(-w_error_db * w_error_db / backoff_config_.linear_velocity_variance +
+                 -v_error_db * v_error_db / backoff_config_.angular_velocity_variance +
+                 -2.0 * std::abs(w_error_db * v_error_db) / backoff_config_.cross_variance);
+
+      // Update backoff state
+      double dbackoff = new_backoff - backoff_factor_;
+
+      dbackoff *= (dbackoff > 0.0 ?
+                   backoff_config_.ramp_up_gain :
+                   backoff_config_.ramp_down_gain);
+
+      backoff_factor_ += dbackoff * dt;
+    }
+
+    // Saturate backoff state
+    backoff_factor_ = std::max(backoff_factor_, backoff_config_.min_value);
+    backoff_factor_ = std::min(backoff_factor_, 1.0);
   }
   else
   {
     // Scale wheel velocities separately.
-    // This is how the previous code worked, but it does not maintain curvative
+    // This is how the previous code worked, but it does not maintain curvature
     left = saturate(left, params_.max_wheel_velocity);
     right = saturate(right, params_.max_wheel_velocity);
   }
 
   // Convert left/right velocities back to angular and linear commands
-  desired_linear_velocity = 0.5*(right+left);
-  desired_angular_velocity = (right-left)/params_.track_width;
+  calcDriveVelocities(left,
+                      right,
+                      desired_linear_velocity,
+                      desired_angular_velocity);
 
   // Limit accelerations, for now don't try to maintain curvature
   // because it can't always be done if robot is already moving
@@ -223,7 +273,7 @@ robot_controllers_msgs::DiffDriveLimiterParams DiffDriveLimiter::getDefaultParam
   params.max_wheel_velocity = 1.1;
   params.track_width = 0.37476;
   params.angular_velocity_limits_linear_velocity = false;
-  params.scale_to_wheel_velocity_limits = false;
+  params.scale_to_wheel_velocity_limits = true;
   return params;
 }
 
