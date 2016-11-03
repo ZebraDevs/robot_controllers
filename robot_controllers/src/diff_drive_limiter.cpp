@@ -105,15 +105,28 @@ inline double limitAccel(double desired_velocity, double last_velocity,
   return last_velocity + saturate(velocity_delta, max_velocity_delta);
 }
 
+static double computeCuvature(double w, double v, double tol)
+{
+  if (std::abs(w) < tol)
+  {
+    return 0.0;
+  }
+  else if (std::abs(v) < tol)
+  {
+    return std::numeric_limits<double>::infinity();
+  }
+  return w / v;
+}
 
 void DiffDriveLimiter::limit(double *limited_linear_velocity,
-                                 double *limited_angular_velocity,
-                                 double desired_linear_velocity,
-                                 double desired_angular_velocity,
-                                 double last_linear_velocity,
-                                 double last_angular_velocity,
-                                 double safety_scaling,
-                                 double dt)
+                             double *limited_angular_velocity,
+                             double desired_linear_velocity,
+                             double desired_angular_velocity,
+                             double last_linear_velocity,
+                             double last_angular_velocity,
+                             double safety_scaling,
+                             double dt,
+                             Feedback *feedback)
 {
   // Make sure dt is ever negative, and warn if it is 0.0 (since it really shouldn't be)
   if (dt <= 0.0)
@@ -181,11 +194,87 @@ void DiffDriveLimiter::limit(double *limited_linear_velocity,
   // Limit right and left wheel velocites
   if (params_.scale_to_wheel_velocity_limits)
   {
-    // Scale wheel velocities together, to maintain curvature
-    double wheel_velocity = std::max(fabs(left), fabs(right));
-    double wheel_scale = scaleToLimit(wheel_velocity, params_.max_wheel_velocity);
-    left *= wheel_scale;
-    right *= wheel_scale;
+    // TODO(cleanup) Params to load; refactor out
+    static const double max_curvature_deviation_ = 0.005;
+    static const double min_velocity_ = 0.075;
+    static const double backoff_sigma_ = 0.01;
+    static const double min_backoff_ = 0.99;
+
+    // Compute last right/left wheel velocities from last desired commands
+    double last_left, last_right;
+    calcWheelVelocities(&last_left, &last_right, last_linear_velocity, last_angular_velocity);
+
+    // Compute desired curvature
+    const double desired_curvature = computeCuvature(desired_angular_velocity,
+                                                     desired_linear_velocity,
+                                                     1e-6);
+
+    // Are we past our motion threshold (ramped up)?
+    bool is_ramped = std::abs(feedback->right_wheel_velocity) > min_velocity_ &&
+                     std::abs(feedback->left_wheel_velocity)  > min_velocity_;
+
+    // Compute curvature from feedback
+    double current_curvature = desired_curvature;
+    if (feedback && is_ramped)
+    {
+      double current_linear_velocity  = (feedback->left_wheel_velocity +
+                                         feedback->right_wheel_velocity) / 2.0;
+      double current_angular_velocity = (feedback->right_wheel_velocity -
+                                         feedback->left_wheel_velocity) / params_.track_width;
+      current_curvature = computeCuvature(current_angular_velocity,
+                                          current_linear_velocity,
+                                          1e-2);
+
+      // Check curvature error after we've ramped up
+      double curvature_deviation = std::abs(current_curvature - desired_curvature);
+      if (curvature_deviation > max_curvature_deviation_)
+      {
+        // Compute backoff envelope based on curvature error
+        double dynamic_backoff = std::max(min_backoff_,
+                                          std::exp(-backoff_sigma_ *
+                                                    curvature_deviation *
+                                                    curvature_deviation));
+
+        // Figure out whose slowing our roll
+        if (std::abs(left) > std::abs(right))
+        {
+          double left_prime;
+          if (std::abs(last_left) > min_velocity_)
+          {
+            left_prime = dynamic_backoff * last_left;
+          }
+          else
+          {
+            left_prime = copysign(min_velocity_, left);
+          }
+
+          // Check this or we will do a weird drift
+          if (std::abs(left_prime) < std::abs(left))
+          {
+            right *= (left == 0.0) ? left : std::abs(left_prime/left);
+            left   = left_prime;
+          }
+        }
+        else
+        {
+          double right_prime;
+          if (std::abs(last_right) > min_velocity_)
+          {
+            right_prime = dynamic_backoff * last_right;
+          }
+          else
+          {
+            right_prime = copysign(min_velocity_, right);
+          }
+          // Check this or we will do a weird drift
+          if (std::abs(right_prime) < std::abs(right))
+          {
+            left *= (right == 0.0) ? right : std::abs(right_prime/right);
+            right = right_prime;
+          }
+        }
+      }
+    }
   }
   else
   {

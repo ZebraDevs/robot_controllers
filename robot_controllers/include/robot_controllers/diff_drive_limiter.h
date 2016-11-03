@@ -45,6 +45,12 @@ namespace robot_controllers
 class DiffDriveLimiter
 {
  public:
+  struct Feedback
+  {
+    double left_wheel_velocity;
+    double right_wheel_velocity;
+  };
+
   /**
    * @brief Default constructor variables will be set to class has not limits
    */
@@ -79,7 +85,8 @@ class DiffDriveLimiter
              double last_linear_velocity,
              double last_angular_velocity,
              double safety_scaling,
-             double dt);
+             double dt,
+             Feedback *feeback = NULL);
 
   /**
    * @brief Calculates linear and angular velocites from wheel velocities

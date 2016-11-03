@@ -295,14 +295,6 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
     safety_scaling = 0.1;
   }
 
-  // Perform velocity and acceleration limiting
-  double last_update_dt = (now-last_update_).toSec();
-  double limited_x, limited_r;
-  limiter_.limit(&limited_x, &limited_r,
-                 desired_x, desired_r,
-                 last_sent_x_, last_sent_r_,
-                 safety_scaling, last_update_dt);
-
   double dx = 0.0;
   double dr = 0.0;
 
@@ -312,6 +304,26 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   double right_dx = angles::shortest_angular_distance(right_last_position_, right_pos)/radians_per_meter_;
   double left_vel = static_cast<double>(left_->getVelocity())/radians_per_meter_;
   double right_vel = static_cast<double>(right_->getVelocity())/radians_per_meter_;
+
+  double track_width = limiter_.getTrackWidth();
+
+  // Calculate forward and angular velocities
+  dx = (left_vel + right_vel)/2.0;
+  dr = (right_vel - left_vel)/track_width;
+
+  // Get feedback values
+  DiffDriveLimiter::Feedback fb;
+  fb.left_wheel_velocity  = left_vel;
+  fb.right_wheel_velocity = right_vel;
+
+  // Perform velocity and acceleration limiting
+  double last_update_dt = (now-last_update_).toSec();
+  double limited_x, limited_r;
+  limiter_.limit(&limited_x, &limited_r,
+                 desired_x, desired_r,
+                 last_sent_x_, last_sent_r_,
+                 safety_scaling, last_update_dt,
+                 &fb);
 
   // Threshold the odometry to avoid noise (especially in simulation)
   if (fabs(left_dx) > wheel_rotating_threshold_ ||
@@ -330,15 +342,9 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
     left_vel = right_vel = 0.0;
   }
 
-  double track_width = limiter_.getTrackWidth();
-
   // Calculate forward and angular differences
   double d = (left_dx+right_dx)/2.0;
   double th = (right_dx-left_dx)/track_width;
-
-  // Calculate forward and angular velocities
-  dx = (left_vel + right_vel)/2.0;
-  dr = (right_vel - left_vel)/track_width;
 
   // Actually set command
   if (fabs(dx) > moving_threshold_ ||
