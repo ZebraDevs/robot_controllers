@@ -195,7 +195,7 @@ void DiffDriveLimiter::limit(double *limited_linear_velocity,
   if (params_.scale_to_wheel_velocity_limits)
   {
     // TODO(cleanup) Params to load; refactor out
-    static const double max_curvature_deviation_ = 0.005;
+    static const double max_curvature_deviation_ = 0.05;
     static const double min_velocity_ = 0.075;
     static const double backoff_sigma_ = 0.01;
     static const double min_backoff_ = 0.99;
