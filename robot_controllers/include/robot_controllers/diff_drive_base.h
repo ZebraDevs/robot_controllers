@@ -179,6 +179,7 @@ private:
   ros::Timer odom_timer_;
   ros::Subscriber cmd_sub_, scan_sub_;
   ros::Publisher limited_cmd_pub_;
+  ros::Publisher limited_accel_pub_;
 
   boost::shared_ptr<tf::TransformBroadcaster> broadcaster_;
   bool publish_tf_;
