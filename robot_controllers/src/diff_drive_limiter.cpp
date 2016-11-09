@@ -68,7 +68,6 @@ inline double saturate(double value, double limit)
   return std::max(-limit, std::min(limit, value));
 }
 
-
 /**
  * @brief determines value needed to scale value between +/- limit
  * @param value value to be limited
@@ -84,7 +83,6 @@ inline double scaleToLimit(double value, double limit)
   }
   return 1.0;
 }
-
 
 /**
  * @brief limits acceleration without dividing by dt
@@ -103,19 +101,6 @@ inline double limitAccel(double desired_velocity, double last_velocity,
   double velocity_delta = desired_velocity - last_velocity;
   double max_velocity_delta = max_acceleration * dt;
   return last_velocity + saturate(velocity_delta, max_velocity_delta);
-}
-
-static double computeCuvature(double w, double v, double tol)
-{
-  if (std::abs(w) < tol)
-  {
-    return 0.0;
-  }
-  else if (std::abs(v) < tol)
-  {
-    return std::numeric_limits<double>::infinity();
-  }
-  return w / v;
 }
 
 void DiffDriveLimiter::limit(double *limited_linear_velocity,
@@ -192,88 +177,30 @@ void DiffDriveLimiter::limit(double *limited_linear_velocity,
   calcWheelVelocities(&left, &right, desired_linear_velocity, desired_angular_velocity);
 
   // Limit right and left wheel velocites
+  double max_linear_acceleration = params_.max_linear_acceleration;
   if (params_.scale_to_wheel_velocity_limits)
   {
     // TODO(cleanup) Params to load; refactor out
-    static const double max_curvature_deviation_ = 0.05;
-    static const double min_velocity_ = 0.075;
-    static const double backoff_sigma_ = 0.01;
-    static const double min_backoff_ = 0.99;
-
-    // Compute last right/left wheel velocities from last desired commands
-    double last_left, last_right;
-    calcWheelVelocities(&last_left, &last_right, last_linear_velocity, last_angular_velocity);
-
-    // Compute desired curvature
-    const double desired_curvature = computeCuvature(desired_angular_velocity,
-                                                     desired_linear_velocity,
-                                                     1e-6);
-
-    // Are we past our motion threshold (ramped up)?
-    bool is_ramped = std::abs(feedback->right_wheel_velocity) > min_velocity_ &&
-                     std::abs(feedback->left_wheel_velocity)  > min_velocity_;
+    static const double sensitivity_  = 80.0;
+    static const double min_velocity_ = 0.05;
+    static const double min_scaling_  = 0.1;
+    static const double max_velocity_deviation_ = 0.05;
 
     // Compute curvature from feedback
-    double current_curvature = desired_curvature;
-    if (feedback && is_ramped)
+    if (feedback)
     {
+      // Get current velocity from wheel feedback
       double current_linear_velocity  = (feedback->left_wheel_velocity +
                                          feedback->right_wheel_velocity) / 2.0;
-      double current_angular_velocity = (feedback->right_wheel_velocity -
-                                         feedback->left_wheel_velocity) / params_.track_width;
-      current_curvature = computeCuvature(current_angular_velocity,
-                                          current_linear_velocity,
-                                          1e-2);
 
-      // Check curvature error after we've ramped up
-      double curvature_deviation = std::abs(current_curvature - desired_curvature);
-      if (curvature_deviation > max_curvature_deviation_)
-      {
-        // Compute backoff envelope based on curvature error
-        double dynamic_backoff = std::max(min_backoff_,
-                                          std::exp(-backoff_sigma_ *
-                                                    curvature_deviation *
-                                                    curvature_deviation));
+      // Compute linear acceleration scaling factor based on velcoity diff
+      double v1 = std::max(current_linear_velocity - min_velocity_, 0.0);
+      double v2 = std::max(desired_linear_velocity - min_velocity_, 0.0);
+      double dv = std::max(v2 - v1 - max_velocity_deviation_, 0.0);
+      double scaling = std::max(min_scaling_, std::exp(-sensitivity_ * dv * dv));
 
-        // Figure out whose slowing our roll
-        if (std::abs(left) > std::abs(right))
-        {
-          double left_prime;
-          if (std::abs(last_left) > min_velocity_)
-          {
-            left_prime = dynamic_backoff * last_left;
-          }
-          else
-          {
-            left_prime = copysign(min_velocity_, left);
-          }
-
-          // Check this or we will do a weird drift
-          if (std::abs(left_prime) < std::abs(left))
-          {
-            right *= (left == 0.0) ? left : std::abs(left_prime/left);
-            left   = left_prime;
-          }
-        }
-        else
-        {
-          double right_prime;
-          if (std::abs(last_right) > min_velocity_)
-          {
-            right_prime = dynamic_backoff * last_right;
-          }
-          else
-          {
-            right_prime = copysign(min_velocity_, right);
-          }
-          // Check this or we will do a weird drift
-          if (std::abs(right_prime) < std::abs(right))
-          {
-            left *= (right == 0.0) ? right : std::abs(right_prime/right);
-            right = right_prime;
-          }
-        }
-      }
+      max_linear_acceleration *= scaling;
+      ROS_INFO_STREAM(scaling);
     }
   }
   else
@@ -293,7 +220,7 @@ void DiffDriveLimiter::limit(double *limited_linear_velocity,
   // However, if robot starts from stop and doesn't change commands
   // having acceleration limit matching would maintain curvature of robot
   *limited_linear_velocity = limitAccel(desired_linear_velocity, last_linear_velocity,
-                                        dt, params_.max_linear_acceleration);
+                                        dt, max_linear_acceleration);
   *limited_angular_velocity = limitAccel(desired_angular_velocity, last_angular_velocity,
                                          dt, params_.max_angular_acceleration);
 }
