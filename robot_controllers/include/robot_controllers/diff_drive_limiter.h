@@ -45,10 +45,21 @@ namespace robot_controllers
 class DiffDriveLimiter
 {
  public:
+  /**
+   * @brief Object used for passing feedback info to the limiter
+   */
   struct Feedback
   {
-    double left_wheel_velocity;
-    double right_wheel_velocity;
+    double left_wheel_velocity;   ///< Rolling velocity of left wheel (m/s)
+    double right_wheel_velocity;  ///< Rolling velocity of right wheel (m/s)
+  };
+
+  /**
+   * @brief Object used for returning info from the limiter
+   */
+  struct Info
+  {
+    double max_linear_acceleration;  ///< Acceleration threshold after limiting
   };
 
   /**
@@ -75,6 +86,8 @@ class DiffDriveLimiter
    *        for example if safety_scaling was 0.5, then effective max_linear_velocity
    *        would be half of what the parameter specified
    * @param dt time delta between now and previous time. used for computing acceleration
+   * @param feeback optional param for suppling feedback to the limiting operation
+   * @param[out] info optional param for returning info from the limiting operation
    *
    * Note: For this to work properly, none of the values should be NaN, and dt > 0.0
    */
@@ -86,7 +99,8 @@ class DiffDriveLimiter
              double last_angular_velocity,
              double safety_scaling,
              double dt,
-             Feedback *feeback = NULL);
+             Feedback *feeback = NULL,
+             Info *info = NULL);
 
   /**
    * @brief Calculates linear and angular velocites from wheel velocities

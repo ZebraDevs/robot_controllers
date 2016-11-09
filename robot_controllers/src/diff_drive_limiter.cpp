@@ -111,7 +111,8 @@ void DiffDriveLimiter::limit(double *limited_linear_velocity,
                              double last_angular_velocity,
                              double safety_scaling,
                              double dt,
-                             Feedback *feedback)
+                             Feedback *feedback,
+                             Info *info)
 {
   // Make sure dt is ever negative, and warn if it is 0.0 (since it really shouldn't be)
   if (dt <= 0.0)
@@ -176,7 +177,7 @@ void DiffDriveLimiter::limit(double *limited_linear_velocity,
   double left, right;
   calcWheelVelocities(&left, &right, desired_linear_velocity, desired_angular_velocity);
 
-  // Limit right and left wheel velocites
+  // Limit right and left wheel velocities
   double max_linear_acceleration = params_.max_linear_acceleration;
   if (params_.scale_to_wheel_velocity_limits)
   {
@@ -193,20 +194,25 @@ void DiffDriveLimiter::limit(double *limited_linear_velocity,
       double current_linear_velocity  = (feedback->left_wheel_velocity +
                                          feedback->right_wheel_velocity) / 2.0;
 
-      // Compute linear acceleration scaling factor based on velcoity diff
+      // Compute linear acceleration scaling factor based on velocity diff
       double v1 = std::max(current_linear_velocity - min_velocity_, 0.0);
       double v2 = std::max(desired_linear_velocity - min_velocity_, 0.0);
       double dv = std::max(v2 - v1 - max_velocity_deviation_, 0.0);
       double scaling = std::max(min_scaling_, std::exp(-sensitivity_ * dv * dv));
 
       max_linear_acceleration *= scaling;
-      ROS_INFO_STREAM(scaling);
+
+      // Get info about max acceleration
+      if (info)
+      {
+        info->max_linear_acceleration = max_linear_acceleration;
+      }
     }
   }
   else
   {
     // Scale wheel velocities separately.
-    // This is how the previous code worked, but it does not maintain curvative
+    // This is how the previous code worked, but it does not maintain curvature
     left = saturate(left, params_.max_wheel_velocity);
     right = saturate(right, params_.max_wheel_velocity);
   }

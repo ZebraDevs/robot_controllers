@@ -319,11 +319,13 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   // Perform velocity and acceleration limiting
   double last_update_dt = (now-last_update_).toSec();
   double limited_x, limited_r;
+  DiffDriveLimiter::Info limit_info;
   limiter_.limit(&limited_x, &limited_r,
                  desired_x, desired_r,
                  last_sent_x_, last_sent_r_,
                  safety_scaling, last_update_dt,
-                 &fb);
+                 &fb,
+                 &limit_info);
 
   // Threshold the odometry to avoid noise (especially in simulation)
   if (fabs(left_dx) > wheel_rotating_threshold_ ||
