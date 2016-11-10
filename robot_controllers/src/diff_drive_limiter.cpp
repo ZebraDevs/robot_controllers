@@ -45,7 +45,8 @@ namespace robot_controllers
 {
 
 
-DiffDriveLimiter::DiffDriveLimiter()
+DiffDriveLimiter::DiffDriveLimiter() :
+  last_scaling_(1.0)
 {
   setParams(getDefaultParams());
 }
@@ -68,7 +69,6 @@ inline double saturate(double value, double limit)
   return std::max(-limit, std::min(limit, value));
 }
 
-
 /**
  * @brief determines value needed to scale value between +/- limit
  * @param value value to be limited
@@ -84,7 +84,6 @@ inline double scaleToLimit(double value, double limit)
   }
   return 1.0;
 }
-
 
 /**
  * @brief limits acceleration without dividing by dt
@@ -105,15 +104,16 @@ inline double limitAccel(double desired_velocity, double last_velocity,
   return last_velocity + saturate(velocity_delta, max_velocity_delta);
 }
 
-
 void DiffDriveLimiter::limit(double *limited_linear_velocity,
-                                 double *limited_angular_velocity,
-                                 double desired_linear_velocity,
-                                 double desired_angular_velocity,
-                                 double last_linear_velocity,
-                                 double last_angular_velocity,
-                                 double safety_scaling,
-                                 double dt)
+                             double *limited_angular_velocity,
+                             double desired_linear_velocity,
+                             double desired_angular_velocity,
+                             double last_linear_velocity,
+                             double last_angular_velocity,
+                             double safety_scaling,
+                             double dt,
+                             Feedback *feedback,
+                             Info *info)
 {
   // Make sure dt is ever negative, and warn if it is 0.0 (since it really shouldn't be)
   if (dt <= 0.0)
@@ -174,23 +174,52 @@ void DiffDriveLimiter::limit(double *limited_linear_velocity,
     desired_linear_velocity *= linear_scale;
   }
 
+  desired_linear_velocity *= last_scaling_;
+
   // Calculate right wheel velocity and left wheel velocity from linear velocities
   double left, right;
   calcWheelVelocities(&left, &right, desired_linear_velocity, desired_angular_velocity);
 
-  // Limit right and left wheel velocites
+  // Calculate right wheel velocity and left wheel velocity from linear velocities
+  double last_left, last_right;
+  calcWheelVelocities(&last_left, &last_right, last_linear_velocity, last_angular_velocity);
+
+  // Limit right and left wheel velocities
   if (params_.scale_to_wheel_velocity_limits)
   {
-    // Scale wheel velocities together, to maintain curvature
-    double wheel_velocity = std::max(fabs(left), fabs(right));
-    double wheel_scale = scaleToLimit(wheel_velocity, params_.max_wheel_velocity);
-    left *= wheel_scale;
-    right *= wheel_scale;
+    // TODO(cleanup) Params to load; refactor out
+    static const double sensitivity_  = 20.0;
+    static const double scaling_gain_ = 0.05;
+    static const double min_velocity_ = 0.05;
+    static const double min_scaling_  = 0.1;
+    static const double max_velocity_deviation_ = 0.01;
+
+    // Compute curvature from feedback
+    if (feedback)
+    {
+      // Get current velocity from wheel feedback
+      double current_linear_velocity  = (feedback->left_wheel_velocity +
+                                         feedback->right_wheel_velocity) / 2.0;
+
+      // Compute linear acceleration scaling factor based on velocity diff
+      double v1 = std::max(current_linear_velocity - min_velocity_, 0.0);
+      double v2 = std::max(desired_linear_velocity - min_velocity_, 0.0);
+      double dv = std::max(v2 - v1 - max_velocity_deviation_, 0.0);
+      double scaling = std::max(min_scaling_, std::exp(-sensitivity_ * dv));
+
+      last_scaling_ += scaling_gain_ * (scaling - last_scaling_);
+
+      // Get info about max acceleration
+      if (info)
+      {
+        info->velocity_scaling = last_scaling_;
+      }
+    }
   }
   else
   {
     // Scale wheel velocities separately.
-    // This is how the previous code worked, but it does not maintain curvative
+    // This is how the previous code worked, but it does not maintain curvature
     left = saturate(left, params_.max_wheel_velocity);
     right = saturate(right, params_.max_wheel_velocity);
   }
@@ -223,7 +252,7 @@ robot_controllers_msgs::DiffDriveLimiterParams DiffDriveLimiter::getDefaultParam
   params.max_wheel_velocity = 1.1;
   params.track_width = 0.37476;
   params.angular_velocity_limits_linear_velocity = false;
-  params.scale_to_wheel_velocity_limits = false;
+  params.scale_to_wheel_velocity_limits = true;
   return params;
 }
 
