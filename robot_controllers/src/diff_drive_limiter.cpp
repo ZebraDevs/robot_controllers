@@ -45,7 +45,8 @@ namespace robot_controllers
 {
 
 
-DiffDriveLimiter::DiffDriveLimiter()
+DiffDriveLimiter::DiffDriveLimiter() :
+  last_scaling_(1.0)
 {
   setParams(getDefaultParams());
 }
@@ -173,19 +174,25 @@ void DiffDriveLimiter::limit(double *limited_linear_velocity,
     desired_linear_velocity *= linear_scale;
   }
 
+  desired_linear_velocity *= last_scaling_;
+
   // Calculate right wheel velocity and left wheel velocity from linear velocities
   double left, right;
   calcWheelVelocities(&left, &right, desired_linear_velocity, desired_angular_velocity);
 
+  // Calculate right wheel velocity and left wheel velocity from linear velocities
+  double last_left, last_right;
+  calcWheelVelocities(&last_left, &last_right, last_linear_velocity, last_angular_velocity);
+
   // Limit right and left wheel velocities
-  double max_linear_acceleration = params_.max_linear_acceleration;
   if (params_.scale_to_wheel_velocity_limits)
   {
     // TODO(cleanup) Params to load; refactor out
-    static const double sensitivity_  = 80.0;
+    static const double sensitivity_  = 20.0;
+    static const double scaling_gain_ = 0.05;
     static const double min_velocity_ = 0.05;
     static const double min_scaling_  = 0.1;
-    static const double max_velocity_deviation_ = 0.05;
+    static const double max_velocity_deviation_ = 0.01;
 
     // Compute curvature from feedback
     if (feedback)
@@ -198,14 +205,14 @@ void DiffDriveLimiter::limit(double *limited_linear_velocity,
       double v1 = std::max(current_linear_velocity - min_velocity_, 0.0);
       double v2 = std::max(desired_linear_velocity - min_velocity_, 0.0);
       double dv = std::max(v2 - v1 - max_velocity_deviation_, 0.0);
-      double scaling = std::max(min_scaling_, std::exp(-sensitivity_ * dv * dv));
+      double scaling = std::max(min_scaling_, std::exp(-sensitivity_ * dv));
 
-      max_linear_acceleration *= scaling;
+      last_scaling_ += scaling_gain_ * (scaling - last_scaling_);
 
       // Get info about max acceleration
       if (info)
       {
-        info->max_linear_acceleration = max_linear_acceleration;
+        info->velocity_scaling = last_scaling_;
       }
     }
   }
@@ -226,7 +233,7 @@ void DiffDriveLimiter::limit(double *limited_linear_velocity,
   // However, if robot starts from stop and doesn't change commands
   // having acceleration limit matching would maintain curvature of robot
   *limited_linear_velocity = limitAccel(desired_linear_velocity, last_linear_velocity,
-                                        dt, max_linear_acceleration);
+                                        dt, params_.max_linear_acceleration);
   *limited_angular_velocity = limitAccel(desired_angular_velocity, last_angular_velocity,
                                          dt, params_.max_angular_acceleration);
 }
@@ -245,7 +252,7 @@ robot_controllers_msgs::DiffDriveLimiterParams DiffDriveLimiter::getDefaultParam
   params.max_wheel_velocity = 1.1;
   params.track_width = 0.37476;
   params.angular_velocity_limits_linear_velocity = false;
-  params.scale_to_wheel_velocity_limits = false;
+  params.scale_to_wheel_velocity_limits = true;
   return params;
 }
 

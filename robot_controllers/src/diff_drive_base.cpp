@@ -170,7 +170,7 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
   limited_cmd_pub_ = nh.advertise<geometry_msgs::Twist>("command_limited", 10);
 
   // Publish current linear acceleration limit
-  limited_accel_pub_ = nh.advertise<std_msgs::Float64>("max_linear_acceleration", 10);
+  velocity_scaling_pub_ = nh.advertise<std_msgs::Float64>("command_velocity_scaling", 10);
 
   // Subscribe to base commands
   cmd_sub_ = nh.subscribe<geometry_msgs::Twist>("command", 1,
@@ -333,8 +333,8 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
 
   // Publish acceleration thresh after limiting
   std_msgs::Float64 value;
-  value.data = limit_info.max_linear_acceleration;
-  limited_accel_pub_.publish(value);
+  value.data = limit_info.velocity_scaling;
+  velocity_scaling_pub_.publish(value);
 
   // Threshold the odometry to avoid noise (especially in simulation)
   if (fabs(left_dx) > wheel_rotating_threshold_ ||

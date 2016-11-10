@@ -59,7 +59,7 @@ class DiffDriveLimiter
    */
   struct Info
   {
-    double max_linear_acceleration;  ///< Acceleration threshold after limiting
+    double velocity_scaling;  ///< Value used to scale-back desired linear velocity
   };
 
   /**
@@ -151,6 +151,9 @@ class DiffDriveLimiter
 
  protected:
   robot_controllers_msgs::DiffDriveLimiterParams params_;
+
+ private:
+  double last_scaling_;
 };
 
 } // namespace robot_controllers
