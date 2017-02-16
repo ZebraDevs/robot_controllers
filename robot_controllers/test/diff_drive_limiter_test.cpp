@@ -201,8 +201,10 @@ TEST(DiffDriveLimiterTests, 2_test_wheel_velocity_limits)
   EXPECT_NEAR(limited_linear_velocity, desired_linear_velocity, 1e-6);
 
   double left_velocity, right_velocity;
-  limiter.calcWheelVelocities(&left_velocity, &right_velocity,
-                              limited_linear_velocity, limited_angular_velocity);
+  limiter.calcWheelVelocities(left_velocity,
+                              right_velocity,
+                              limited_linear_velocity,
+                              limited_angular_velocity);
   EXPECT_NEAR(left_velocity, -params.max_wheel_velocity, 1e-6);
   EXPECT_NEAR(right_velocity, params.max_wheel_velocity, 1e-6);
 
@@ -218,8 +220,10 @@ TEST(DiffDriveLimiterTests, 2_test_wheel_velocity_limits)
   // linear velocity should stay near zero
   EXPECT_NEAR(limited_linear_velocity, desired_linear_velocity, 1e-6);
 
-  limiter.calcWheelVelocities(&left_velocity, &right_velocity,
-                              limited_linear_velocity, limited_angular_velocity);
+  limiter.calcWheelVelocities(left_velocity,
+                              right_velocity,
+                              limited_linear_velocity,
+                              limited_angular_velocity);
   EXPECT_NEAR(left_velocity, params.max_wheel_velocity, 1e-6);
   EXPECT_NEAR(right_velocity, -params.max_wheel_velocity, 1e-6);
 }
@@ -352,8 +356,10 @@ TEST(DiffDriveLimiterTests, 4_test_wheel_curvature_matching)
                 safety_scaling, dt);
   EXPECT_NEAR(limited_linear_velocity/limited_angular_velocity,
               desired_linear_velocity/desired_angular_velocity, 1e-6);
-  limiter.calcWheelVelocities(&left_velocity, &right_velocity,
-                              limited_linear_velocity, limited_angular_velocity);
+  limiter.calcWheelVelocities(left_velocity,
+                              right_velocity,
+                              limited_linear_velocity,
+                              limited_angular_velocity);
   EXPECT_LE(left_velocity,  params.max_wheel_velocity+1e-6);
   EXPECT_LE(right_velocity, params.max_wheel_velocity+1e-6);
   EXPECT_GE(left_velocity,  -params.max_wheel_velocity-1e-6);
@@ -368,8 +374,10 @@ TEST(DiffDriveLimiterTests, 4_test_wheel_curvature_matching)
                 safety_scaling, dt);
   EXPECT_NEAR(limited_linear_velocity/limited_angular_velocity,
               desired_linear_velocity/desired_angular_velocity, 1e-6);
-  limiter.calcWheelVelocities(&left_velocity, &right_velocity,
-                              limited_linear_velocity, limited_angular_velocity);
+  limiter.calcWheelVelocities(left_velocity,
+                              right_velocity,
+                              limited_linear_velocity,
+                              limited_angular_velocity);
   EXPECT_LE(left_velocity,  params.max_wheel_velocity+1e-6);
   EXPECT_LE(right_velocity, params.max_wheel_velocity+1e-6);
   EXPECT_GE(left_velocity,  -params.max_wheel_velocity-1e-6);
@@ -385,8 +393,10 @@ TEST(DiffDriveLimiterTests, 4_test_wheel_curvature_matching)
                 safety_scaling, dt);
   EXPECT_NEAR(limited_linear_velocity/limited_angular_velocity,
               desired_linear_velocity/desired_angular_velocity, 1e-6);
-  limiter.calcWheelVelocities(&left_velocity, &right_velocity,
-                              limited_linear_velocity, limited_angular_velocity);
+  limiter.calcWheelVelocities(left_velocity,
+                              right_velocity,
+                              limited_linear_velocity,
+                              limited_angular_velocity);
   EXPECT_LE(left_velocity,  params.max_wheel_velocity+1e-6);
   EXPECT_LE(right_velocity, params.max_wheel_velocity+1e-6);
   EXPECT_GE(left_velocity,  -params.max_wheel_velocity-1e-6);
@@ -401,8 +411,10 @@ TEST(DiffDriveLimiterTests, 4_test_wheel_curvature_matching)
                 safety_scaling, dt);
   EXPECT_NEAR(limited_linear_velocity/limited_angular_velocity,
               desired_linear_velocity/desired_angular_velocity, 1e-6);
-  limiter.calcWheelVelocities(&left_velocity, &right_velocity,
-                              limited_linear_velocity, limited_angular_velocity);
+  limiter.calcWheelVelocities(left_velocity,
+                              right_velocity,
+                              limited_linear_velocity,
+                              limited_angular_velocity);
   EXPECT_LE(left_velocity,  params.max_wheel_velocity+1e-6);
   EXPECT_LE(right_velocity, params.max_wheel_velocity+1e-6);
   EXPECT_GE(left_velocity,  -params.max_wheel_velocity-1e-6);
