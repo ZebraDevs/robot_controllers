@@ -1,7 +1,7 @@
 /*********************************************************************
  *  Software License Agreement (BSD License)
  *
- *  Copyright (c) 2014-2015, Fetch Robotics Inc.
+ *  Copyright (c) 2014-2017, Fetch Robotics Inc.
  *  Copyright (c) 2013, Unbounded Robotics Inc.
  *  All rights reserved.
  *
@@ -121,6 +121,12 @@ public:
 
   /** @brief Command callback from either a ROS topic, or a higher controller. */
   void command(const geometry_msgs::TwistConstPtr& msg);
+
+  /** @brief Get the last command. */
+  void getCommand(geometry_msgs::TwistPtr& msg)
+  {
+    *msg = command_limited_;
+  }
 
 private:
   bool initialized_;
