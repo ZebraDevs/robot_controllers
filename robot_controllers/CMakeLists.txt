@@ -6,8 +6,7 @@ if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
 endif()
 
 find_package(orocos_kdl REQUIRED)
-find_package(Boost REQUIRED python system)
-find_package(PythonLibs REQUIRED)
+find_package(Boost REQUIRED system)
 find_package(catkin REQUIRED
   COMPONENTS
     actionlib
@@ -26,8 +25,6 @@ find_package(catkin REQUIRED
     trajectory_msgs
     urdf
 )
-
-catkin_python_setup()
 
 catkin_package(
   INCLUDE_DIRS
@@ -50,7 +47,6 @@ catkin_package(
   DEPENDS
     Boost
     orocos_kdl
-    Python
   LIBRARIES
     robot_controllers
 )
@@ -60,7 +56,6 @@ include_directories(
   ${Boost_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
   ${orocos_kdl_INCLUDE_DIRS}
-  ${PYTHON_INCLUDE_PATH}
 )
 
 # this is a hack, will eventually be unneeded once orocos-kdl is fixed
@@ -71,7 +66,6 @@ add_library(robot_controllers
   src/cartesian_twist.cpp
   src/cartesian_wrench.cpp
   src/diff_drive_base.cpp
-  src/diff_drive_limiter.cpp
   src/follow_joint_trajectory.cpp
   src/gravity_compensation.cpp
   src/parallel_gripper.cpp
@@ -83,25 +77,6 @@ target_link_libraries(robot_controllers
   ${catkin_LIBRARIES}
   ${orocos_kdl_LIBRARIES}
 )
-
-add_library(robot_controllers_python
-  src/robot_controllers_python.cpp
-)
-target_link_libraries(robot_controllers_python
-  ${Boost_LIBRARIES}
-  ${catkin_LIBRARIES}
-  ${PYTHON_LIBRARIES}
-  robot_controllers
-)
-set_target_properties(robot_controllers_python
-  PROPERTIES
-  LIBRARY_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_PYTHON_DESTINATION}/robot_controllers/
-  PREFIX ""
-)
-if(APPLE)
-  set_target_properties(robot_controllers_python PROPERTIES SUFFIX ".so")
-endif()
-
 
 if (CATKIN_ENABLE_TESTING)
   add_subdirectory(test)
@@ -117,9 +92,4 @@ install(
   TARGETS robot_controllers
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-)
-
-install(
-  TARGETS robot_controllers_python
-  LIBRARY DESTINATION ${CATKIN_GLOBAL_PYTHON_DESTINATION}
 )

@@ -1,7 +1,7 @@
 /*********************************************************************
  *  Software License Agreement (BSD License)
  *
- *  Copyright (c) 2014-2016, Fetch Robotics Inc.
+ *  Copyright (c) 2014-2017, Fetch Robotics Inc.
  *  Copyright (c) 2013, Unbounded Robotics Inc.
  *  All rights reserved.
  *
@@ -89,6 +89,8 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
   right_last_position_ = right_->getPosition();
   last_update_ = ros::Time::now();
 
+  // Get base parameters
+  nh.param<double>("track_width", track_width_, 0.37476);
   nh.param<double>("radians_per_meter", radians_per_meter_, 16.5289);
 
   // If using an external correction (such as robot_pose_ekf or graft)
@@ -110,63 +112,11 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
   nh.param<double>("timeout", t, 0.25);
   timeout_ = ros::Duration(t);
 
-  // Get diff drive parameters
-  robot_controllers_msgs::DiffDriveLimiterParams params = DiffDriveLimiter::getDefaultParams();
-  nh.getParam("track_width", params.track_width);
-  nh.getParam("max_velocity_x", params.max_linear_velocity);
-  nh.getParam("max_velocity_r", params.max_angular_velocity);
-  nh.getParam("max_acceleration_x", params.max_linear_acceleration);
-  nh.getParam("max_acceleration_r", params.max_angular_acceleration);
-
-  bool angular_velocity_limits_linear_velocity = params.angular_velocity_limits_linear_velocity;
-  nh.getParam("angular_velocity_limits_linear_velocity", angular_velocity_limits_linear_velocity);
-  params.angular_velocity_limits_linear_velocity = angular_velocity_limits_linear_velocity;
-
-  bool scale_to_wheel_velocity_limits = params.scale_to_wheel_velocity_limits;
-  nh.getParam("scale_to_wheel_velocity_limits", scale_to_wheel_velocity_limits);
-  params.scale_to_wheel_velocity_limits = scale_to_wheel_velocity_limits;
-
-  // Max wheel velocity parameter is imposted by joint, but limiter needs to
-  // know about it to properly maintain path curvature when turning while driving fast
-  if (left_->getVelocityMax() != right_->getVelocityMax())
-  {
-    ROS_WARN_NAMED("BaseController", "Right and left wheel velocities limits do not match %f %f",
-             left_->getVelocityMax(), right_->getVelocityMax());
-  }
-  // Convert wheel velocity limit in (rad/s) of motor, to linear velocity of wheel
-  double joint_max_wheel_velocity =
-    std::min(left_->getVelocityMax(), right_->getVelocityMax()) / radians_per_meter_;
-
-  // Allow rosparam to limit wheel velocity to lower value than joint
-  double max_wheel_velocity = joint_max_wheel_velocity;
-  if (nh.getParam("max_wheel_velocity", max_wheel_velocity))
-  {
-    if (max_wheel_velocity >= joint_max_wheel_velocity)
-    {
-      ROS_WARN_NAMED("BaseController", "Max wheel velocity param %f is greater than joint limit %f",
-                     max_wheel_velocity, joint_max_wheel_velocity);
-      max_wheel_velocity = joint_max_wheel_velocity;
-    }
-  }
-  params.max_wheel_velocity = max_wheel_velocity;
-
-  try
-  {
-    limiter_.setParams(params);
-  }
-  catch (std::exception &ex)
-  {
-    ROS_ERROR_STREAM_NAMED("BaseController", "Problem with parameters : " << ex.what());
-    initialized_ = false;
-    return -1;
-  }
-
-  // Publisher limiter parameters
-  params_pub_ = nh.advertise<robot_controllers_msgs::DiffDriveLimiterParams>("params", 1, true);
-  params_pub_.publish(limiter_.getParams());
-
-  // Publish cmd values after they have been limited
-  limited_cmd_pub_ = nh.advertise<geometry_msgs::Twist>("command_limited", 10);
+  // Get limits of base controller
+  nh.param<double>("max_velocity_x", max_velocity_x_, 1.0);
+  nh.param<double>("max_velocity_r", max_velocity_r_, 4.5);
+  nh.param<double>("max_acceleration_x", max_acceleration_x_, 0.75);
+  nh.param<double>("max_acceleration_r", max_acceleration_r_, 3.0);
 
   // Subscribe to base commands
   cmd_sub_ = nh.subscribe<geometry_msgs::Twist>("command", 1,
@@ -277,31 +227,51 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
     desired_x_ = desired_r_ = 0.0;
   }
 
-  // Lock while copying desired velocities and safety scaling
-  double desired_x, desired_r, safety_scaling;
-  ros::Time last_laser_scan;
-  {
-    boost::mutex::scoped_lock lock(command_mutex_);
-    desired_x = desired_x_;
-    desired_r = desired_r_;
-    safety_scaling = safety_scaling_;
-    last_laser_scan = last_laser_scan_;
-  }
-
   // Make sure laser has not timed out
   if ((safety_scaling_distance_ > 0.0) &&
-      (ros::Time::now() - last_laser_scan > ros::Duration(0.5)))
+      (ros::Time::now() - last_laser_scan_ > ros::Duration(0.5)))
   {
-    safety_scaling = 0.1;
+    safety_scaling_ = 0.1;
   }
 
-  // Perform velocity and acceleration limiting
-  double last_update_dt = (now-last_update_).toSec();
-  double limited_x, limited_r;
-  limiter_.limit(&limited_x, &limited_r,
-                 desired_x, desired_r,
-                 last_sent_x_, last_sent_r_,
-                 safety_scaling, last_update_dt);
+  // Do velocity acceleration/limiting
+  double x, r;
+  {
+    boost::mutex::scoped_lock lock(command_mutex_);
+    // Limit linear velocity based on obstacles
+    x = std::max(-max_velocity_x_ * safety_scaling_, std::min(desired_x_, max_velocity_x_ * safety_scaling_));
+    // Compute how much we actually scaled the linear velocity
+    double actual_scaling = 1.0;
+    if (desired_x_ != 0.0)
+      actual_scaling = x/desired_x_;
+    // Limit angular velocity
+    // Scale same amount as linear velocity so that robot still follows the same "curvature"
+    r = std::max(-max_velocity_r_, std::min(actual_scaling * desired_r_, max_velocity_r_));
+  }
+  if (x > last_sent_x_)
+  {
+    last_sent_x_ += max_acceleration_x_ * (now - last_update_).toSec();
+    if (last_sent_x_ > x)
+      last_sent_x_ = x;
+  }
+  else
+  {
+    last_sent_x_ -= max_acceleration_x_ * (now - last_update_).toSec();
+    if (last_sent_x_ < x)
+      last_sent_x_ = x;
+  }
+  if (r > last_sent_r_)
+  {
+    last_sent_r_ += max_acceleration_r_ * (now - last_update_).toSec();
+    if (last_sent_r_ > r)
+      last_sent_r_ = r;
+  }
+  else
+  {
+    last_sent_r_ -= max_acceleration_r_ * (now - last_update_).toSec();
+    if (last_sent_r_ < r)
+      last_sent_r_ = r;
+  }
 
   double dx = 0.0;
   double dr = 0.0;
@@ -316,8 +286,8 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   // Threshold the odometry to avoid noise (especially in simulation)
   if (fabs(left_dx) > wheel_rotating_threshold_ ||
       fabs(right_dx) > wheel_rotating_threshold_ ||
-      limited_x != 0.0 ||
-      limited_r != 0.0)
+      last_sent_x_ != 0.0 ||
+      last_sent_r_ != 0.0)
   {
     // Above threshold, update last position
     left_last_position_ = left_pos;
@@ -330,59 +300,39 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
     left_vel = right_vel = 0.0;
   }
 
-  double track_width = limiter_.getTrackWidth();
-
   // Calculate forward and angular differences
   double d = (left_dx+right_dx)/2.0;
-  double th = (right_dx-left_dx)/track_width;
+  double th = (right_dx-left_dx)/track_width_;
 
   // Calculate forward and angular velocities
   dx = (left_vel + right_vel)/2.0;
-  dr = (right_vel - left_vel)/track_width;
+  dr = (right_vel - left_vel)/track_width_;
 
   // Actually set command
   if (fabs(dx) > moving_threshold_ ||
       fabs(dr) > rotating_threshold_ ||
-      limited_x != 0.0 ||
-      limited_r != 0.0)
+      last_sent_x_ != 0.0 ||
+      last_sent_r_ != 0.0)
   {
-    double left_velocity, right_velocity;
-    limiter_.calcWheelVelocities(&left_velocity, &right_velocity,
-                                 limited_x, limited_r);
-    setCommand(left_velocity, right_velocity);
+    setCommand(last_sent_x_ - (last_sent_r_/2.0 * track_width_),
+               last_sent_x_ + (last_sent_r_/2.0 * track_width_));
   }
 
   // Lock mutex before updating
-  boost::mutex::scoped_lock lock(msg_mutex_);
+  boost::mutex::scoped_lock lock(odom_mutex_);
 
-  command_limited_.linear.x = limited_x;
-  command_limited_.angular.z = limited_r;
-
-  if (std::isfinite(left_vel) && std::isfinite(right_vel))
-  {
-    // Update stored odometry pose...
-    theta_ += th/2.0;
-    odom_.pose.pose.position.x += d*cos(theta_);
-    odom_.pose.pose.position.y += d*sin(theta_);
-    theta_ += th/2.0;
-    odom_.pose.pose.orientation.z = sin(theta_/2.0);
-    odom_.pose.pose.orientation.w = cos(theta_/2.0);
-    // ...and twist
-    odom_.twist.twist.linear.x = dx;
-    odom_.twist.twist.angular.z = dr;
-  }
-  else
-  {
-    ROS_ERROR_THROTTLE_NAMED(1.0,
-                             "BaseController",
-                             "Ignoring non-finite base movement (%f,%f)",
-                             left_vel,
-                             right_vel);
-  }
+  // Update stored odometry pose...
+  theta_ += th/2.0;
+  odom_.pose.pose.position.x += d*cos(theta_);
+  odom_.pose.pose.position.y += d*sin(theta_);
+  theta_ += th/2.0;
+  odom_.pose.pose.orientation.z = sin(theta_/2.0);
+  odom_.pose.pose.orientation.w = cos(theta_/2.0);
+  // ...and twist
+  odom_.twist.twist.linear.x = dx;
+  odom_.twist.twist.angular.z = dr;
 
   last_update_ = now;
-  last_sent_x_ = limited_x;
-  last_sent_r_ = limited_r;
 }
 
 std::vector<std::string> DiffDriveBaseController::getCommandedNames()
@@ -403,13 +353,11 @@ std::vector<std::string> DiffDriveBaseController::getClaimedNames()
 
 void DiffDriveBaseController::publishCallback(const ros::TimerEvent& event)
 {
-  // Copy messages under lock of mutex
+  // Copy message under lock of mutex
   nav_msgs::Odometry msg;
-  geometry_msgs::Twist command_limited;
   {
-    boost::mutex::scoped_lock lock(msg_mutex_);
+    boost::mutex::scoped_lock lock(odom_mutex_);
     msg = odom_;
-    command_limited = command_limited_;
   }
 
   // Publish or perish
@@ -430,8 +378,6 @@ void DiffDriveBaseController::publishCallback(const ros::TimerEvent& event)
      */
     broadcaster_->sendTransform(tf::StampedTransform(transform, msg.header.stamp, msg.header.frame_id, msg.child_frame_id));
   }
-
-  limited_cmd_pub_.publish(command_limited_);
 }
 
 void DiffDriveBaseController::scanCallback(

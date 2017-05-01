@@ -46,7 +46,6 @@
 #include <robot_controllers_interface/controller.h>
 #include <robot_controllers_interface/controller_manager.h>
 #include <robot_controllers_interface/joint_handle.h>
-#include <robot_controllers/diff_drive_limiter.h>
 #include <tf/transform_broadcaster.h>
 
 #include <geometry_msgs/Twist.h>
@@ -135,6 +134,7 @@ private:
   JointHandlePtr left_;
   JointHandlePtr right_;
 
+  double track_width_;
   double radians_per_meter_;
   double theta_;
 
@@ -142,14 +142,16 @@ private:
   double rotating_threshold_;  /// Threshold for dr to be considered "moving"
   double moving_threshold_;    /// Threshold for dx to be considered "moving"
 
-  /// Limits differential drive velocity and accelrations
-  DiffDriveLimiter limiter_;
+  double max_velocity_x_;
+  double max_velocity_r_;
+  double max_acceleration_x_;
+  double max_acceleration_r_;
 
   // Laser can provide additional safety limits on velocity
-  double safety_scaling_;  // protected by command_mutex
+  double safety_scaling_;
   double safety_scaling_distance_;
   double robot_width_;
-  ros::Time last_laser_scan_;  // protected by command_mutex
+  ros::Time last_laser_scan_;
 
   // These are the inputs from the ROS topic
   boost::mutex command_mutex_;
@@ -157,8 +159,8 @@ private:
   double desired_r_;
 
   // These are from controller update
-  double last_sent_x_;
-  double last_sent_r_;
+  float last_sent_x_;
+  float last_sent_r_;
 
   float left_last_position_;
   float right_last_position_;
@@ -169,16 +171,11 @@ private:
   ros::Time last_update_;
   ros::Duration timeout_;
 
-  // The odom mutex protects the following variables
-  boost::mutex msg_mutex_;
+  boost::mutex odom_mutex_;
   nav_msgs::Odometry odom_;
-  geometry_msgs::Twist command_limited_;
-
   ros::Publisher odom_pub_;
-  ros::Publisher params_pub_;
   ros::Timer odom_timer_;
   ros::Subscriber cmd_sub_, scan_sub_;
-  ros::Publisher limited_cmd_pub_;
 
   boost::shared_ptr<tf::TransformBroadcaster> broadcaster_;
   bool publish_tf_;
