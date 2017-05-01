@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Fetch Robotics Inc.
+ * Copyright (c) 2014-2017, Fetch Robotics Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -13,7 +13,7 @@
  *     * Neither the name of the Fetch Robotics Inc. nor the names of its
  *       contributors may be used to endorse or promote products derived from
  *       this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -46,7 +46,7 @@ bool ControllerLoader::init(const std::string& name, ControllerManager* manager)
 
   if (nh.getParam("type", controller_type))
   {
-    // If plugin is bad, catch pluginlib exception 
+    // If plugin is bad, catch pluginlib exception
     try
     {
       controller_ = plugin_loader_.createInstance(controller_type);
@@ -54,8 +54,9 @@ bool ControllerLoader::init(const std::string& name, ControllerManager* manager)
     }
     catch (pluginlib::LibraryLoadException e)
     {
+      ROS_ERROR_STREAM("Plugin error while loading controller: " << e.what());
       return false;
-    }  
+    }
     return true;
   }
   ROS_ERROR_STREAM("Unable to load controller " << name.c_str());
@@ -81,7 +82,9 @@ bool ControllerLoader::stop(bool force)
 bool ControllerLoader::reset()
 {
   if (active_)
+  {
     return controller_->reset();
+  }
   return true;
 }
 
@@ -93,7 +96,9 @@ bool ControllerLoader::isActive()
 void ControllerLoader::update(const ros::Time& time, const ros::Duration& dt)
 {
   if (active_)
+  {
     controller_->update(time, dt);
+  }
 }
 
 ControllerPtr ControllerLoader::getController()
