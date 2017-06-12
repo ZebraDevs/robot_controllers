@@ -2,8 +2,8 @@
 Changelog for package robot_controllers_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.5.3 (2017-06-11)
+------------------
 * add error message when pluginlib fails
 * fix cmake warnings on kinetic (`#28 <https://github.com/fetchrobotics/robot_controllers/issues/28>`_)
 * Contributors: Michael Ferguson

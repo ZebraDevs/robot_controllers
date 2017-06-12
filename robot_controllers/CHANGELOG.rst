@@ -2,8 +2,8 @@
 Changelog for package robot_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.5.3 (2017-06-11)
+------------------
 * remove limiter
 * Improve cartesian twist controller (`#26 <https://github.com/fetchrobotics/robot_controllers/issues/26>`_)
 * Contributors: Hanjun Song, Michael Ferguson
