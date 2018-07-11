@@ -1,6 +1,6 @@
 <package>
   <name>robot_controllers</name>
-  <version>0.5.3</version>
+  <version>0.6.0</version>
   <description>
     Some basic robot controllers for use with robot_controllers_interface.
   </description>
