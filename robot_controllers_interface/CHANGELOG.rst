@@ -2,6 +2,11 @@
 Changelog for package robot_controllers_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.6.0 (2018-07-11)
+------------------
+* updates ownership
+* Contributors: Russell Toris
+
 0.5.3 (2017-06-11)
 ------------------
 * add error message when pluginlib fails
