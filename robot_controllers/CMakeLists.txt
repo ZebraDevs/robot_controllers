@@ -53,9 +53,9 @@ catkin_package(
 
 include_directories(
   include
-  ${Boost_INCLUDE_DIRS}
-  ${catkin_INCLUDE_DIRS}
-  ${orocos_kdl_INCLUDE_DIRS}
+  SYSTEM ${Boost_INCLUDE_DIRS}
+  SYSTEM ${catkin_INCLUDE_DIRS}
+  SYSTEM ${orocos_kdl_INCLUDE_DIRS}
 )
 
 # this is a hack, will eventually be unneeded once orocos-kdl is fixed
