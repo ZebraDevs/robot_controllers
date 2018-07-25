@@ -121,7 +121,7 @@ int FollowJointTrajectoryController::init(ros::NodeHandle& nh, ControllerManager
   path_tolerance_.qdd.resize(joints_.size());
   goal_tolerance_.q.resize(joints_.size());
   goal_tolerance_.qd.resize(joints_.size());
-  goal_tolerance_.qdd.resize(joints_.size()); 
+  goal_tolerance_.qdd.resize(joints_.size());
 
   // Setup ROS interfaces
   server_.reset(new server_t(nh, "",
