@@ -163,6 +163,7 @@ private:
   double goal_time_tolerance_;
 
   control_msgs::FollowJointTrajectoryFeedback feedback_;
+  ros::Time goal_time;
 };
 
 }  // namespace robot_controllers
