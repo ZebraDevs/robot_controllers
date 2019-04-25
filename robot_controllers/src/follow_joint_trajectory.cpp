@@ -420,7 +420,8 @@ void FollowJointTrajectoryController::executeCb(const control_msgs::FollowJointT
       executable_trajectory = new_trajectory;
 
       // if this hasn't started yet, need to insert current position
-      if (goal->trajectory.points[0].time_from_start.toSec() > 0.0)
+      if (goal->trajectory.points[0].time_from_start.toSec() > 0.0 ||
+          goal->trajectory.header.stamp.toSec() > ros::Time::now().toSec())
       {
         executable_trajectory.points.insert(
           executable_trajectory.points.begin(),
