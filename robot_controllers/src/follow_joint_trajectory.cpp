@@ -419,7 +419,8 @@ void FollowJointTrajectoryController::executeCb(const control_msgs::FollowJointT
       // use the generated trajectory
       executable_trajectory = new_trajectory;
 
-      // if this hasn't started yet, need to insert current position
+      // if this hasn't started yet or if the header stamp is in the future,
+      // need to insert current position
       if (goal->trajectory.points[0].time_from_start.toSec() > 0.0 ||
           goal->trajectory.header.stamp.toSec() > ros::Time::now().toSec())
       {
