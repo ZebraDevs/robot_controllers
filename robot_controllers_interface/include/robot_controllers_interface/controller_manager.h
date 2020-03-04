@@ -38,6 +38,7 @@
 #include <robot_controllers_msgs/QueryControllerStatesAction.h>
 
 #include <robot_controllers_interface/joint_handle.h>
+#include <robot_controllers_interface/gyro_handle.h>
 #include <robot_controllers_interface/controller.h>
 #include <robot_controllers_interface/controller_loader.h>
 
@@ -51,6 +52,7 @@ class ControllerManager
 
   typedef std::vector<ControllerLoaderPtr> ControllerList;
   typedef std::vector<JointHandlePtr> JointHandleList;
+  typedef std::vector<GyroHandlePtr> GyroHandleList;
 
 public:
   ControllerManager();
@@ -82,7 +84,10 @@ public:
   virtual void reset();
 
   /** @brief Add a joint handle. */
-  bool addJointHandle(JointHandlePtr& j);
+  bool addJointHandle(JointHandlePtr& jointHandlePtr);
+
+  /** @brief Add a gyro handle. */
+  bool addGyroHandle(GyroHandlePtr gyroHandlePtr);
 
   /**
    * @brief Get the handle associated with a particular joint/controller name.
@@ -98,6 +103,14 @@ public:
    */
   JointHandlePtr getJointHandle(const std::string& name);
 
+  /**
+   * @brief Get the gyro handle associated with a particular gyro name.
+   * @param name The name of the gyro.
+   *
+   * This is mainly a convienence function.
+   */
+  GyroHandlePtr getGyroHandle(const std::string& name);
+
 private:
   /** @brief Action callback. */
   void execute(const robot_controllers_msgs::QueryControllerStatesGoalConstPtr& goal);
@@ -110,6 +123,7 @@ private:
 
   ControllerList controllers_;
   JointHandleList joints_;
+  GyroHandleList gyros_;
 
   boost::shared_ptr<server_t> server_;
 };

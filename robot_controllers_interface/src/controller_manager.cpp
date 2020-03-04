@@ -203,10 +203,33 @@ void ControllerManager::reset()
   }
 }
 
-bool ControllerManager::addJointHandle(JointHandlePtr& j)
+bool ControllerManager::addJointHandle(JointHandlePtr& jointHandlePtr)
 {
-  // TODO: check for duplicate names?
-  joints_.push_back(j);
+  // If we don't already have a handle with
+  // a duplicate name, we add it
+
+  for(auto jointHandlePointer : joints_)
+  {
+    if(jointHandlePointer->getName() == jointHandlePtr->getName())
+    return false;
+  }
+  
+  joints_.push_back(jointHandlePtr);
+  return true;
+}
+
+bool ControllerManager::addGyroHandle(GyroHandlePtr gyroHandlePtr)
+{
+  // If we don't already have a handle with
+  // a duplicate name, we add it
+
+  for(auto gyroHandlePointer : gyros_)
+  {
+    if(gyroHandlePointer->getName() == gyroHandlePtr->getName())
+    return false;
+  }
+
+  gyros_.push_back(gyroHandlePtr);
   return true;
 }
 
@@ -217,6 +240,16 @@ HandlePtr ControllerManager::getHandle(const std::string& name)
   {
     if ((*j)->getName() == name)
       return *j;
+  }
+
+  // Then gyros
+  for(auto& gyroHandlePointer : gyros_)
+  {
+    if(gyroHandlePointer)
+    {
+      if(gyroHandlePointer->getName() == name)
+        return gyroHandlePointer;
+    }
   }
 
   // Then controllers
@@ -241,6 +274,21 @@ JointHandlePtr ControllerManager::getJointHandle(const std::string& name)
 
   // Not found
   return JointHandlePtr();
+}
+
+GyroHandlePtr ControllerManager::getGyroHandle(const std::string& name)
+{
+  for(auto gyroHandlePointer : gyros_)
+  {
+    if(gyroHandlePointer)
+    {
+      if(gyroHandlePointer->getName() == name)
+        return gyroHandlePointer;
+    }
+  }
+
+  // Not found
+  return GyroHandlePtr();
 }
 
 void ControllerManager::execute(const robot_controllers_msgs::QueryControllerStatesGoalConstPtr& goal)
