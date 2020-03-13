@@ -26,7 +26,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// Author: Vincenzo Barbato
+// Author: Vincenzo Barbato, Carl Saldanha
 
 #ifndef ROBOT_CONTROLLERS_INTERFACE_GYRO_HANDLE_H
 #define ROBOT_CONTROLLERS_INTERFACE_GYRO_HANDLE_H
@@ -54,19 +54,16 @@ public:
   }
 
   /** @brief Get the angular velocities from the gyro */
-  virtual const geometry_msgs::Vector3& getAngularVelocities()const = 0;
+  virtual geometry_msgs::Vector3 getAngularVelocities() = 0;
 
   /** @brief Get the type of this gyro */
-  virtual const std::string& getType()const = 0;
-
-  /** @brief Get the name of this gyro */
-  virtual const std::string& getName()const = 0;
+  virtual std::string getType() = 0;
 
   /** @brief Get the name of this gyro */
   virtual std::string getName() = 0;
 
-  /** @brief Get the name of this joint. */
-  virtual bool isGyroDataCurrentlyValid() const = 0;
+  /** @brief Get if the data from the Gyro is currently valid. */
+  virtual bool isGyroDataCurrentlyValid() = 0;
 
 private:
 
