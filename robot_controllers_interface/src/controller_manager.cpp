@@ -86,11 +86,11 @@ int ControllerManager::requestStart(const std::string& name)
 {
   // Find requested controller
   ControllerLoaderPtr controller;
-  for (ControllerList::iterator c = controllers_.begin(); c != controllers_.end(); c++)
+  for (const auto& c: controllers_)
   {
-    if ((*c)->getController()->getName() == name)
+    if (c->getController()->getName() == name)
     {
-      controller = *c;
+      controller = c;
       break;
     }
   }
@@ -111,13 +111,13 @@ int ControllerManager::requestStart(const std::string& name)
 
   // Check for conflicts
   std::vector<std::string> names = controller->getController()->getCommandedNames();
-  for (ControllerList::iterator c = controllers_.begin(); c != controllers_.end(); c++)
+  for (const auto& c: controllers_)
   {
     // Only care about active controllers
-    if (!(*c)->isActive())
+    if (!c->isActive())
       continue;
 
-    std::vector<std::string> names2 = (*c)->getController()->getClaimedNames();
+    std::vector<std::string> names2 = c->getController()->getClaimedNames();
     bool conflict = false;
     for (size_t i = 0; i < names.size(); i++)
     {
@@ -134,15 +134,15 @@ int ControllerManager::requestStart(const std::string& name)
     // Have conflict, try to stop controller (without force)
     if (conflict)
     {
-      if ((*c)->stop(false))
+      if (c->stop(false))
       {
-        ROS_INFO_STREAM_NAMED("ControllerManager", "Stopped " << (*c)->getController()->getName().c_str());
+        ROS_INFO_STREAM_NAMED("ControllerManager", "Stopped " << c->getController()->getName().c_str());
       }
       else
       {
         // Unable to stop c, cannot start controller
         ROS_ERROR_STREAM_NAMED("ControllerManager", "Unable to stop " <<
-                                                    (*c)->getController()->getName().c_str() <<
+                                                    c->getController()->getName().c_str() <<
                                                     " when trying to start " << name.c_str());
         return -1;
       }
@@ -162,14 +162,14 @@ int ControllerManager::requestStart(const std::string& name)
 int ControllerManager::requestStop(const std::string& name)
 {
   // Find controller
-  for (ControllerList::iterator c = controllers_.begin(); c != controllers_.end(); c++)
+  for (const auto& c: controllers_)
   {
-    if ((*c)->getController()->getName() == name)
+    if (c->getController()->getName() == name)
     {
       // Stop controller (with force)
-      if ((*c)->stop(true))
+      if (c->stop(true))
       {
-        ROS_INFO_STREAM_NAMED("ControllerManager", "Stopped " << (*c)->getController()->getName().c_str());
+        ROS_INFO_STREAM_NAMED("ControllerManager", "Stopped " << c->getController()->getName().c_str());
         return 0;
       }
       else
@@ -184,22 +184,22 @@ int ControllerManager::requestStop(const std::string& name)
 void ControllerManager::update(const ros::Time& time, const ros::Duration& dt)
 {
   // Reset handles
-  for (JointHandleList::iterator j = joints_.begin(); j != joints_.end(); j++)
-    (*j)->reset();
+  for (const auto& joint_handle: joints_)
+    joint_handle->reset();
 
   // Update controllers
-  for (ControllerList::iterator c = controllers_.begin(); c != controllers_.end(); c++)
+  for (const auto& c: controllers_)
   {
-    (*c)->update(time, dt);
+    c->update(time, dt);
   }
 }
 
 void ControllerManager::reset()
 {
   // Update controllers
-  for (ControllerList::iterator c = controllers_.begin(); c != controllers_.end(); c++)
+  for (const auto& c: controllers_)
   {
-    (*c)->reset();
+    c->reset();
   }
 }
 
@@ -236,7 +236,7 @@ bool ControllerManager::addGyroHandle(GyroHandlePtr gyro_handle_ptr)
 HandlePtr ControllerManager::getHandle(const std::string& name)
 {
   // Try joints first
-  for (auto j: joints_)
+  for (auto& j: joints_)
   {
     if (j and j->getName() == name)
     {
@@ -245,7 +245,7 @@ HandlePtr ControllerManager::getHandle(const std::string& name)
   }
 
   // Then gyros
-  for (auto gyro_handle_pointer: gyros_)
+  for (auto& gyro_handle_pointer: gyros_)
   {
     if(gyro_handle_pointer and gyro_handle_pointer->getName() == name)
     {
@@ -254,7 +254,7 @@ HandlePtr ControllerManager::getHandle(const std::string& name)
   }
 
   // Then controllers
-  for (auto controller: controllers_)
+  for (auto& controller: controllers_)
   {
     if (controller and controller->getController()->getName() == name)
     {
@@ -269,7 +269,7 @@ HandlePtr ControllerManager::getHandle(const std::string& name)
 JointHandlePtr ControllerManager::getJointHandle(const std::string& name)
 {
   // Try joints first
-  for (auto j: joints_)
+  for (auto& j: joints_)
   {
     if (j and j->getName() == name)
     {
@@ -283,7 +283,7 @@ JointHandlePtr ControllerManager::getJointHandle(const std::string& name)
 
 GyroHandlePtr ControllerManager::getGyroHandle(const std::string& name)
 {
-  for(auto gyro_handle_pointer : gyros_)
+  for(auto& gyro_handle_pointer : gyros_)
   {
     if(gyro_handle_pointer)
     {
@@ -308,13 +308,13 @@ void ControllerManager::execute(const robot_controllers_msgs::QueryControllerSta
 
     // Make sure controller exists
     bool in_controller_list = false;
-    for (ControllerList::iterator c = controllers_.begin(); c != controllers_.end(); c++)
+    for (auto& c: controllers_)
     {
-      if ((*c)->getController()->getName() == state.name)
+      if (c->getController()->getName() == state.name)
       {
         if (state.type != "")
         {
-          if (state.type == (*c)->getController()->getType())
+          if (state.type == c->getController()->getType())
           {
             in_controller_list = true;
             break;
@@ -322,7 +322,7 @@ void ControllerManager::execute(const robot_controllers_msgs::QueryControllerSta
           else
           {
             std::stringstream ss;
-            ss << "Controller " << state.name << " is of type " << (*c)->getController()->getType() << " not " << state.type;
+            ss << "Controller " << state.name << " is of type " << c->getController()->getType() << " not " << state.type;
             getState(result);
             server_->setAborted(result, ss.str());
             return;
@@ -400,12 +400,12 @@ void ControllerManager::getState(
     robot_controllers_msgs::QueryControllerStatesResult& result)
 {
   result.state.clear();
-  for (ControllerList::iterator c = controllers_.begin(); c != controllers_.end(); c++)
+  for (auto& c: controllers_)
   {
     robot_controllers_msgs::ControllerState state;
-    state.name = (*c)->getController()->getName();
-    state.type = (*c)->getController()->getType();
-    if ((*c)->isActive())
+    state.name = c->getController()->getName();
+    state.type = c->getController()->getType();
+    if (c->isActive())
     {
       state.state = state.RUNNING;
     }
