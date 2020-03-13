@@ -210,7 +210,7 @@ bool ControllerManager::addJointHandle(JointHandlePtr& joint_handle_ptr)
 
   for (const auto& joint_handle: joints_)
   {
-    if(joint_handle->getName() == joint_handle_ptr->getName())
+    if (joint_handle->getName() == joint_handle_ptr->getName())
     return false;
   }
   
@@ -225,7 +225,7 @@ bool ControllerManager::addGyroHandle(GyroHandlePtr gyro_handle_ptr)
 
   for (const auto& gyro_handle: gyros_)
   {
-    if(gyro_handle->getName() == gyro_handle_ptr->getName())
+    if (gyro_handle->getName() == gyro_handle_ptr->getName())
     return false;
   }
 
@@ -247,7 +247,7 @@ HandlePtr ControllerManager::getHandle(const std::string& name)
   // Then gyros
   for (auto& gyro_handle_pointer: gyros_)
   {
-    if(gyro_handle_pointer and gyro_handle_pointer->getName() == name)
+    if (gyro_handle_pointer and gyro_handle_pointer->getName() == name)
     {
       return gyro_handle_pointer;
     }
@@ -283,11 +283,11 @@ JointHandlePtr ControllerManager::getJointHandle(const std::string& name)
 
 GyroHandlePtr ControllerManager::getGyroHandle(const std::string& name)
 {
-  for(auto& gyro_handle_pointer : gyros_)
+  for (auto& gyro_handle_pointer : gyros_)
   {
-    if(gyro_handle_pointer)
+    if (gyro_handle_pointer)
     {
-      if(gyro_handle_pointer->getName() == name)
+      if (gyro_handle_pointer->getName() == name)
         return gyro_handle_pointer;
     }
   }
