@@ -74,7 +74,7 @@ int ControllerManager::init(ros::NodeHandle& nh)
   }
 
   // Setup actionlib server
-  server_.reset(new server_t(nh, "/query_controller_states",
+  server_.reset(new ServerT(nh, "/query_controller_states",
                              boost::bind(&ControllerManager::execute, this, _1),
                              false));
   server_->start();

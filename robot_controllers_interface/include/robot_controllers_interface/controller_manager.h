@@ -48,11 +48,11 @@ namespace robot_controllers
 /** @brief Base class for a controller manager. */
 class ControllerManager
 {
-  typedef actionlib::SimpleActionServer<robot_controllers_msgs::QueryControllerStatesAction> server_t;
+  using ServerT = actionlib::SimpleActionServer<robot_controllers_msgs::QueryControllerStatesAction>;
 
-  typedef std::vector<ControllerLoaderPtr> ControllerList;
-  typedef std::vector<JointHandlePtr> JointHandleList;
-  typedef std::vector<GyroHandlePtr> GyroHandleList;
+  using ControllerList = std::vector<ControllerLoaderPtr>;
+  using JointHandleList = std::vector<JointHandlePtr> ;
+  using GyroHandleList = std::vector<GyroHandlePtr>;
 
 public:
   ControllerManager();
@@ -84,10 +84,10 @@ public:
   virtual void reset();
 
   /** @brief Add a joint handle. */
-  bool addJointHandle(JointHandlePtr& jointHandlePtr);
+  bool addJointHandle(JointHandlePtr& joint_handle_ptr);
 
   /** @brief Add a gyro handle. */
-  bool addGyroHandle(GyroHandlePtr gyroHandlePtr);
+  bool addGyroHandle(GyroHandlePtr gyro_hanle_ptr);
 
   /**
    * @brief Get the handle associated with a particular joint/controller name.
@@ -125,7 +125,7 @@ private:
   JointHandleList joints_;
   GyroHandleList gyros_;
 
-  boost::shared_ptr<server_t> server_;
+  boost::shared_ptr<ServerT> server_;
 };
 
 }  // namespace robot_controllers
