@@ -63,7 +63,7 @@ public:
   virtual std::string getName() = 0;
 
   /** @brief Get if the data from the Gyro is currently valid. */
-  virtual bool isGyroDataCurrentlyValid() = 0;
+  virtual bool isValid() = 0;
 
 private:
 
