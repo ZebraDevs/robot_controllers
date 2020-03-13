@@ -32,7 +32,6 @@
 #define ROBOT_CONTROLLERS_INTERFACE_GYRO_HANDLE_H
 
 #include <robot_controllers_interface/handle.h>
-#include <geometry_msgs/Vector3.h>
 
 namespace robot_controllers
 {
@@ -53,9 +52,6 @@ public:
   {
   }
 
-  /** @brief Get the angular velocities from the gyro */
-  virtual geometry_msgs::Vector3 getAngularVelocities() = 0;
-
   /** @brief Get the type of this gyro */
   virtual std::string getType() = 0;
 
@@ -64,6 +60,15 @@ public:
 
   /** @brief Get if the data from the Gyro is currently valid. */
   virtual bool isValid() = 0;
+
+  /** @brief Get the angular velocity in X direction */
+  virtual double getAngularVelocityX() = 0;
+
+  /** @brief Get the angular velocity in Y direction */
+  virtual double getAngularVelocityY() = 0;
+
+  /** @brief Get the angular velocity in Z direction */
+  virtual double getAngularVelocityZ() = 0;
 
 private:
 
