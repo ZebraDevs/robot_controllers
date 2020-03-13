@@ -26,11 +26,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
-
 // Author: Vincenzo Barbato
-
-
 
 #ifndef ROBOT_CONTROLLERS_INTERFACE_GYRO_HANDLE_H
 #define ROBOT_CONTROLLERS_INTERFACE_GYRO_HANDLE_H
@@ -38,22 +34,16 @@
 #include <robot_controllers_interface/handle.h>
 #include <geometry_msgs/Vector3.h>
 
-
-
 namespace robot_controllers
 {
-
-
 
 /**
  * @brief Base class for a gyro handle used to provide controller 
  *        direct access to gyro data though controller interface.
  */
-
 class GyroHandle : public Handle
 {
 public:
-
   GyroHandle()
   {
   }
@@ -66,15 +56,6 @@ public:
   /** @brief Get the angular velocities from the gyro */
   virtual const geometry_msgs::Vector3& getAngularVelocities()const = 0;
 
-  /** @brief Set the angular velocities of the gyro */
-  virtual void setAngularVelocities(const geometry_msgs::Vector3& angularVelocities, bool isGyroDataCurrentlyValid) = 0;
-
-  /** @brief Set the name of the gyro */
-  virtual void setName(const std::string& name) = 0;
-
-  /** @brief Set the type of the gyro */
-  virtual void setType(const std::string& type) = 0;
-
   /** @brief Get the type of this gyro */
   virtual const std::string& getType()const = 0;
 
@@ -85,18 +66,7 @@ public:
   virtual std::string getName() = 0;
 
   /** @brief Get the name of this joint. */
-  virtual bool isGyroDataCurrentlyValid()const = 0;
-
-
-
-protected:
-  
-  bool isGyroDataCurrentlyValid_;
-  std::string type_;
-  std::string name_;
-  geometry_msgs::Vector3 angularVelocities_;
-
-
+  virtual bool isGyroDataCurrentlyValid() const = 0;
 
 private:
 
@@ -105,14 +75,8 @@ private:
   GyroHandle& operator=(const GyroHandle&);
 };
 
-
-
 using GyroHandlePtr = boost::shared_ptr<GyroHandle>;
 
-
-
 }  // namespace robot_controllers
-
-
 
 #endif  // ROBOT_CONTROLLERS_INTERFACE_GYRO_HANDLE_H

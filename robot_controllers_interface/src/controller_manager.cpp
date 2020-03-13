@@ -203,73 +203,78 @@ void ControllerManager::reset()
   }
 }
 
-bool ControllerManager::addJointHandle(JointHandlePtr& jointHandlePtr)
+bool ControllerManager::addJointHandle(JointHandlePtr& joint_handle_ptr)
 {
   // If we don't already have a handle with
   // a duplicate name, we add it
 
-  for(auto jointHandlePointer : joints_)
+  for (const auto& joint_handle: joints_)
   {
-    if(jointHandlePointer->getName() == jointHandlePtr->getName())
+    if(joint_handle->getName() == joint_handle_ptr->getName())
     return false;
   }
   
-  joints_.push_back(jointHandlePtr);
+  joints_.push_back(joint_handle_ptr);
   return true;
 }
 
-bool ControllerManager::addGyroHandle(GyroHandlePtr gyroHandlePtr)
+bool ControllerManager::addGyroHandle(GyroHandlePtr gyro_handle_ptr)
 {
   // If we don't already have a handle with
   // a duplicate name, we add it
 
-  for(auto gyroHandlePointer : gyros_)
+  for (const auto& gyro_handle: gyros_)
   {
-    if(gyroHandlePointer->getName() == gyroHandlePtr->getName())
+    if(gyro_handle->getName() == gyro_handle_ptr->getName())
     return false;
   }
 
-  gyros_.push_back(gyroHandlePtr);
+  gyros_.push_back(gyro_handle_ptr);
   return true;
 }
 
 HandlePtr ControllerManager::getHandle(const std::string& name)
 {
   // Try joints first
-  for (JointHandleList::iterator j = joints_.begin(); j != joints_.end(); j++)
+  for (auto j: joints_)
   {
-    if ((*j)->getName() == name)
-      return *j;
+    if (j and j->getName() == name)
+    {
+      return j;
+    }
   }
 
   // Then gyros
-  for(auto& gyroHandlePointer : gyros_)
+  for (auto gyro_handle_pointer: gyros_)
   {
-    if(gyroHandlePointer)
+    if(gyro_handle_pointer and gyro_handle_pointer->getName() == name)
     {
-      if(gyroHandlePointer->getName() == name)
-        return gyroHandlePointer;
+      return gyro_handle_pointer;
     }
   }
 
   // Then controllers
-  for (ControllerList::iterator c = controllers_.begin(); c != controllers_.end(); c++)
+  for (auto controller: controllers_)
   {
-    if ((*c)->getController()->getName() == name)
-      return (*c)->getController();
+    if (controller and controller->getController()->getName() == name)
+    {
+      return controller->getController();
+    }
   }
 
   // Not found
-  return HandlePtr();
+  return HandlePtr{};
 }
 
 JointHandlePtr ControllerManager::getJointHandle(const std::string& name)
 {
   // Try joints first
-  for (JointHandleList::iterator j = joints_.begin(); j != joints_.end(); j++)
+  for (auto j: joints_)
   {
-    if ((*j)->getName() == name)
-      return *j;
+    if (j and j->getName() == name)
+    {
+      return j;
+    }
   }
 
   // Not found
@@ -278,12 +283,12 @@ JointHandlePtr ControllerManager::getJointHandle(const std::string& name)
 
 GyroHandlePtr ControllerManager::getGyroHandle(const std::string& name)
 {
-  for(auto gyroHandlePointer : gyros_)
+  for(auto gyro_handle_pointer : gyros_)
   {
-    if(gyroHandlePointer)
+    if(gyro_handle_pointer)
     {
-      if(gyroHandlePointer->getName() == name)
-        return gyroHandlePointer;
+      if(gyro_handle_pointer->getName() == name)
+        return gyro_handle_pointer;
     }
   }
 
