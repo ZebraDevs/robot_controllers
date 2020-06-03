@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.0.2)
 project(robot_controllers)
 
 if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
@@ -57,9 +57,6 @@ include_directories(
   SYSTEM ${catkin_INCLUDE_DIRS}
   SYSTEM ${orocos_kdl_INCLUDE_DIRS}
 )
-
-# this is a hack, will eventually be unneeded once orocos-kdl is fixed
-link_directories(${orocos_kdl_LIBRARY_DIRS})
 
 add_library(robot_controllers
   src/cartesian_pose.cpp
