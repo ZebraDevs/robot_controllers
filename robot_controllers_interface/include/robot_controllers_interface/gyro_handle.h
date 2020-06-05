@@ -77,7 +77,7 @@ private:
   GyroHandle& operator=(const GyroHandle&);
 };
 
-using GyroHandlePtr = boost::shared_ptr<GyroHandle>;
+using GyroHandlePtr = std::shared_ptr<GyroHandle>;
 
 }  // namespace robot_controllers
 

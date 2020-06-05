@@ -1,4 +1,5 @@
-<package>
+<?xml version="1.0"?>
+<package format="3">
   <name>robot_controllers_interface</name>
   <version>0.6.0</version>
   <description>
@@ -14,16 +15,16 @@
 
   <license>BSD</license>
 
-  <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <build_depend>actionlib</build_depend>
-  <build_depend>pluginlib</build_depend>
-  <build_depend>robot_controllers_msgs</build_depend>
-  <build_depend>roscpp</build_depend>
+  <depend>actionlib</depend>
+  <depend>pluginlib</depend>
+  <depend>robot_controllers_msgs</depend>
+  <depend>rclcpp</depend>
+  <depend>rclcpp_action</depend>
 
-  <run_depend>actionlib</run_depend>
-  <run_depend>pluginlib</run_depend>
-  <run_depend>robot_controllers_msgs</run_depend>
-  <run_depend>roscpp</run_depend>
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
 
 </package>

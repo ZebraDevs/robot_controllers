@@ -109,7 +109,7 @@ private:
   JointHandle& operator=(const JointHandle&);
 };
 
-typedef boost::shared_ptr<JointHandle> JointHandlePtr;
+using JointHandlePtr = std::shared_ptr<JointHandle>;
 
 }  // namespace robot_controllers
 
