@@ -1,95 +1,97 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.5)
 project(robot_controllers)
+
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 14)
+endif()
 
 if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -Wno-unused-parameter")
 endif()
 
 find_package(orocos_kdl REQUIRED)
-find_package(Boost REQUIRED system)
-find_package(catkin REQUIRED
-  COMPONENTS
-    actionlib
-    actionlib_msgs
-    angles
-    control_msgs
-    geometry_msgs
-    kdl_parser
-    nav_msgs
-    pluginlib
-    robot_controllers_interface
-    roscpp
-    sensor_msgs
-    tf
-    tf_conversions
-    trajectory_msgs
-    urdf
-)
-
-catkin_package(
-  INCLUDE_DIRS
-    include
-  CATKIN_DEPENDS
-    actionlib
-    actionlib_msgs
-    control_msgs
-    geometry_msgs
-    kdl_parser
-    nav_msgs
-    pluginlib
-    robot_controllers_interface
-    roscpp
-    sensor_msgs
-    tf
-    tf_conversions
-    trajectory_msgs
-    urdf
-  DEPENDS
-    Boost
-    orocos_kdl
-  LIBRARIES
-    robot_controllers
-)
+find_package(ament_cmake REQUIRED)
+find_package(angles REQUIRED)
+find_package(control_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(kdl_parser REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(pluginlib REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(rclcpp_action REQUIRED)
+find_package(robot_controllers_interface REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(trajectory_msgs REQUIRED)
+find_package(urdf REQUIRED)
 
 include_directories(
   include
-  SYSTEM ${Boost_INCLUDE_DIRS}
-  SYSTEM ${catkin_INCLUDE_DIRS}
   SYSTEM ${orocos_kdl_INCLUDE_DIRS}
 )
 
-# this is a hack, will eventually be unneeded once orocos-kdl is fixed
-link_directories(${orocos_kdl_LIBRARY_DIRS})
-
-add_library(robot_controllers
-  src/cartesian_pose.cpp
-  src/cartesian_twist.cpp
-  src/cartesian_wrench.cpp
-  src/diff_drive_base.cpp
-  src/follow_joint_trajectory.cpp
+add_library(robot_controllers SHARED
+#  src/cartesian_pose.cpp
+#  src/cartesian_twist.cpp
+#  src/cartesian_wrench.cpp
+#  src/diff_drive_base.cpp
+#  src/follow_joint_trajectory.cpp
   src/gravity_compensation.cpp
-  src/parallel_gripper.cpp
-  src/pid.cpp
-  src/point_head.cpp
-  src/scaled_mimic.cpp
+#  src/parallel_gripper.cpp
+#  src/pid.cpp
+#  src/point_head.cpp
+#  src/scaled_mimic.cpp
 )
 target_link_libraries(robot_controllers
-  ${catkin_LIBRARIES}
   ${orocos_kdl_LIBRARIES}
 )
+ament_target_dependencies(robot_controllers
+  control_msgs
+  geometry_msgs
+  kdl_parser
+  nav_msgs
+  pluginlib
+  rclcpp
+  rclcpp_action
+  robot_controllers_interface
+  sensor_msgs
+  tf2_ros
+  trajectory_msgs
+  urdf
+)
 
-if (CATKIN_ENABLE_TESTING)
-  add_subdirectory(test)
-endif()
+#if (CATKIN_ENABLE_TESTING)
+#  add_subdirectory(test)
+#endif()
 
-install(DIRECTORY include/ DESTINATION include)
-
-install(FILES robot_controllers.xml
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+install(
+  DIRECTORY include/
+  DESTINATION include
 )
 
 install(
   TARGETS robot_controllers
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION lib/robot_controllers_interface
 )
+
+pluginlib_export_plugin_description_file(robot_controllers_interface robot_controllers.xml)
+
+ament_export_include_directories(include)
+ament_export_libraries(robot_controllers_interface)
+ament_export_dependencies(
+  control_msgs
+  geometry_msgs
+  kdl_parser
+  nav_msgs
+  pluginlib
+  rclcpp
+  rclcpp_action
+  robot_controllers_interface
+  sensor_msgs
+  tf2_ros
+  trajectory_msgs
+  urdf
+)
+ament_package()

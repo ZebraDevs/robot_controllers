@@ -1,6 +1,7 @@
 /*********************************************************************
  * Software License Agreement (BSD License)
  *
+ *  Copyright (c) 2020, Michael Ferguson
  *  Copyright (c) 2014, Fetch Robotics Inc.
  *  Copyright (c) 2013, Unbounded Robotics Inc.
  *  All rights reserved.
@@ -35,24 +36,33 @@
 
 /* Author: Michael Ferguson */
 
-#include <pluginlib/class_list_macros.h>
+#include <pluginlib/class_list_macros.hpp>
 #include <robot_controllers/gravity_compensation.h>
 
-PLUGINLIB_EXPORT_CLASS(robot_controllers::GravityCompensation, robot_controllers::Controller)
+PLUGINLIB_EXPORT_CLASS(robot_controllers::GravityCompensation, robot_controllers_interface::Controller)
 
 namespace robot_controllers
 {
 
-int GravityCompensation::init(ros::NodeHandle& nh, ControllerManager* manager)
+int GravityCompensation::init(const std::string& name,
+                              rclcpp::Node::SharedPtr node,
+                              robot_controllers_interface::ControllerManagerPtr manager)
 {
-  Controller::init(nh, manager);
+  Controller::init(name, node, manager);
   manager_ = manager;
+
+  if (!node->has_parameter("robot_description"))
+  {
+    node->declare_parameter<std::string>("robot_description", "");
+  }
 
   // Load URDF
   urdf::Model model;
-  if (!model.initParam("robot_description"))
+  std::string robot_description;
+  node->get_parameter("robot_description", robot_description);
+  if (!model.initString(robot_description))
   {
-    ROS_ERROR("Failed to parse URDF");
+    RCLCPP_ERROR(node->get_logger(), "Failed to parse URDF");
     return -1;
   }
 
@@ -60,17 +70,16 @@ int GravityCompensation::init(ros::NodeHandle& nh, ControllerManager* manager)
   KDL::Tree kdl_tree;
   if (!kdl_parser::treeFromUrdfModel(model, kdl_tree))
   {
-    ROS_ERROR("Could not construct tree from URDF");
+    RCLCPP_ERROR(node->get_logger(), "Could not construct tree from URDF");
     return -1;
   }
 
   // Populate the Chain
-  std::string root, tip;
-  nh.param<std::string>("root", root, "torso_lift_link");
-  nh.param<std::string>("tip", tip, "wrist_roll_link");
+  std::string root = node->declare_parameter<std::string>(getName() + ".root", "torso_lift_link");
+  std::string tip = node->declare_parameter<std::string>(getName() + ".tip", "wrist_roll_link");
   if(!kdl_tree.getChain(root, tip, kdl_chain_))
   {
-    ROS_ERROR("Could not construct chain from URDF");
+    RCLCPP_ERROR(node->get_logger(), "Could not construct chain from URDF");
     return -1;
   }
 
@@ -90,8 +99,7 @@ int GravityCompensation::init(ros::NodeHandle& nh, ControllerManager* manager)
   initialized_ = true;
 
   // Should we autostart?
-  bool autostart;
-  nh.param("autostart", autostart, false);
+  bool autostart = node->declare_parameter<bool>(getName() + ".autostart", false);
   if (autostart)
     manager->requestStart(getName());
 
@@ -105,7 +113,7 @@ bool GravityCompensation::start()
   return true;
 }
 
-void GravityCompensation::update(const ros::Time& time, const ros::Duration& dt)
+void GravityCompensation::update(const rclcpp::Time& time, const rclcpp::Duration& dt)
 {
   // Need to initialize KDL structs
   if (!initialized_)

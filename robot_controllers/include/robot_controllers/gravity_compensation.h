@@ -1,6 +1,7 @@
 /*********************************************************************
  * Software License Agreement (BSD License)
  *
+ *  Copyright (c) 2020, Michael Ferguson
  *  Copyright (c) 2014, Fetch Robotics Inc.
  *  Copyright (c) 2013, Unbounded Robotics Inc.
  *  All rights reserved.
@@ -38,11 +39,11 @@
 #ifndef ROBOT_CONTROLLERS_GRAVITY_COMPENSATION_H_
 #define ROBOT_CONTROLLERS_GRAVITY_COMPENSATION_H_
 
+#include <memory>
 #include <string>
 #include <vector>
-#include <boost/shared_ptr.hpp>
 
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 #include <robot_controllers_interface/controller.h>
 #include <robot_controllers_interface/controller_manager.h>
 #include <robot_controllers_interface/joint_handle.h>
@@ -64,7 +65,7 @@ namespace robot_controllers
  *  @brief Controller which uses KDL to compute torque needed for static
  *         holding of the chain at the current pose.
  */
-class GravityCompensation : public Controller
+class GravityCompensation : public robot_controllers_interface::Controller
 {
 public:
   GravityCompensation() : initialized_(false) {}
@@ -72,12 +73,14 @@ public:
 
   /**
    * @brief Initialize the controller and any required data structures.
-   * @param nh Node handle for this controller.
+   * @param node Node handle for this controller.
    * @param manager The controller manager instance, this is needed for the
    *        controller to get information about joints, etc.
    * @returns 0 if succesfully configured, negative values are error codes.
    */
-  virtual int init(ros::NodeHandle& nh, ControllerManager* manager);
+  virtual int init(const std::string& name,
+                   rclcpp::Node::SharedPtr node,
+                   robot_controllers_interface::ControllerManagerPtr manager);
 
   /**
    * @brief Attempt to start the controller. This should be called only by the
@@ -115,7 +118,7 @@ public:
    * @param time The system time.
    * @param dt The timestep since last call to update.
    */
-  virtual void update(const ros::Time& time, const ros::Duration& dt);
+  virtual void update(const rclcpp::Time& time, const rclcpp::Duration& dt);
 
   /** @brief Get the type of this controller. */
   virtual std::string getType()
@@ -130,14 +133,14 @@ public:
   virtual std::vector<std::string> getClaimedNames();
 
 private:
-  ControllerManager* manager_;
-  std::vector<JointHandlePtr> joints_;
+  robot_controllers_interface::ControllerManagerPtr manager_;
+  std::vector<robot_controllers_interface::JointHandlePtr> joints_;
 
   bool initialized_;  /// is KDL structure setup
 
   KDL::Chain kdl_chain_;
   KDL::JntArrayVel positions_;
-  boost::shared_ptr<KDL::ChainDynParam> kdl_chain_dynamics_;
+  std::shared_ptr<KDL::ChainDynParam> kdl_chain_dynamics_;
 };
 
 }  // namespace robot_controllers
