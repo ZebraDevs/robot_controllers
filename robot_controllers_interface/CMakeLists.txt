@@ -15,7 +15,7 @@ include_directories(
   include
 )
 
-add_library(robot_controllers_interface
+add_library(robot_controllers_interface SHARED
   src/controller_loader.cpp
   src/controller_manager.cpp
 )

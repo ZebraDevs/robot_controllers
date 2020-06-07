@@ -32,21 +32,21 @@
 #include <rclcpp/logging.hpp>
 #include <robot_controllers_interface/controller_loader.h>
 
-namespace robot_controllers
+namespace robot_controllers_interface
 {
 
 ControllerLoader::ControllerLoader() :
-    plugin_loader_("robot_controllers", "robot_controllers::Controller"),
+    plugin_loader_("robot_controllers_interface", "robot_controllers_interface::Controller"),
     active_(false)
 {
 }
 
 bool ControllerLoader::init(const std::string& name,
                             std::shared_ptr<rclcpp::Node> node,
-                            ControllerManager* manager)
+                            std::shared_ptr<ControllerManager> manager)
 {
-  std::string controller_type;
-  if (node->get_parameter(name + ".type", controller_type))
+  std::string controller_type = node->declare_parameter<std::string>(name + ".type", "");
+  if (!controller_type.empty())
   {
     // If plugin is bad, catch pluginlib exception
     try
@@ -62,7 +62,7 @@ bool ControllerLoader::init(const std::string& name,
     return true;
   }
 
-  RCLCPP_ERROR_STREAM(node->get_logger(), "Unable to load controller " << name.c_str());
+  RCLCPP_ERROR(node->get_logger(), "Unable to load controller ", name.c_str());
   return false;
 }
 
@@ -109,4 +109,4 @@ ControllerPtr ControllerLoader::getController()
   return controller_;
 }
 
-}  // namespace robot_controllers
+}  // namespace robot_controllers_interface

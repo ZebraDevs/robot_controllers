@@ -34,7 +34,7 @@
 #include <string>
 #include <memory>
 
-namespace robot_controllers
+namespace robot_controllers_interface
 {
 
 /**
@@ -63,6 +63,6 @@ private:
 
 using HandlePtr = std::shared_ptr<Handle>;
 
-}  // namespace robot_controllers
+}  // namespace robot_controllers_interface
 
 #endif  // ROBOT_CONTROLLERS_INTERFACE_HANDLE_H

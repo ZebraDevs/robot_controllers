@@ -32,6 +32,7 @@
 #ifndef ROBOT_CONTROLLERS_INTERFACE_CONTROLLER_MANAGER_H
 #define ROBOT_CONTROLLERS_INTERFACE_CONTROLLER_MANAGER_H
 
+#include <memory>
 #include <string>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
@@ -43,11 +44,11 @@
 #include <robot_controllers_interface/controller.h>
 #include <robot_controllers_interface/controller_loader.h>
 
-namespace robot_controllers
+namespace robot_controllers_interface
 {
 
 /** @brief Base class for a controller manager. */
-class ControllerManager
+class ControllerManager : public std::enable_shared_from_this<ControllerManager>
 {
   using QueryControllerStates = robot_controllers_msgs::action::QueryControllerStates;
   using QueryControllerStatesGoal = rclcpp_action::ServerGoalHandle<QueryControllerStates>;
@@ -136,10 +137,12 @@ private:
   JointHandleList joints_;
   GyroHandleList gyros_;
 
-  std::shared_ptr<rclcpp::Node> node_;
+  rclcpp::Node::SharedPtr node_;
   rclcpp_action::Server<robot_controllers_msgs::action::QueryControllerStates>::SharedPtr server_;
 };
 
-}  // namespace robot_controllers
+using ControllerManagerPtr = std::shared_ptr<ControllerManager>;
+
+}  // namespace robot_controllers_interface
 
 #endif  // ROBOT_CONTROLLERS_INTERFACE_CONTROLLER_MANAGER_H

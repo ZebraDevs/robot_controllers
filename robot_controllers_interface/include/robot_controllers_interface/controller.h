@@ -53,7 +53,7 @@
  *     commands to the mechanism.
  */
 
-namespace robot_controllers
+namespace robot_controllers_interface
 {
 
 // Forward define
@@ -82,15 +82,15 @@ public:
 
   /**
    * @brief Initialize the controller and any required data structures.
-   * @param node Node handle for this controller.
    * @param name Name of this controller.
+   * @param node Node handle for this controller.
    * @param manager The controller manager instance, this is needed for the
    *        controller to get information about joints, etc.
    * @returns 0 if succesfully configured, negative values are error codes.
    */
   virtual int init(const std::string& name,
                    std::shared_ptr<rclcpp::Node> node,
-                   ControllerManager* manager)
+                   std::shared_ptr<ControllerManager> manager)
   {
     name_ = name;
     return 0;
@@ -151,6 +151,6 @@ private:
 
 using ControllerPtr = std::shared_ptr<Controller>;
 
-}  // namespace robot_controllers
+}  // namespace robot_controllers_interface
 
 #endif  // ROBOT_CONTROLLERS_INTERFACE_CONTROLLER_H

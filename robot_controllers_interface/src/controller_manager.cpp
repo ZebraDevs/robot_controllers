@@ -32,7 +32,7 @@
 #include <sstream>
 #include <robot_controllers_interface/controller_manager.h>
 
-namespace robot_controllers
+namespace robot_controllers_interface
 {
 
 using namespace std::placeholders;
@@ -46,19 +46,19 @@ int ControllerManager::init(std::shared_ptr<rclcpp::Node> node)
   node_ = node;
 
   // Find and load default controllers
-  std::vector<std::string> controller_names;
-  if (node_->get_parameter("default_controllers", controller_names))
-  {
-    // Load each controller
-    for (auto controller_name : controller_names)
-    {
-      load(controller_name);
-    }
-  }
-  else
+  std::vector<std::string> controller_names =
+    node_->declare_parameter<std::vector<std::string>>("default_controllers", std::vector<std::string>());
+  if (controller_names.empty())
   {
     RCLCPP_WARN(node_->get_logger(), "No controllers loaded.");
     return -1;
+  }
+
+  // Load each controller
+  for (auto controller_name : controller_names)
+  {
+    RCLCPP_WARN(node->get_logger(), "Loading %s", controller_name.c_str());
+    load(controller_name);
   }
 
   // Setup actionlib server
@@ -360,21 +360,10 @@ void ControllerManager::execute(const std::shared_ptr<QueryControllerStatesGoal>
     }
     if (!in_controller_list)
     {
-      // Check if controller exists on parameter server
-      if (node_->has_parameter(state.name))
-      { 
-        // Create controller (in a loader)
-        if (!load(static_cast<std::string>(state.name)))
-        {
-          RCLCPP_ERROR(node_->get_logger(), "Failed to load controller %s", state.name);
-          getState(result);
-          goal_handle->abort(result);
-          return;
-        }
-      }
-      else
+      // Create controller (in a loader)
+      if (!load(static_cast<std::string>(state.name)))
       {
-        RCLCPP_ERROR(node_->get_logger(), "No such controller to update: %s", state.name);
+        RCLCPP_ERROR(node_->get_logger(), "Failed to load controller %s", state.name);
         getState(result);
         goal_handle->abort(result);
         return;
@@ -447,7 +436,7 @@ bool ControllerManager::load(const std::string& name)
   // Push back controller (so that autostart will work)
   controllers_.push_back(controller);
   // Now initialize controller
-  if (!controller->init(name, node_, this))
+  if (!controller->init(name, node_, shared_from_this()))
   {
     // Remove if init fails
     controllers_.pop_back();
@@ -456,4 +445,4 @@ bool ControllerManager::load(const std::string& name)
   return true;
 }
 
-}  // namespace robot_controllers
+}  // namespace robot_controllers_interface

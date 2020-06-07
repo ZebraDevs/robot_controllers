@@ -38,7 +38,7 @@
 #include <pluginlib/class_loader.hpp>
 #include <robot_controllers_interface/controller.h>
 
-namespace robot_controllers
+namespace robot_controllers_interface
 {
 
 // Forward def
@@ -54,7 +54,7 @@ public:
   /** @brief Load the controller. */
   bool init(const std::string& name,
             std::shared_ptr<rclcpp::Node> node,
-            ControllerManager* manager);
+            std::shared_ptr<ControllerManager> manager);
 
   /** @brief This calls through to controller, saves state locally. */
   bool start();
@@ -75,13 +75,13 @@ public:
   ControllerPtr getController();
 
 private:
-  pluginlib::ClassLoader<robot_controllers::Controller> plugin_loader_;
+  pluginlib::ClassLoader<robot_controllers_interface::Controller> plugin_loader_;
   ControllerPtr controller_;
   bool active_;
 };
 
 using ControllerLoaderPtr = std::shared_ptr<ControllerLoader>;
 
-}  // namespace robot_controllers
+}  // namespace robot_controllers_interface
 
 #endif  // ROBOT_CONTROLLERS_INTERFACE_CONTROLLER_MANAGER_H
