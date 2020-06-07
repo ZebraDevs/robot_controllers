@@ -57,7 +57,7 @@ int ControllerManager::init(std::shared_ptr<rclcpp::Node> node)
   // Load each controller
   for (auto controller_name : controller_names)
   {
-    RCLCPP_WARN(node->get_logger(), "Loading %s", controller_name.c_str());
+    RCLCPP_INFO(node->get_logger(), "Loading %s", controller_name.c_str());
     load(controller_name);
   }
 

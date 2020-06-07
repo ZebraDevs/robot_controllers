@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.5)
 project(robot_controllers)
 
 if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 14)
+  # Need C++17 for std::scoped_lock
+  set(CMAKE_CXX_STANDARD 17)
 endif()
 
 if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
@@ -34,7 +35,7 @@ add_library(robot_controllers SHARED
 #  src/cartesian_pose.cpp
 #  src/cartesian_twist.cpp
 #  src/cartesian_wrench.cpp
-#  src/diff_drive_base.cpp
+  src/diff_drive_base.cpp
 #  src/follow_joint_trajectory.cpp
   src/gravity_compensation.cpp
 #  src/parallel_gripper.cpp

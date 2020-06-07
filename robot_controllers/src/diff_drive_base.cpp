@@ -1,6 +1,7 @@
 /*********************************************************************
  *  Software License Agreement (BSD License)
  *
+ *  Copyright (c) 2020, Michael Ferguson
  *  Copyright (c) 2014-2017, Fetch Robotics Inc.
  *  Copyright (c) 2013, Unbounded Robotics Inc.
  *  All rights reserved.
@@ -36,17 +37,20 @@
 // Author: Michael Ferguson
 
 #include <angles/angles.h>
-#include <pluginlib/class_list_macros.h>
+#include <pluginlib/class_list_macros.hpp>
 #include <robot_controllers/diff_drive_base.h>
 
-PLUGINLIB_EXPORT_CLASS(robot_controllers::DiffDriveBaseController, robot_controllers::Controller)
+PLUGINLIB_EXPORT_CLASS(robot_controllers::DiffDriveBaseController, robot_controllers_interface::Controller)
+
+using std::placeholders::_1;
 
 namespace robot_controllers
 {
 
 DiffDriveBaseController::DiffDriveBaseController() :
     initialized_(false),
-    safety_scaling_(1.0)
+    safety_scaling_(1.0),
+    timeout_(0, 0)
 {
   theta_ = 0.0;
 
@@ -57,122 +61,120 @@ DiffDriveBaseController::DiffDriveBaseController() :
   last_sent_r_ = desired_r_ = 0.0;
 
   left_last_timestamp_ = right_last_timestamp_ = 0.0;
-  last_command_ = last_update_ = ros::Time(0.0);
 }
 
-int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manager)
+int DiffDriveBaseController::init(const std::string& name,
+                                  rclcpp::Node::SharedPtr node,
+                                  robot_controllers_interface::ControllerManagerPtr manager)
 {
   // We absolutely need access to the controller manager
   if (!manager)
   {
-    ROS_ERROR_NAMED("BaseController", "No controller manager available.");
+    RCLCPP_ERROR(node_->get_logger(), "No controller manager available.");
     initialized_ = false;
     return -1;
   }
 
-  Controller::init(nh, manager);
+  Controller::init(name, node, manager);
+  node_ = node;
   manager_ = manager;
 
   // Initialize joints
-  std::string l_name, r_name;
-  nh.param<std::string>("l_wheel_joint", l_name, "l_wheel_joint");
-  nh.param<std::string>("r_wheel_joint", r_name, "r_wheel_joint");
+  std::string l_name = node->declare_parameter<std::string>(name + ".l_wheel_joint", "l_wheel_joint");
+  std::string r_name = node->declare_parameter<std::string>(name + ".r_wheel_joint", "r_wheel_joint");
   left_ = manager_->getJointHandle(l_name);
   right_ = manager_->getJointHandle(r_name);
   if (left_ == NULL || right_ == NULL)
   {
-    ROS_ERROR_NAMED("BaseController", "Cannot get wheel joints.");
+    RCLCPP_ERROR(node_->get_logger(), "Cannot get wheel joints.");
     initialized_ = false;
     return -1;
   }
   left_last_position_ = left_->getPosition();
   right_last_position_ = right_->getPosition();
-  last_update_ = ros::Time::now();
+  last_update_ = node->now();
+  last_command_ = node_->now();
 
   // Get base parameters
-  nh.param<double>("track_width", track_width_, 0.37476);
-  nh.param<double>("radians_per_meter", radians_per_meter_, 16.5289);
+  track_width_ = node->declare_parameter<double>(name + ".track_width", 0.37476);
+  radians_per_meter_ = node->declare_parameter<double>(name + ".radians_per_meter", 16.5289);
 
-  // If using an external correction (such as robot_pose_ekf or graft)
+  // If using an external correction (such as robot_localization)
   // we should not publish the TF frame from base->odom
-  nh.param<bool>("publish_tf", publish_tf_, true);
+  publish_tf_ = node->declare_parameter<bool>(name + ".publish_tf", true);
 
   // The pose in the odometry message is specified in terms of the odometry frame
-  nh.param<std::string>("odometry_frame", odom_.header.frame_id, "odom");
+  odom_.header.frame_id = node->declare_parameter<std::string>(name + ".odometry_frame", "odom");
 
   // The twist in the odometry message is specified in the coordinate frame of the base
-  nh.param<std::string>("base_frame", odom_.child_frame_id, "base_link");
+  odom_.child_frame_id = node->declare_parameter<std::string>(name + ".base_frame", "base_link");
 
   // Get various thresholds below which we supress noise
-  nh.param<double>("wheel_rotating_threshold", wheel_rotating_threshold_, 0.001);
-  nh.param<double>("rotating_threshold", rotating_threshold_, 0.05);
-  nh.param<double>("moving_threshold", moving_threshold_, 0.05);
+  wheel_rotating_threshold_ = node->declare_parameter<double>(name + ".wheel_rotating_threshold", 0.001);
+  rotating_threshold_ = node->declare_parameter<double>(name + ".rotating_threshold", 0.05);
+  moving_threshold_ = node->declare_parameter<double>(name + ".moving_threshold", 0.05);
 
-  double t;
-  nh.param<double>("timeout", t, 0.25);
-  timeout_ = ros::Duration(t);
+  double t = node->declare_parameter<double>(name + ".timeout", 0.25);
+  timeout_ = rclcpp::Duration(t * 1e9);
 
   // Get limits of base controller
-  nh.param<double>("max_velocity_x", max_velocity_x_, 1.0);
-  nh.param<double>("max_velocity_r", max_velocity_r_, 4.5);
-  nh.param<double>("max_acceleration_x", max_acceleration_x_, 0.75);
-  nh.param<double>("max_acceleration_r", max_acceleration_r_, 3.0);
+  max_velocity_x_ = node->declare_parameter<double>(name + ".max_velocity_x", 1.0);
+  max_velocity_r_ = node->declare_parameter<double>(name + ".max_velocity_r", 4.5);
+  max_acceleration_x_ = node->declare_parameter<double>(name + ".max_acceleration_x", 0.75);
+  max_acceleration_r_ = node->declare_parameter<double>(name + ".max_acceleration_r", 3.0);
 
   // Subscribe to base commands
-  cmd_sub_ = nh.subscribe<geometry_msgs::Twist>("command", 1,
-                boost::bind(&DiffDriveBaseController::command, this, _1));
+  cmd_sub_ = node->create_subscription<geometry_msgs::msg::Twist>(name + "/command", 1,
+               std::bind(&DiffDriveBaseController::command, this, _1));
 
   // Publish odometry & tf
-  ros::NodeHandle n;
-  odom_pub_ = n.advertise<nav_msgs::Odometry>("odom", 10);
-  if (publish_tf_)
-    broadcaster_.reset(new tf::TransformBroadcaster());
+  odom_pub_ = node->create_publisher<nav_msgs::msg::Odometry>("odom", 10);
+//  if (publish_tf_)
+//    broadcaster_.reset(new tf::TransformBroadcaster());
 
   // Publish timer
-  double publish_frequency;
-  nh.param<double>("publish_frequency", publish_frequency, 100.0);
-  odom_timer_ = n.createTimer(ros::Duration(1/publish_frequency),
-                              &DiffDriveBaseController::publishCallback,
-                              this);
+  int publish_frequency = node->declare_parameter<int>(name + ".publish_frequency", 100);
+  odom_timer_ = node->create_wall_timer(std::chrono::microseconds(1000 / publish_frequency),
+                                        std::bind(&DiffDriveBaseController::publishCallback, this));
 
   // Should we use the laser for safety limiting base velocity?
-  nh.param<double>("laser_safety_dist", safety_scaling_distance_, 0.0);
-  nh.param<double>("robot_safety_width", robot_width_, 0.7);
+  safety_scaling_distance_ = node->declare_parameter<double>(name + ".laser_safety_dist", 0.0);
+  robot_width_ = node->declare_parameter<double>(name + ".robot_safety_width", 0.7);
   if (safety_scaling_distance_ > 0.0)
   {
-    scan_sub_ = n.subscribe<sensor_msgs::LaserScan>("base_scan", 1,
-                  boost::bind(&DiffDriveBaseController::scanCallback, this, _1));
+    scan_sub_ = node->create_subscription<sensor_msgs::msg::LaserScan>("base_scan", 1,
+                  std::bind(&DiffDriveBaseController::scanCallback, this, _1));
+
   }
 
   initialized_ = true;
 
   // Should we autostart?
-  bool autostart;
-  nh.param("autostart", autostart, false);
+  bool autostart = node->declare_parameter<bool>(name + ".autostart", false);
   if (autostart)
-    manager->requestStart(getName());
+    manager->requestStart(name);
 
   return 0;
 }
 
-void DiffDriveBaseController::command(const geometry_msgs::TwistConstPtr& msg)
+void DiffDriveBaseController::command(const geometry_msgs::msg::Twist::SharedPtr msg)
 {
   if (!initialized_)
   {
-    ROS_ERROR_NAMED("BaseController", "Unable to accept command, not initialized.");
+    RCLCPP_ERROR(node_->get_logger(), "Unable to accept command, not initialized.");
     return;
   }
 
   if (std::isfinite(msg->linear.x) && std::isfinite(msg->angular.z))
   {
-    boost::mutex::scoped_lock lock(command_mutex_);
-    last_command_ = ros::Time::now();
+    std::scoped_lock lock(command_mutex_);
+    last_command_ = node_->now();
     desired_x_ = msg->linear.x;
     desired_r_ = msg->angular.z;
   }
   else
   {
-    ROS_ERROR_NAMED("BaseController", "Commanded velocities not finite!");
+    RCLCPP_ERROR(node_->get_logger(), "Commanded velocities not finite!");
     return;
   }
 
@@ -183,7 +185,7 @@ bool DiffDriveBaseController::start()
 {
   if (!initialized_)
   {
-    ROS_ERROR_NAMED("BaseController", "Unable to start, not initialized.");
+    RCLCPP_ERROR(node_->get_logger(), "Unable to start, not initialized.");
     return false;
   }
 
@@ -210,11 +212,11 @@ bool DiffDriveBaseController::stop(bool force)
 bool DiffDriveBaseController::reset()
 {
   // Reset command
-  last_command_ = ros::Time(0);
+  last_command_ = node_->now();
   return true;
 }
 
-void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& dt)
+void DiffDriveBaseController::update(const rclcpp::Time& now, const rclcpp::Duration& dt)
 {
   if (!initialized_)
     return;  // should never really hit this
@@ -222,14 +224,14 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   // See if we have timed out and need to stop
   if (now - last_command_ >= timeout_)
   {
-    ROS_DEBUG_THROTTLE_NAMED(5, "BaseController", "Command timed out.");
-    boost::mutex::scoped_lock lock(command_mutex_);
+    RCLCPP_DEBUG(node_->get_logger(), "Command timed out.");
+    std::scoped_lock lock(command_mutex_);
     desired_x_ = desired_r_ = 0.0;
   }
 
   // Make sure laser has not timed out
   if ((safety_scaling_distance_ > 0.0) &&
-      (ros::Time::now() - last_laser_scan_ > ros::Duration(0.5)))
+      (now - last_laser_scan_ > rclcpp::Duration(0.5)))
   {
     safety_scaling_ = 0.1;
   }
@@ -237,7 +239,7 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   // Do velocity acceleration/limiting
   double x, r;
   {
-    boost::mutex::scoped_lock lock(command_mutex_);
+    std::scoped_lock lock(command_mutex_);
     // Limit linear velocity based on obstacles
     x = std::max(-max_velocity_x_ * safety_scaling_, std::min(desired_x_, max_velocity_x_ * safety_scaling_));
     // Compute how much we actually scaled the linear velocity
@@ -248,27 +250,30 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
     // Scale same amount as linear velocity so that robot still follows the same "curvature"
     r = std::max(-max_velocity_r_, std::min(actual_scaling * desired_r_, max_velocity_r_));
   }
+
+  double elapsed = dt.nanoseconds() / 1e9;
+
   if (x > last_sent_x_)
   {
-    last_sent_x_ += max_acceleration_x_ * (now - last_update_).toSec();
+    last_sent_x_ += max_acceleration_x_ * elapsed;
     if (last_sent_x_ > x)
       last_sent_x_ = x;
   }
   else
   {
-    last_sent_x_ -= max_acceleration_x_ * (now - last_update_).toSec();
+    last_sent_x_ -= max_acceleration_x_ * elapsed;
     if (last_sent_x_ < x)
       last_sent_x_ = x;
   }
   if (r > last_sent_r_)
   {
-    last_sent_r_ += max_acceleration_r_ * (now - last_update_).toSec();
+    last_sent_r_ += max_acceleration_r_ * elapsed;
     if (last_sent_r_ > r)
       last_sent_r_ = r;
   }
   else
   {
-    last_sent_r_ -= max_acceleration_r_ * (now - last_update_).toSec();
+    last_sent_r_ -= max_acceleration_r_ * elapsed;
     if (last_sent_r_ < r)
       last_sent_r_ = r;
   }
@@ -319,7 +324,7 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   }
 
   // Lock mutex before updating
-  boost::mutex::scoped_lock lock(odom_mutex_);
+  std::scoped_lock lock(odom_mutex_);
 
   // Update stored odometry pose...
   theta_ += th/2.0;
@@ -351,37 +356,37 @@ std::vector<std::string> DiffDriveBaseController::getClaimedNames()
   return getCommandedNames();
 }
 
-void DiffDriveBaseController::publishCallback(const ros::TimerEvent& event)
+void DiffDriveBaseController::publishCallback()
 {
   // Copy message under lock of mutex
-  nav_msgs::Odometry msg;
+  nav_msgs::msg::Odometry msg;
   {
-    boost::mutex::scoped_lock lock(odom_mutex_);
+    std::scoped_lock lock(odom_mutex_);
     msg = odom_;
   }
 
   // Publish or perish
-  msg.header.stamp = ros::Time::now();
-  odom_pub_.publish(msg);
+  msg.header.stamp = node_->now();
+  odom_pub_->publish(msg);
 
   if (publish_tf_)
   {
-    tf::Transform transform;
-    transform.setOrigin(tf::Vector3(msg.pose.pose.position.x, msg.pose.pose.position.y, 0.0));
-    transform.setRotation(tf::Quaternion(msg.pose.pose.orientation.x,
-                                         msg.pose.pose.orientation.y,
-                                         msg.pose.pose.orientation.z,
-                                         msg.pose.pose.orientation.w) );
+    //f::Transform transform;
+    //transform.setOrigin(tf::Vector3(msg.pose.pose.position.x, msg.pose.pose.position.y, 0.0));
+    //transform.setRotation(tf::Quaternion(msg.pose.pose.orientation.x,
+    //                                     msg.pose.pose.orientation.y,
+    //                                     msg.pose.pose.orientation.z,
+    //                                     msg.pose.pose.orientation.w) );
     /*
      * REP105 (http://ros.org/reps/rep-0105.html)
      *   says: map -> odom -> base_link
      */
-    broadcaster_->sendTransform(tf::StampedTransform(transform, msg.header.stamp, msg.header.frame_id, msg.child_frame_id));
+    //broadcaster_->sendTransform(tf::StampedTransform(transform, msg.header.stamp, msg.header.frame_id, msg.child_frame_id));
   }
 }
 
 void DiffDriveBaseController::scanCallback(
-  const sensor_msgs::LaserScanConstPtr& scan)
+  const sensor_msgs::msg::LaserScan::SharedPtr scan)
 {
   double angle = scan->angle_min;
   double min_dist = safety_scaling_distance_;
@@ -403,9 +408,9 @@ void DiffDriveBaseController::scanCallback(
     }
   }
 
-  boost::mutex::scoped_lock lock(command_mutex_);
+  std::scoped_lock lock(command_mutex_);
   safety_scaling_ = std::max(0.1, min_dist / safety_scaling_distance_);
-  last_laser_scan_ = ros::Time::now();
+  last_laser_scan_ = node_->now();
 }
 
 void DiffDriveBaseController::setCommand(float left, float right)

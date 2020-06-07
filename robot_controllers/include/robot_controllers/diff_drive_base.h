@@ -1,6 +1,7 @@
 /*********************************************************************
  *  Software License Agreement (BSD License)
  *
+ *  Copyright (c) 2020, Michael Ferguson
  *  Copyright (c) 2014-2015, Fetch Robotics Inc.
  *  Copyright (c) 2013, Unbounded Robotics Inc.
  *  All rights reserved.
@@ -38,19 +39,18 @@
 #ifndef ROBOT_CONTROLLERS_DIFF_DRIVE_BASE_H
 #define ROBOT_CONTROLLERS_DIFF_DRIVE_BASE_H
 
+#include <mutex>
 #include <string>
-#include <boost/shared_ptr.hpp>
-#include <boost/thread/mutex.hpp>
 
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 #include <robot_controllers_interface/controller.h>
 #include <robot_controllers_interface/controller_manager.h>
 #include <robot_controllers_interface/joint_handle.h>
-#include <tf/transform_broadcaster.h>
+#include <tf2_ros/transform_broadcaster.h>
 
-#include <geometry_msgs/Twist.h>
-#include <nav_msgs/Odometry.h>
-#include <sensor_msgs/LaserScan.h>
+#include <geometry_msgs/msg/twist.hpp>
+#include <nav_msgs/msg/odometry.hpp>
+#include <sensor_msgs/msg/laser_scan.hpp>
 
 namespace robot_controllers
 {
@@ -60,7 +60,7 @@ namespace robot_controllers
  *         subcribes to cmd_vel topic, publishes odom and tf, and manages the two
  *         wheel joints.
  */
-class DiffDriveBaseController : public Controller
+class DiffDriveBaseController : public robot_controllers_interface::Controller
 {
 public:
   DiffDriveBaseController();
@@ -68,12 +68,15 @@ public:
 
   /**
    * @brief Initialize the controller and any required data structures.
-   * @param nh Node handle for this controller.
+   * @param name Name of this controller.
+   * @param Node Node handle for this controller.
    * @param manager The controller manager instance, this is needed for the
    *        controller to get information about joints, etc.
    * @returns 0 if succesfully configured, negative values are error codes.
    */
-  virtual int init(ros::NodeHandle& nh, ControllerManager* manager);
+  virtual int init(const std::string& name,
+                   rclcpp::Node::SharedPtr node,
+                   robot_controllers_interface::ControllerManagerPtr manager);
 
   /**
    * @brief Attempt to start the controller. This should be called only by the
@@ -104,7 +107,7 @@ public:
    * @param time The system time.
    * @param dt The timestep since last call to update.
    */
-  virtual void update(const ros::Time& now, const ros::Duration& dt);
+  virtual void update(const rclcpp::Time& now, const rclcpp::Duration& dt);
 
   /** @brief Get the type of this controller. */
   virtual std::string getType()
@@ -119,20 +122,21 @@ public:
   virtual std::vector<std::string> getClaimedNames();
 
   /** @brief Command callback from either a ROS topic, or a higher controller. */
-  void command(const geometry_msgs::TwistConstPtr& msg);
+  void command(const geometry_msgs::msg::Twist::SharedPtr msg);
 
 private:
   bool initialized_;
-  ControllerManager* manager_;
+  rclcpp::Node::SharedPtr node_;
+  robot_controllers_interface::ControllerManagerPtr manager_;
 
-  void publishCallback(const ros::TimerEvent& event);
-  void scanCallback(const sensor_msgs::LaserScanConstPtr& scan);
+  void publishCallback();
+  void scanCallback(const sensor_msgs::msg::LaserScan::SharedPtr scan);
 
   // Set base wheel speeds in m/s
   void setCommand(float left, float right);
 
-  JointHandlePtr left_;
-  JointHandlePtr right_;
+  robot_controllers_interface::JointHandlePtr left_;
+  robot_controllers_interface::JointHandlePtr right_;
 
   double track_width_;
   double radians_per_meter_;
@@ -151,10 +155,10 @@ private:
   double safety_scaling_;
   double safety_scaling_distance_;
   double robot_width_;
-  ros::Time last_laser_scan_;
+  rclcpp::Time last_laser_scan_;
 
   // These are the inputs from the ROS topic
-  boost::mutex command_mutex_;
+  std::mutex command_mutex_;
   double desired_x_;
   double desired_r_;
 
@@ -167,24 +171,25 @@ private:
   double left_last_timestamp_;
   double right_last_timestamp_;
 
-  ros::Time last_command_;
-  ros::Time last_update_;
-  ros::Duration timeout_;
+  rclcpp::Time last_command_;
+  rclcpp::Time last_update_;
+  rclcpp::Duration timeout_;
 
-  boost::mutex odom_mutex_;
-  nav_msgs::Odometry odom_;
-  ros::Publisher odom_pub_;
-  ros::Timer odom_timer_;
-  ros::Subscriber cmd_sub_, scan_sub_;
+  std::mutex odom_mutex_;
+  nav_msgs::msg::Odometry odom_;
+  rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
+  rclcpp::TimerBase::SharedPtr odom_timer_;
+  rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr cmd_sub_;
+  rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub_;
 
-  boost::shared_ptr<tf::TransformBroadcaster> broadcaster_;
+  //boost::shared_ptr<tf::TransformBroadcaster> broadcaster_;
   bool publish_tf_;
 
   bool enabled_;
   bool ready_;
 };
 
-typedef boost::shared_ptr<DiffDriveBaseController> DiffDriveBaseControllerPtr;
+using DiffDriveBaseControllerPtr = std::shared_ptr<DiffDriveBaseController>;
 
 }  // namespace robot_controllers
 
