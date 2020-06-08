@@ -40,6 +40,21 @@
 namespace robot_controllers_interface
 {
 
+// Mainly used for robot_description
+template <typename T>
+T declare_parameter_once(const std::string& name, const T& default_value,
+	                     rclcpp::Node::SharedPtr node)
+{
+  if (!node->has_parameter(name))
+  {
+    node->declare_parameter<T>(name, default_value);
+  }
+
+  T value;
+  node->get_parameter(name, value);
+  return value;
+}
+
 // Parameters use ".", topics use "/"
 inline std::string get_safe_topic_name(const std::string& name)
 {
@@ -48,7 +63,8 @@ inline std::string get_safe_topic_name(const std::string& name)
   return safe_name;
 }
 
-inline double to_sec(const rclcpp::Time& t)
+template <typename T>
+double to_sec(const T& t)
 {
   return (double) t.nanoseconds() / 1e9;
 }

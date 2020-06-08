@@ -38,11 +38,14 @@
 
 #include <pluginlib/class_list_macros.hpp>
 #include <robot_controllers/gravity_compensation.h>
+#include <robot_controllers_interface/utils.h>
 
 PLUGINLIB_EXPORT_CLASS(robot_controllers::GravityCompensation, robot_controllers_interface::Controller)
 
 namespace robot_controllers
 {
+
+using robot_controllers_interface::declare_parameter_once;
 
 int GravityCompensation::init(const std::string& name,
                               rclcpp::Node::SharedPtr node,
@@ -51,15 +54,9 @@ int GravityCompensation::init(const std::string& name,
   Controller::init(name, node, manager);
   manager_ = manager;
 
-  if (!node->has_parameter("robot_description"))
-  {
-    node->declare_parameter<std::string>("robot_description", "");
-  }
-
   // Load URDF
   urdf::Model model;
-  std::string robot_description;
-  node->get_parameter("robot_description", robot_description);
+  std::string robot_description = declare_parameter_once<std::string>("robot_description", "", node);
   if (!model.initString(robot_description))
   {
     RCLCPP_ERROR(node->get_logger(), "Failed to parse URDF");

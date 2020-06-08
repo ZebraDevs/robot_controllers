@@ -53,6 +53,7 @@ namespace robot_controllers
 using namespace std::placeholders;
 using robot_controllers_interface::to_sec;
 using robot_controllers_interface::msg_to_sec;
+using robot_controllers_interface::declare_parameter_once;
 
 int PointHeadController::init(const std::string& name,
                               rclcpp::Node::SharedPtr node,
@@ -81,13 +82,8 @@ int PointHeadController::init(const std::string& name,
   head_tilt_ = manager_->getJointHandle("head_tilt_joint");
 
   // Parse UDRF/KDL
-  if (!node->has_parameter("robot_description"))
-  {
-    node->declare_parameter<std::string>("robot_description", "");
-  }
   urdf::Model model;
-  std::string robot_description;
-  node->get_parameter("robot_description", robot_description);
+  std::string robot_description = declare_parameter_once<std::string>("robot_description", "", node);
   if (!model.initString(robot_description))
   {
     RCLCPP_ERROR(node->get_logger(),
