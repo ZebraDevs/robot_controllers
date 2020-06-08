@@ -36,19 +36,20 @@
 
 /* Author: Michael Ferguson */
 
-#include <algorithm>
 #include <pluginlib/class_list_macros.hpp>
+#include <robot_controllers_interface/utils.h>
 #include <robot_controllers/follow_joint_trajectory.h>
-
-using angles::shortest_angular_distance;
 
 PLUGINLIB_EXPORT_CLASS(robot_controllers::FollowJointTrajectoryController, robot_controllers_interface::Controller)
 
 namespace robot_controllers
 {
 
-FollowJointTrajectoryController::FollowJointTrajectoryController() :
-    initialized_(false)
+using angles::shortest_angular_distance;
+using robot_controllers_interface::to_sec;
+using robot_controllers_interface::msg_to_sec;
+
+FollowJointTrajectoryController::FollowJointTrajectoryController()
 {
 }
 
@@ -62,7 +63,7 @@ int FollowJointTrajectoryController::init(
   // We absolutely need access to the controller manager
   if (!manager)
   {
-    initialized_ = false;
+    server_.reset();
     return -1;
   }
 
@@ -73,7 +74,6 @@ int FollowJointTrajectoryController::init(
   // No initial sampler
   std::scoped_lock lock(sampler_mutex_);
   sampler_.reset();
-  preempted_ = false;
 
   // Get Joint Names
   joint_names_ = node->declare_parameter<std::vector<std::string>>(name + ".joints", std::vector<std::string>());
@@ -116,10 +116,6 @@ int FollowJointTrajectoryController::init(
   goal_tolerance_.qd.resize(joints_.size());
   goal_tolerance_.qdd.resize(joints_.size());
 
-  // Parameters use ".", topics use "/"
-  std::string action_name = name;
-  std::replace(action_name.begin(), action_name.end(), '.', '/');
-
   // Setup actionlib server
   active_goal_.reset();
   server_ = rclcpp_action::create_server<FollowJointTrajectoryAction>(
@@ -127,36 +123,35 @@ int FollowJointTrajectoryController::init(
     node_->get_node_clock_interface(),
     node_->get_node_logging_interface(),
     node_->get_node_waitables_interface(),
-    action_name,
+    robot_controllers_interface::get_safe_topic_name(name),
     std::bind(&FollowJointTrajectoryController::handle_goal, this, _1, _2),
     std::bind(&FollowJointTrajectoryController::handle_cancel, this, _1),
     std::bind(&FollowJointTrajectoryController::handle_accepted, this, _1)
   );
 
-  initialized_ = true;
   return 0;
 }
 
 bool FollowJointTrajectoryController::start()
 {
-  if (!initialized_)
+  if (!server_)
   {
     // Can't log (not intialized)
     return false;
   }
 
-  /*if (!server_->isActive())
+  if (!active_goal_)
   {
-    RCLCPP_ERROR(node_->get_logger(), "Unable to start, action server is not active.");
+    RCLCPP_ERROR(node_->get_logger(), "Unable to start, action server has no goal.");
     return false;
-  }*/
+  }
 
   return true;
 }
 
 bool FollowJointTrajectoryController::stop(bool force)
 {
-  if (!initialized_)
+  if (!server_)
     return true;
 
   if (active_goal_)
@@ -191,7 +186,7 @@ bool FollowJointTrajectoryController::reset()
 
 void FollowJointTrajectoryController::update(const rclcpp::Time& now, const rclcpp::Duration& dt)
 {
-  if (!initialized_)
+  if (!server_)
     return;
 
   // Is trajectory active?
@@ -200,7 +195,7 @@ void FollowJointTrajectoryController::update(const rclcpp::Time& now, const rclc
     std::scoped_lock lock(sampler_mutex_);
 
     // Interpolate trajectory
-    TrajectoryPoint p = sampler_->sample((double) now.nanoseconds() / 1e9);
+    TrajectoryPoint p = sampler_->sample(to_sec(now));
     unwindTrajectoryPoint(continuous_, p);
     last_sample_ = p;
 
@@ -284,7 +279,7 @@ void FollowJointTrajectoryController::update(const rclcpp::Time& now, const rclc
       }
 
       // Check that we are within goal tolerance
-      double now_sec = (double) now.nanoseconds() / 1e9;
+      double now_sec = to_sec(now);
       if (now_sec >= sampler_->end_time())
       {
         bool inside_tolerances = true;
@@ -354,7 +349,7 @@ rclcpp_action::GoalResponse FollowJointTrajectoryController::handle_goal(
     const rclcpp_action::GoalUUID & uuid,
     std::shared_ptr<const FollowJointTrajectoryAction::Goal> goal_handle)
 {
-  if (!initialized_)
+  if (!server_)
   {
     // Can't even log here - we aren't initialized
     return rclcpp_action::GoalResponse::REJECT;
@@ -385,7 +380,7 @@ rclcpp_action::CancelResponse FollowJointTrajectoryController::handle_cancel(
 void FollowJointTrajectoryController::handle_accepted(const std::shared_ptr<FollowJointTrajectoryGoal> goal_handle)
 {
   auto result = std::make_shared<FollowJointTrajectoryAction::Result>();
-  
+
   if (active_goal_)
   {
     // TODO: if rclcpp_action ever supports preempted, note it here
@@ -430,7 +425,7 @@ void FollowJointTrajectoryController::handle_accepted(const std::shared_ptr<Foll
     {
       if (!spliceTrajectories(sampler_->getTrajectory(),
                               new_trajectory,
-                              (double) node_->now().nanoseconds() / 1e9,
+                              to_sec(node_->now()),
                               &executable_trajectory))
       {
         active_goal_.reset();
@@ -467,8 +462,8 @@ void FollowJointTrajectoryController::handle_accepted(const std::shared_ptr<Foll
 
       // if this hasn't started yet or if the header stamp is in the future,
       // need to insert current position
-      if (time_utils::fromMsg(goal->trajectory.points[0].time_from_start) > 0 ||
-          executable_trajectory.points[0].time > (double) node_->now().nanoseconds() / 1e9)
+      if (msg_to_sec(goal->trajectory.points[0].time_from_start) > 0 ||
+          executable_trajectory.points[0].time > to_sec(node_->now()))
       {
         executable_trajectory.points.insert(
           executable_trajectory.points.begin(),
@@ -570,7 +565,7 @@ void FollowJointTrajectoryController::handle_accepted(const std::shared_ptr<Foll
         goal_tolerance_.qdd[j] = 0.02;
       }
     }
-    goal_time_tolerance_ = time_utils::fromMsg(goal->goal_time_tolerance);
+    goal_time_tolerance_ = msg_to_sec(goal->goal_time_tolerance);
 
     active_goal_ = goal_handle;
   }
@@ -627,7 +622,7 @@ TrajectoryPoint FollowJointTrajectoryController::getPointFromCurrent(
       point.qdd[j] = 0.0;
   }
 
-  point.time = (double) node_->now().nanoseconds() / 1e9;
+  point.time = to_sec(node_->now());
 
   return point;
 }

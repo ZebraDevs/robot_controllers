@@ -127,40 +127,35 @@ public:
   virtual std::vector<std::string> getClaimedNames();
 
 private:
-  /** @brief Action interface */
+  // rclcpp callbacks for action
   rclcpp_action::GoalResponse handle_goal(
     const rclcpp_action::GoalUUID & uuid,
     std::shared_ptr<const FollowJointTrajectoryAction::Goal> goal_handle);
-
-  /** @brief Action interface */
   rclcpp_action::CancelResponse handle_cancel(
     const std::shared_ptr<FollowJointTrajectoryGoal> goal_handle);
-
-  /** @brief Action interface */
   void handle_accepted(const std::shared_ptr<FollowJointTrajectoryGoal> goal_handle);
-
-  /** @brief Callback for goal */
-  void executeCb(const std::shared_ptr<FollowJointTrajectoryGoal> goal_handle);
 
   /** @brief Get a trajectory point from the current position/velocity/acceleration. */
   TrajectoryPoint getPointFromCurrent(bool incl_vel, bool incl_acc, bool zero_vel);
 
-  bool initialized_;
+  // Handles to node, manager
   rclcpp::Node::SharedPtr node_;
   robot_controllers_interface::ControllerManagerPtr manager_;
 
-  std::vector<robot_controllers_interface::JointHandlePtr> joints_;
+  // Parameters
   std::vector<std::string> joint_names_;
-  std::vector<bool> continuous_;
-
-  std::shared_ptr<TrajectorySampler> sampler_;
-  std::mutex sampler_mutex_;
-
   bool stop_with_action_;  /// should we stop this controller when the
                            /// action has terminated (or hold position)?
-
   bool stop_on_path_violation_;  /// should we stop this controller when
                                  /// a path tolerance has been violated?
+
+  // Joint handles
+  std::vector<robot_controllers_interface::JointHandlePtr> joints_;
+  std::vector<bool> continuous_;
+
+  // Trajectory generation parameters
+  std::shared_ptr<TrajectorySampler> sampler_;
+  std::mutex sampler_mutex_;
 
   /*
    * In certain cases, we want to start a trajectory at our last sample,
@@ -170,11 +165,11 @@ private:
    */
   TrajectoryPoint last_sample_;
 
+  // RCLCPP action server interface
   rclcpp_action::Server<FollowJointTrajectoryAction>::SharedPtr server_;
+  std::shared_ptr<FollowJointTrajectoryAction::Feedback> feedback_;
   std::shared_ptr<FollowJointTrajectoryGoal> active_goal_;
 
-  bool preempted_;  /// action was preempted
-                    /// (has nothing to do with preempt() above).
   bool has_path_tolerance_;
   TrajectoryPoint path_tolerance_;
 
@@ -182,7 +177,6 @@ private:
   TrajectoryPoint goal_tolerance_;
   double goal_time_tolerance_;
 
-  std::shared_ptr<FollowJointTrajectoryAction::Feedback> feedback_;
   rclcpp::Time goal_time;
 };
 

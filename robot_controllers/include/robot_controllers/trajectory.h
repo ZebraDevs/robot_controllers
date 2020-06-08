@@ -41,6 +41,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <angles/angles.h>
 #include <trajectory_msgs/msg/joint_trajectory.hpp>
+#include <robot_controllers_interface/utils.h>
 
 namespace robot_controllers
 {
@@ -64,17 +65,6 @@ struct Trajectory
   {
     return points.size();
   }
-};
-
-namespace time_utils
-{
-
-template <typename T>
-double fromMsg(T timelike)
-{
-  return timelike.sec + (double) timelike.nanosec / 1e9;
-}
-
 };
 
 /**
@@ -110,9 +100,9 @@ inline bool trajectoryFromMsg(const trajectory_msgs::msg::JointTrajectory& messa
   // Make sure trajectory is empty
   trajectory->points.clear();
 
-  double start_time = time_utils::fromMsg(message.header.stamp);
+  double start_time = robot_controllers_interface::msg_to_sec(message.header.stamp);
   if (start_time == 0.0)
-    start_time = (double) now.nanoseconds() / 1e9;
+    start_time = robot_controllers_interface::to_sec(now);
 
   // Fill in Trajectory
   for (size_t p = 0; p < message.points.size(); ++p)
@@ -126,7 +116,7 @@ inline bool trajectoryFromMsg(const trajectory_msgs::msg::JointTrajectory& messa
       if (message.points[p].accelerations.size() == message.points[p].positions.size())
         point.qdd.push_back(message.points[p].accelerations[mapping[j]]);
     }
-    point.time = start_time + time_utils::fromMsg(message.points[p].time_from_start); 
+    point.time = start_time + robot_controllers_interface::msg_to_sec(message.points[p].time_from_start);
     trajectory->points.push_back(point);
   }
 
