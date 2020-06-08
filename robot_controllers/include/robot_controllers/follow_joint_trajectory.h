@@ -135,6 +135,9 @@ private:
     const std::shared_ptr<FollowJointTrajectoryGoal> goal_handle);
   void handle_accepted(const std::shared_ptr<FollowJointTrajectoryGoal> goal_handle);
 
+  /** @brief Publish feedback if goal is active */
+  void publishCallback();
+
   /** @brief Get a trajectory point from the current position/velocity/acceleration. */
   TrajectoryPoint getPointFromCurrent(bool incl_vel, bool incl_acc, bool zero_vel);
 
@@ -169,6 +172,7 @@ private:
   rclcpp_action::Server<FollowJointTrajectoryAction>::SharedPtr server_;
   std::shared_ptr<FollowJointTrajectoryAction::Feedback> feedback_;
   std::shared_ptr<FollowJointTrajectoryGoal> active_goal_;
+  rclcpp::TimerBase::SharedPtr publish_timer_;
 
   bool has_path_tolerance_;
   TrajectoryPoint path_tolerance_;
@@ -177,7 +181,7 @@ private:
   TrajectoryPoint goal_tolerance_;
   double goal_time_tolerance_;
 
-  rclcpp::Time goal_time;
+  rclcpp::Time goal_time_;
 };
 
 }  // namespace robot_controllers

@@ -116,6 +116,9 @@ int FollowJointTrajectoryController::init(
   goal_tolerance_.qd.resize(joints_.size());
   goal_tolerance_.qdd.resize(joints_.size());
 
+  publish_timer_ = node->create_wall_timer(std::chrono::milliseconds(20),
+                     std::bind(&FollowJointTrajectoryController::publishCallback, this));
+
   // Setup actionlib server
   active_goal_.reset();
   server_ = rclcpp_action::create_server<FollowJointTrajectoryAction>(
@@ -300,7 +303,7 @@ void FollowJointTrajectoryController::update(const rclcpp::Time& now, const rclc
           // Stop this controller if desired (and not preempted)
           if (stop_with_action_)
             manager_->requestStop(getName());
-          RCLCPP_DEBUG(node_->get_logger(), "Trajectory succeeded");
+          RCLCPP_INFO(node_->get_logger(), "Trajectory succeeded");
         }
         else if (now_sec > (sampler_->end_time() + goal_time_tolerance_ + 0.6))  // 0.6s matches PR2
         {
@@ -388,6 +391,7 @@ void FollowJointTrajectoryController::handle_accepted(const std::shared_ptr<Foll
     result->error_code = -6;
     result->error_string = "preempted";
     active_goal_->abort(result);
+    RCLCPP_WARN(node_->get_logger(), "Action preempted.");
     active_goal_.reset();
   }
 
@@ -405,7 +409,7 @@ void FollowJointTrajectoryController::handle_accepted(const std::shared_ptr<Foll
 
   Trajectory new_trajectory;
   Trajectory executable_trajectory;
-  goal_time = goal->trajectory.header.stamp;
+  goal_time_ = goal->trajectory.header.stamp;
 
   // Make a trajectory from our message
   if (!trajectoryFromMsg(goal->trajectory, joint_names_, node_->now(), &new_trajectory))
@@ -570,7 +574,7 @@ void FollowJointTrajectoryController::handle_accepted(const std::shared_ptr<Foll
     active_goal_ = goal_handle;
   }
 
-  RCLCPP_DEBUG(node_->get_logger(), "Executing new trajectory");
+  RCLCPP_INFO(node_->get_logger(), "Executing new trajectory");
 
   if (manager_->requestStart(getName()) != 0)
   {
@@ -582,15 +586,19 @@ void FollowJointTrajectoryController::handle_accepted(const std::shared_ptr<Foll
   }
 }
 
-/*
+void FollowJointTrajectoryController::publishCallback()
+{
+  if (active_goal_)
+  {
     // Publish feedback
-    feedback_->header.stamp = node_->now();
-    feedback_->desired.time_from_start = feedback_->header.stamp - goal_time;
-    feedback_->actual.time_from_start = feedback_->header.stamp - goal_time;
-    feedback_->error.time_from_start = feedback_->header.stamp - goal_time;
-    server_->publishFeedback(feedback_);
-    rclcpp::Duration(1/50.0).sleep();
- */
+    rclcpp::Time now = node_->now();
+    feedback_->header.stamp = now;
+    feedback_->desired.time_from_start = now - goal_time_;
+    feedback_->actual.time_from_start = now - goal_time_;
+    feedback_->error.time_from_start = now - goal_time_;
+    active_goal_->publish_feedback(feedback_);
+  }
+}
 
 TrajectoryPoint FollowJointTrajectoryController::getPointFromCurrent(
   bool incl_vel, bool incl_acc, bool zero_vel)
