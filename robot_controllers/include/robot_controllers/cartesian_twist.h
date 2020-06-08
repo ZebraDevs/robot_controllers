@@ -42,17 +42,17 @@
 #ifndef ROBOT_CONTROLLERS_CARTESIAN_TWIST_H
 #define ROBOT_CONTROLLERS_CARTESIAN_TWIST_H
 
+#include <memory>
 #include <string>
 #include <vector>
-#include <boost/shared_ptr.hpp>
 
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 #include <robot_controllers_interface/controller.h>
 #include <robot_controllers_interface/joint_handle.h>
 #include <robot_controllers_interface/controller_manager.h>
 
-#include <geometry_msgs/PoseStamped.h>
-#include <geometry_msgs/TwistStamped.h>
+#include <geometry_msgs/msg/pose_stamped.hpp>
+#include <geometry_msgs/msg/twist_stamped.hpp>
 
 #include <kdl/chain.hpp>
 #include <kdl/chainiksolvervel_wdls.hpp>
@@ -60,15 +60,12 @@
 #include <kdl/chainfksolverpos_recursive.hpp>
 #include <kdl/frames.hpp>
 
-#include <tf/transform_datatypes.h>
-#include <tf/transform_listener.h>
-
 #include <robot_controllers/trajectory_spline_sampler.h>
 
 namespace robot_controllers
 {
 
-class CartesianTwistController : public Controller
+class CartesianTwistController : public robot_controllers_interface::Controller
 {
 public:
   CartesianTwistController();
@@ -81,7 +78,9 @@ public:
    *        controller to get information about joints, etc.
    * @returns 0 if succesfully configured, negative values are error codes.
    */
-  virtual int init(ros::NodeHandle& nh, ControllerManager* manager);
+  virtual int init(const std::string& name,
+                   rclcpp::Node::SharedPtr node,
+                   robot_controllers_interface::ControllerManagerPtr manager);
 
   /**
    * @brief Attempt to start the controller. This should be called only by the
@@ -112,7 +111,7 @@ public:
    * @param time The system time.
    * @param dt The timestep since last call to update.
    */
-  virtual void update(const ros::Time& now, const ros::Duration& dt);
+  virtual void update(const rclcpp::Time& now, const rclcpp::Duration& dt);
 
   /** @brief Get the type of this controller. */
   virtual std::string getType()
@@ -127,32 +126,32 @@ public:
   virtual std::vector<std::string> getClaimedNames();
 
   /** @brief Controller command. */
-  void command(const geometry_msgs::TwistStamped::ConstPtr& goal);
+  void command(const geometry_msgs::msg::TwistStamped::SharedPtr goal);
 
 private:
   KDL::Frame getPose();
 
   bool initialized_;
-  ControllerManager* manager_;
+  rclcpp::Node::SharedPtr node_;
+  robot_controllers_interface::ControllerManagerPtr manager_;
 
   bool enabled_;
 
   KDL::Chain kdl_chain_;
-  boost::shared_ptr<KDL::ChainIkSolverVel_wdls> solver_;
-  boost::shared_ptr<KDL::ChainFkSolverPos_recursive> fksolver_;
+  std::shared_ptr<KDL::ChainIkSolverVel_wdls> solver_;
+  std::shared_ptr<KDL::ChainFkSolverPos_recursive> fksolver_;
   KDL::JntArray tgt_jnt_pos_;
   KDL::JntArray tgt_jnt_vel_;
   KDL::JntArray last_tgt_jnt_vel_;
 
-  ros::Publisher feedback_pub_;
-  ros::Subscriber command_sub_;
+  rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr command_sub_;
 
-  std::vector<JointHandlePtr> joints_;
+  std::vector<robot_controllers_interface::JointHandlePtr> joints_;
 
-  boost::mutex mutex_;
+  std::mutex mutex_;
   KDL::Twist twist_command_;
   std::string twist_command_frame_;
-  ros::Time last_command_time_;
+  rclcpp::Time last_command_time_;
   bool is_active_;
 };
 

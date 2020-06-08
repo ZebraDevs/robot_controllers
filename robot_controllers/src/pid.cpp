@@ -38,8 +38,9 @@
  * Derived a bit from control_toolbox/pid.cpp
  */
 
-#include <robot_controllers/pid.h>
 #include <cmath>
+#include <limits>
+#include <robot_controllers/pid.h>
 
 namespace robot_controllers
 {
@@ -65,26 +66,24 @@ PID::PID() :
   reset();
 }
 
-bool PID::init(const ros::NodeHandle &nh)
+bool PID::init(const std::string& name, rclcpp::Node::SharedPtr node)
 {
-  if (!nh.getParam("p", p_gain_))
-  {
-    // If P-gain is not specified, this often indicates wrong namespace was used
-    ROS_ERROR("No P gain sepcified.  Parameter namespace %s", nh.getNamespace().c_str());
-    return false;
-  }
+  node_ = node;
 
-  nh.param("i", i_gain_, 0.0);
-  nh.param("d", d_gain_, 0.0);
+  p_gain_ = node_->declare_parameter<double>(name + ".p", std::numeric_limits<double>::quiet_NaN());
+  i_gain_ = node_->declare_parameter<double>(name + ".i", std::numeric_limits<double>::quiet_NaN());
+  d_gain_ = node_->declare_parameter<double>(name + ".d", std::numeric_limits<double>::quiet_NaN());
 
-  double i_clamp;
-  nh.param("i_clamp", i_clamp, 0.0);
+  double i_clamp = node_->declare_parameter<double>(name + ".i_clamp", 0.0);
   i_max_ = std::abs(i_clamp);
   i_min_ = -std::abs(i_clamp);
 
-  // If i_min or i_max was specified use those values instead of i_clamp
-  nh.getParam("i_min", i_min_);
-  nh.getParam("i_max", i_max_);
+  if (std::isnan(p_gain_))
+  {
+    // If P-gain is not specified, this often indicates wrong namespace was used
+    RCLCPP_ERROR(node_->get_logger(), "No P gain sepcified. Parameter namespace %s", name.c_str());
+    return false;
+  }
 
   return checkGains();
 }
@@ -94,32 +93,32 @@ bool PID::checkGains()
   bool pass = true;
   if (!std::isfinite(p_gain_))
   {
-    ROS_WARN("Proportional gain is not finite");
+    RCLCPP_WARN(node_->get_logger(), "Proportional gain is not finite");
     p_gain_ = 0.0;
     pass = false;
   }
   if (!std::isfinite(i_gain_))
   {
-    ROS_WARN("Integral gain is not finite");
+    RCLCPP_WARN(node_->get_logger(), "Integral gain is not finite");
     i_gain_ = 0.0;
     pass = false;
   }
   if (!std::isfinite(d_gain_))
   {
-    ROS_WARN("Derivative gain is not finite");
+    RCLCPP_WARN(node_->get_logger(), "Derivative gain is not finite");
     d_gain_ = 0.0;
     pass = false;
   }
   if (!std::isfinite(i_max_) || !std::isfinite(i_min_))
   {
-    ROS_WARN("Integral wind-up limit is not finite");
+    RCLCPP_WARN(node_->get_logger(), "Integral wind-up limit is not finite");
     i_max_ = 0.0;
     i_min_ = 0.0;
     pass = false;
   }
   if (i_max_ < i_min_)
   {
-    ROS_WARN("Integral max windup value is smaller than minimum value");
+    RCLCPP_WARN(node_->get_logger(), "Integral max windup value is smaller than minimum value");
     double tmp = i_max_;
     i_max_ = i_min_;
     i_min_ = tmp;
@@ -128,11 +127,11 @@ bool PID::checkGains()
   if ((i_min_==0) && (i_max_==0) && (i_gain_ != 0))
   {
     // It is easy to forgot to set a wind-up limit
-    ROS_WARN("Integral gain is non-zero, but integral wind-up limit is zero");
+    RCLCPP_WARN(node_->get_logger(), "Integral gain is non-zero, but integral wind-up limit is zero");
   }
   if ( ((i_min_ != 0) || (i_max_ != 0)) && (i_gain_ == 0) )
   {
-    ROS_WARN("Integral gain is zero, but wind-yup limit is zero");
+    RCLCPP_WARN(node_->get_logger(), "Integral gain is zero, but wind-yup limit is zero");
   }
   return pass;
 }
@@ -148,7 +147,7 @@ double PID::update(double error, double dt)
   double error_dot;
   if (dt <= 0.0)
   {    
-    ROS_ERROR_THROTTLE(1.0, "PID::update : dt value is less than or equal to zero");
+    RCLCPP_ERROR(node_->get_logger(), "PID::update : dt value is less than or equal to zero");
     // if dt is zero is not possible to perform division
     // in this case assume error_dot is zero and perform reset of calculation
     error_dot = 0.0;
@@ -165,13 +164,13 @@ double PID::update(double error, double error_dot, double dt)
 {
   if (!std::isfinite(error) || !std::isfinite(error_dot) || !std::isfinite(dt))
   {
-    ROS_ERROR_THROTTLE(1.0, "PID::update : input value is NaN or infinity");
+    RCLCPP_ERROR(node_->get_logger(), "PID::update : input value is NaN or infinity");
     return 0.0;
   }
 
   if (dt <= 0.0)
   {
-    ROS_ERROR_THROTTLE(1.0, "PID::update : dt value is less than or equal to zero");
+    RCLCPP_ERROR(node_->get_logger(), "PID::update : dt value is less than or equal to zero");
     dt = 0.0;
   }
 
