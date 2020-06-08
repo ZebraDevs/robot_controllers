@@ -1,6 +1,7 @@
 /*********************************************************************
  *  Software License Agreement (BSD License)
  *
+ *  Copyright (c) 2020, Michael Ferguson
  *  Copyright (c) 2014, Fetch Robotics Inc.
  *  Copyright (c) 2013, Unbounded Robotics Inc.
  *  All rights reserved.
@@ -35,53 +36,68 @@
 
 // Author: Michael Ferguson
 
-#include <pluginlib/class_list_macros.h>
+#include <pluginlib/class_list_macros.hpp>
+#include <robot_controllers_interface/utils.h>
 #include <robot_controllers/point_head.h>
+#include <geometry_msgs/msg/point_stamped.hpp>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 #include <urdf/model.h>
 #include <kdl_parser/kdl_parser.hpp>
 
-PLUGINLIB_EXPORT_CLASS(robot_controllers::PointHeadController, robot_controllers::Controller)
+PLUGINLIB_EXPORT_CLASS(robot_controllers::PointHeadController, robot_controllers_interface::Controller)
 
 namespace robot_controllers
 {
 
-int PointHeadController::init(ros::NodeHandle& nh, ControllerManager* manager)
+using namespace std::placeholders;
+using robot_controllers_interface::to_sec;
+using robot_controllers_interface::msg_to_sec;
+
+int PointHeadController::init(const std::string& name,
+                              rclcpp::Node::SharedPtr node,
+                              robot_controllers_interface::ControllerManagerPtr manager)
 {
   // We absolutely need access to the controller manager
   if (!manager)
   {
-    initialized_ = false;
+    server_.reset();
     return -1;
   }
 
-  Controller::init(nh, manager);
+  Controller::init(name, node, manager);
+  node_ = node;
   manager_ = manager;
 
   // No initial sampler
-  boost::mutex::scoped_lock lock(sampler_mutex_);
+  std::scoped_lock lock(sampler_mutex_);
   sampler_.reset();
-  preempted_ = false;
 
   // Get parameters
-  nh.param<bool>("stop_with_action", stop_with_action_, false);
+  stop_with_action_ = node->declare_parameter<bool>(name + ".stop_with_action", false);
 
-  // Setup Joints */
+  // Setup Joints
   head_pan_ = manager_->getJointHandle("head_pan_joint");
   head_tilt_ = manager_->getJointHandle("head_tilt_joint");
 
   // Parse UDRF/KDL
-  urdf::Model model;
-  if (!model.initParam("robot_description"))
+  if (!node->has_parameter("robot_description"))
   {
-    ROS_ERROR_NAMED("PointHeadController",
+    node->declare_parameter<std::string>("robot_description", "");
+  }
+  urdf::Model model;
+  std::string robot_description;
+  node->get_parameter("robot_description", robot_description);
+  if (!model.initString(robot_description))
+  {
+    RCLCPP_ERROR(node->get_logger(),
       "Failed to parse URDF, is robot_description parameter set?");
     return -1;
   }
 
   if (!kdl_parser::treeFromUrdfModel(model, kdl_tree_))
   {
-    ROS_ERROR_NAMED("PointHeadController", "Failed to construct KDL tree");
+    RCLCPP_ERROR(node->get_logger(), "Failed to construct KDL tree");
     return -1;
   }
 
@@ -92,37 +108,46 @@ int PointHeadController::init(ros::NodeHandle& nh, ControllerManager* manager)
        ++it)
   {
 #ifdef KDL_USE_NEW_TREE_INTERFACE
-    if (it->second->segment.getJoint().getName() == head_pan_->getName())
-      root_link_ = it->second->parent->first;
+     if (it->second->segment.getJoint().getName() == head_pan_->getName())
+       root_link_ = it->second->parent->first;
 #else
     if (it->second.segment.getJoint().getName() == head_pan_->getName())
       root_link_ = it->second.parent->first;
 #endif
   }
 
-  // Start action server
-  server_.reset(new head_server_t(nh, "",
-                boost::bind(&PointHeadController::executeCb, this, _1),
-                false));
-  server_->start();
+  // Setup transform listener
+  tf_buffer_.reset(new tf2_ros::Buffer(node_->get_clock()));
+  tf_listener_.reset(new tf2_ros::TransformListener(*tf_buffer_));
 
-  initialized_ = true;
+  // Start action server
+  active_goal_.reset();
+  server_ = rclcpp_action::create_server<PointHeadAction>(
+    node_->get_node_base_interface(),
+    node_->get_node_clock_interface(),
+    node_->get_node_logging_interface(),
+    node_->get_node_waitables_interface(),
+    robot_controllers_interface::get_safe_topic_name(name),
+    std::bind(&PointHeadController::handle_goal, this, _1, _2),
+    std::bind(&PointHeadController::handle_cancel, this, _1),
+    std::bind(&PointHeadController::handle_accepted, this, _1)
+  );
+
   return 0;
 }
 
 bool PointHeadController::start()
 {
-  if (!initialized_)
+  if (!server_)
   {
-    ROS_ERROR_NAMED("PointHeadController",
-                    "Unable to start, not initialized.");
+    // Can't log (not intialized)
     return false;
   }
 
-  if (!server_->isActive())
+  if (!active_goal_)
   {
-    ROS_ERROR_NAMED("PointHeadController",
-                    "Unable to start, action server is not active.");
+    RCLCPP_ERROR(node_->get_logger(),
+                 "Unable to start, action server has no goal.");
     return false;
   }
 
@@ -131,20 +156,18 @@ bool PointHeadController::start()
 
 bool PointHeadController::stop(bool force)
 {
-  if (!initialized_)
+  if (!server_)
     return true;
 
-  if (server_->isActive())
+  if (active_goal_)
   {
     if (force)
     {
       // Shut down the action
-      server_->setAborted(result_, "Controller manager forced preemption.");
-      ROS_DEBUG_NAMED("PointHeadController",
-                      "Controller manager forced preemption.");
+      auto result = std::make_shared<PointHeadAction::Result>();
+      active_goal_->abort(result);
       return true;
     }
-
     // Do not abort unless forced
     return false;
   }
@@ -159,23 +182,32 @@ bool PointHeadController::reset()
   return (manager_->requestStop(getName()) == 0);
 }
 
-void PointHeadController::update(const ros::Time& now, const ros::Duration& dt)
+void PointHeadController::update(const rclcpp::Time& now, const rclcpp::Duration& dt)
 {
-  if (!initialized_)
+  if (!server_)
     return;
 
   // We have a trajectory to execute?
-  if (server_->isActive() && sampler_)
+  if (active_goal_ && sampler_)
   {
-    boost::mutex::scoped_lock lock(sampler_mutex_);
+    std::scoped_lock lock(sampler_mutex_);
 
     // Interpolate trajectory
-    TrajectoryPoint p = sampler_->sample(now.toSec());
+    TrajectoryPoint p = sampler_->sample(to_sec(now));
     last_sample_ = p;
 
     // Are we done?
-    if (now.toSec() > sampler_->end_time())
-      server_->setSucceeded(result_, "OK");
+    if (to_sec(now) > sampler_->end_time())
+    {
+      // Stop this controller if desired (and not preempted)
+      if (stop_with_action_)
+        manager_->requestStop(getName());
+
+      auto result = std::make_shared<PointHeadAction::Result>();
+      active_goal_->succeed(result);
+      active_goal_.reset();
+      RCLCPP_INFO(node_->get_logger(), "PointHead goal succeeded");
+    }
 
     // Send trajectory to joints
     if (p.q.size() == 2)
@@ -192,29 +224,71 @@ void PointHeadController::update(const ros::Time& now, const ros::Duration& dt)
   }
 }
 
-void PointHeadController::executeCb(const control_msgs::PointHeadGoalConstPtr& goal)
+rclcpp_action::GoalResponse PointHeadController::handle_goal(
+    const rclcpp_action::GoalUUID & uuid,
+    std::shared_ptr<const PointHeadAction::Goal> goal_handle)
 {
+  if (!server_)
+  {
+    // Can't even log here - we aren't initialized
+    return rclcpp_action::GoalResponse::REJECT;
+  }
+
+  return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+}
+
+rclcpp_action::CancelResponse PointHeadController::handle_cancel(
+    const std::shared_ptr<PointHeadGoal> goal_handle)
+{
+  // Always accept
+  if (active_goal_ && active_goal_->get_goal_id() == goal_handle->get_goal_id())
+  {
+    RCLCPP_INFO(node_->get_logger(), "PointHead goal cancelled.");
+    active_goal_.reset();
+    return rclcpp_action::CancelResponse::ACCEPT;
+  }
+
+  return rclcpp_action::CancelResponse::ACCEPT;
+}
+
+void PointHeadController::handle_accepted(const std::shared_ptr<PointHeadGoal> goal_handle)
+{
+  auto result = std::make_shared<PointHeadAction::Result>();
+
+  bool preempted = false;
+  if (active_goal_)
+  {
+    // TODO: if rclcpp_action ever supports preempted, note it here
+    //       https://github.com/ros2/rclcpp/issues/1104
+    active_goal_->abort(result);
+    active_goal_.reset();
+    RCLCPP_INFO(node_->get_logger(), "PointHead goal preempted.");
+    preempted = true;
+  }
+
+  const auto goal = goal_handle->get_goal();
+
   float head_pan_goal_ = 0.0;
   float head_tilt_goal_ = 0.0;
   try
   {
-    geometry_msgs::PointStamped target_in_pan, target_in_tilt;
-    listener_.transformPoint(root_link_, ros::Time(0), goal->target, goal->target.header.frame_id, target_in_pan);
-    listener_.transformPoint("head_pan_link", ros::Time(0), goal->target, goal->target.header.frame_id, target_in_tilt);
+    geometry_msgs::msg::PointStamped target_in_pan, target_in_tilt;
+    tf_buffer_->transform(goal->target, target_in_pan, root_link_);
+    tf_buffer_->transform(goal->target, target_in_tilt, "head_pan_link");
     head_pan_goal_ = atan2(target_in_pan.point.y, target_in_pan.point.x);
     head_tilt_goal_ = -atan2(target_in_tilt.point.z, sqrt(pow(target_in_tilt.point.x, 2) + pow(target_in_tilt.point.y, 2)));
   }
-  catch(const tf::TransformException &ex)
+  catch (const tf2::TransformException& ex)
   {
-    server_->setAborted(result_, "Could not transform goal.");
-    ROS_WARN_NAMED("PointHeadController", "Could not transform goal.");
+    goal_handle->abort(result);
+    RCLCPP_ERROR(node_->get_logger(), "Could not transform PointHead goal.");
     return;
   }
 
   // Turn goal into a trajectory
   Trajectory t;
   t.points.resize(2);
-  if (preempted_)
+  if (preempted)
   {
     // Starting point is last sample
     t.points[0] = last_sample_;
@@ -228,7 +302,7 @@ void PointHeadController::executeCb(const control_msgs::PointHeadGoalConstPtr& g
     t.points[0].qd.push_back(0.0);
     t.points[0].qdd.push_back(0.0);
     t.points[0].qdd.push_back(0.0);
-    t.points[0].time = ros::Time::now().toSec();
+    t.points[0].time = to_sec(node_->now());
   }
 
   // Ending point is goal position, not moving
@@ -249,42 +323,24 @@ void PointHeadController::executeCb(const control_msgs::PointHeadGoalConstPtr& g
   }
   double pan_transit = fabs((t.points[1].q[0] - t.points[0].q[0]) / max_pan_vel);
   double tilt_transit = fabs((t.points[1].q[1] - t.points[0].q[1]) / max_tilt_vel);
-  t.points[1].time = t.points[0].time + fmax(fmax(pan_transit, tilt_transit), goal->min_duration.toSec());
+  t.points[1].time = t.points[0].time + fmax(fmax(pan_transit, tilt_transit), msg_to_sec(goal->min_duration));
 
   {
-    boost::mutex::scoped_lock lock(sampler_mutex_);
+    std::scoped_lock lock(sampler_mutex_);
     sampler_.reset(new SplineTrajectorySampler(t));
+    active_goal_ = goal_handle;
   }
 
   if (manager_->requestStart(getName()) != 0)
   {
-    server_->setAborted(result_, "Cannot point head, unable to start controller.");
-    ROS_ERROR_NAMED("PointHeadController",
-                    "Cannot point head, unable to start controller.");
+    active_goal_->abort(result);
+    active_goal_.reset();
+    RCLCPP_ERROR(node_->get_logger(),
+                 "Cannot point head, unable to start controller.");
     return;
   }
 
-  preempted_ = false;
-  while (server_->isActive())
-  {
-    if (server_->isPreemptRequested())
-    {
-      server_->setPreempted(result_, "Pointing of the head has been preempted");
-      ROS_DEBUG_NAMED("PointHeadController",
-                      "Pointing of the head has been preempted");
-      preempted_ = true;
-      break;
-    }
-
-    // No feedback needed for PointHeadAction
-    ros::Duration(1/50.0).sleep();
-  }
-
-  // Stop this controller if desired (and not preempted)
-  if (stop_with_action_ && !preempted_)
-    manager_->requestStop(getName());
-
-  ROS_DEBUG_NAMED("PointHeadController", "Done pointing head");
+  RCLCPP_INFO(node_->get_logger(), "PointHead goal started.");
 }
 
 std::vector<std::string> PointHeadController::getCommandedNames()

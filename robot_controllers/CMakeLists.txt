@@ -23,6 +23,7 @@ find_package(rclcpp_action REQUIRED)
 find_package(robot_controllers_interface REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
 find_package(urdf REQUIRED)
 
@@ -40,7 +41,7 @@ add_library(robot_controllers SHARED
   src/gravity_compensation.cpp
 #  src/parallel_gripper.cpp
 #  src/pid.cpp
-#  src/point_head.cpp
+  src/point_head.cpp
 #  src/scaled_mimic.cpp
 )
 target_link_libraries(robot_controllers
@@ -56,6 +57,7 @@ ament_target_dependencies(robot_controllers
   rclcpp_action
   robot_controllers_interface
   sensor_msgs
+  tf2_geometry_msgs
   tf2_ros
   trajectory_msgs
   urdf
@@ -67,6 +69,7 @@ if (BUILD_TESTING)
   ament_target_dependencies(${PROJECT_NAME}-trajectory-tests
     angles
     rclcpp
+    robot_controllers_interface
   )
 endif()
 
@@ -96,6 +99,7 @@ ament_export_dependencies(
   rclcpp_action
   robot_controllers_interface
   sensor_msgs
+  tf2_geometry_msgs
   tf2_ros
   trajectory_msgs
   urdf

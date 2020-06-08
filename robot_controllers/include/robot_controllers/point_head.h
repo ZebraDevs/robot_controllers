@@ -1,6 +1,7 @@
 /*********************************************************************
  *  Software License Agreement (BSD License)
  *
+ *  Copyright (c) 2020, Michael Ferguson
  *  Copyright (c) 2014, Fetch Robotics Inc.
  *  Copyright (c) 2013, Unbounded Robotics Inc.
  *  All rights reserved.
@@ -38,16 +39,18 @@
 #ifndef ROBOT_CONTROLLERS_POINT_HEAD_H
 #define ROBOT_CONTROLLERS_POINT_HEAD_H
 
+#include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
+#include <rclcpp_action/rclcpp_action.hpp>
 #include <robot_controllers_interface/controller.h>
 #include <robot_controllers_interface/joint_handle.h>
 #include <robot_controllers_interface/controller_manager.h>
-#include <tf/transform_listener.h>
-#include <control_msgs/PointHeadAction.h>
-#include <actionlib/server/simple_action_server.h>
+#include <tf2_ros/transform_listener.h>
+#include <control_msgs/action/point_head.hpp>
 
 #include <robot_controllers/trajectory.h>
 #include <robot_controllers/trajectory_spline_sampler.h>
@@ -57,12 +60,13 @@
 namespace robot_controllers
 {
 
-class PointHeadController : public Controller
+class PointHeadController : public robot_controllers_interface::Controller
 {
-  typedef actionlib::SimpleActionServer<control_msgs::PointHeadAction> head_server_t;
+  using PointHeadAction = control_msgs::action::PointHead;
+  using PointHeadGoal = rclcpp_action::ServerGoalHandle<PointHeadAction>;
 
 public:
-  PointHeadController() : initialized_(false) {}
+  PointHeadController() {}
   virtual ~PointHeadController() {}
 
   /**
@@ -72,7 +76,9 @@ public:
    *        controller to get information about joints, etc.
    * @returns 0 if succesfully configured, negative values are error codes.
    */
-  virtual int init(ros::NodeHandle& nh, ControllerManager* manager);
+  virtual int init(const std::string& name,
+                   rclcpp::Node::SharedPtr node,
+                   robot_controllers_interface::ControllerManagerPtr manager);
 
   /**
    * @brief Attempt to start the controller. This should be called only by the
@@ -103,7 +109,7 @@ public:
    * @param time The system time.
    * @param dt The timestep since last call to update.
    */
-  virtual void update(const ros::Time& now, const ros::Duration& dt);
+  virtual void update(const rclcpp::Time& now, const rclcpp::Duration& dt);
 
   /** @brief Get the type of this controller. */
   virtual std::string getType()
@@ -118,17 +124,34 @@ public:
   virtual std::vector<std::string> getClaimedNames();
 
 private:
-  void executeCb(const control_msgs::PointHeadGoalConstPtr& goal);
+  // rclcpp callbacks
+  rclcpp_action::GoalResponse handle_goal(
+    const rclcpp_action::GoalUUID & uuid,
+    std::shared_ptr<const PointHeadAction::Goal> goal_handle);
 
-  bool initialized_;
-  ControllerManager* manager_;
+  /** @brief Action interface */
+  rclcpp_action::CancelResponse handle_cancel(
+    const std::shared_ptr<PointHeadGoal> goal_handle);
 
-  control_msgs::PointHeadResult result_;
-  boost::shared_ptr<TrajectorySampler> sampler_;
-  boost::mutex sampler_mutex_;
+  /** @brief Action interface */
+  void handle_accepted(const std::shared_ptr<PointHeadGoal> goal_handle);
 
+  // Handles to node, manager
+  rclcpp::Node::SharedPtr node_;
+  robot_controllers_interface::ControllerManagerPtr manager_;
+
+  // Parameters
+  std::string root_link_;
   bool stop_with_action_;  /// should we stop this controller when the
                            /// action has terminated (or hold position)?
+
+  // Joint handles
+  robot_controllers_interface::JointHandlePtr head_pan_;
+  robot_controllers_interface::JointHandlePtr head_tilt_;
+
+  // Trajectory generation
+  std::shared_ptr<TrajectorySampler> sampler_;
+  std::mutex sampler_mutex_;
 
   /*
    * In certain cases, we want to start a trajectory at our last sample,
@@ -137,15 +160,14 @@ private:
    * starting point.
    */
   TrajectoryPoint last_sample_;
-  bool preempted_;  /// action was preempted (has nothing to do with preempt() above
 
-  std::string root_link_;
-  JointHandlePtr head_pan_;
-  JointHandlePtr head_tilt_;
-  boost::shared_ptr<head_server_t> server_;
+  // RCLCPP action server
+  rclcpp_action::Server<PointHeadAction>::SharedPtr server_;
+  std::shared_ptr<PointHeadGoal> active_goal_;
 
   KDL::Tree kdl_tree_;
-  tf::TransformListener listener_;
+  std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
+  std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
 };
 
 }  // namespace robot_controllers
