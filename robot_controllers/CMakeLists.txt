@@ -61,9 +61,14 @@ ament_target_dependencies(robot_controllers
   urdf
 )
 
-#if (CATKIN_ENABLE_TESTING)
-#  add_subdirectory(test)
-#endif()
+if (BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(${PROJECT_NAME}-trajectory-tests test/trajectory_tests.cpp)
+  ament_target_dependencies(${PROJECT_NAME}-trajectory-tests
+    angles
+    rclcpp
+  )
+endif()
 
 install(
   DIRECTORY include/
