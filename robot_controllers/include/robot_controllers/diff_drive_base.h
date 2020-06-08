@@ -182,7 +182,7 @@ private:
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr cmd_sub_;
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub_;
 
-  //boost::shared_ptr<tf::TransformBroadcaster> broadcaster_;
+  std::unique_ptr<tf2_ros::TransformBroadcaster> broadcaster_;
   bool publish_tf_;
 
   bool enabled_;

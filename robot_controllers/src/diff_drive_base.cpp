@@ -129,12 +129,12 @@ int DiffDriveBaseController::init(const std::string& name,
 
   // Publish odometry & tf
   odom_pub_ = node->create_publisher<nav_msgs::msg::Odometry>("odom", 10);
-//  if (publish_tf_)
-//    broadcaster_.reset(new tf::TransformBroadcaster());
+  if (publish_tf_)
+    broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(node);
 
   // Publish timer
   int publish_frequency = node->declare_parameter<int>(name + ".publish_frequency", 100);
-  odom_timer_ = node->create_wall_timer(std::chrono::microseconds(1000 / publish_frequency),
+  odom_timer_ = node->create_wall_timer(std::chrono::microseconds(1000000 / publish_frequency),
                                         std::bind(&DiffDriveBaseController::publishCallback, this));
 
   // Should we use the laser for safety limiting base velocity?
@@ -371,17 +371,20 @@ void DiffDriveBaseController::publishCallback()
 
   if (publish_tf_)
   {
-    //f::Transform transform;
-    //transform.setOrigin(tf::Vector3(msg.pose.pose.position.x, msg.pose.pose.position.y, 0.0));
-    //transform.setRotation(tf::Quaternion(msg.pose.pose.orientation.x,
-    //                                     msg.pose.pose.orientation.y,
-    //                                     msg.pose.pose.orientation.z,
-    //                                     msg.pose.pose.orientation.w) );
     /*
      * REP105 (http://ros.org/reps/rep-0105.html)
      *   says: map -> odom -> base_link
      */
-    //broadcaster_->sendTransform(tf::StampedTransform(transform, msg.header.stamp, msg.header.frame_id, msg.child_frame_id));
+    geometry_msgs::msg::TransformStamped transform;
+    transform.header.stamp = msg.header.stamp;
+    transform.header.frame_id = msg.header.frame_id;
+    transform.child_frame_id = msg.child_frame_id;
+    transform.transform.translation.x = msg.pose.pose.position.x;
+    transform.transform.translation.y = msg.pose.pose.position.y;
+    transform.transform.translation.z = msg.pose.pose.position.z;
+    transform.transform.rotation = msg.pose.pose.orientation;
+
+    broadcaster_->sendTransform(transform);
   }
 }
 
