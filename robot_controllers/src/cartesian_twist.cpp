@@ -86,7 +86,8 @@ int CartesianTwistController::init(const std::string& name,
   std::string robot_description = declare_parameter_once<std::string>("robot_description", "", node);
   if (!model.initString(robot_description))
   {
-    RCLCPP_ERROR(node_->get_logger(), "Failed to parse URDF");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Failed to parse URDF");
     return -1;
   }
 
@@ -94,14 +95,16 @@ int CartesianTwistController::init(const std::string& name,
   KDL::Tree kdl_tree;
   if (!kdl_parser::treeFromUrdfModel(model, kdl_tree))
   {
-    RCLCPP_ERROR(node_->get_logger(), "Could not construct tree from URDF");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Could not construct tree from URDF");
     return -1;
   }
 
   // Populate the Chain
   if (!kdl_tree.getChain(root, tip, kdl_chain_))
   {
-    RCLCPP_ERROR(node_->get_logger(), "Could not construct chain from URDF");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Could not construct chain from URDF");
     return -1;
   }
 
@@ -120,7 +123,8 @@ int CartesianTwistController::init(const std::string& name,
 
   if (joints_.size() != num_joints)
   {
-    RCLCPP_ERROR(node_->get_logger(), "Inconsistant joint count %d, %d", num_joints, int(joints_.size()));
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Inconsistant joint count %d, %d", num_joints, int(joints_.size()));
     return -1;
   }
 
@@ -143,7 +147,8 @@ bool CartesianTwistController::start()
 {
   if (!initialized_)
   {
-    RCLCPP_ERROR(node_->get_logger(), "CartesianTwistController: Unable to start, not initialized.");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Unable to start, not initialized.");
     is_active_ = false;
     return false;
   }
@@ -185,7 +190,8 @@ void CartesianTwistController::update(const rclcpp::Time& now, const rclcpp::Dur
     if (fksolver_->JntToCart(tgt_jnt_pos_, cart_pose) < 0)
     {
       twist.Zero();
-      RCLCPP_ERROR(node_->get_logger(), "CartesianTwistController: FKsolver solver failed");
+      RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                   "CartesianTwistController: FKsolver solver failed");
     }
     else
     {
@@ -233,7 +239,8 @@ void CartesianTwistController::update(const rclcpp::Time& now, const rclcpp::Dur
     {
       tgt_jnt_vel_(ii) *= scale;
     }
-    RCLCPP_DEBUG(node_->get_logger(), "Joint velocity limit reached.");
+    RCLCPP_DEBUG(rclcpp::get_logger(getName()),
+                 "Joint velocity limit reached.");
   }
 
   // Make sure solver didn't generate any NaNs. 
@@ -241,7 +248,8 @@ void CartesianTwistController::update(const rclcpp::Time& now, const rclcpp::Dur
   {
     if (!std::isfinite(tgt_jnt_vel_(ii)))
     {
-      RCLCPP_ERROR(node_->get_logger(), "Target joint velocity (%d) is not finite : %f", ii, tgt_jnt_vel_(ii));
+      RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                   "Target joint velocity (%d) is not finite : %f", ii, tgt_jnt_vel_(ii));
       tgt_jnt_vel_(ii) = 1.0;
     }
   }
@@ -262,7 +270,8 @@ void CartesianTwistController::update(const rclcpp::Time& now, const rclcpp::Dur
 
   if (scale <= 0.0)
   {
-    RCLCPP_ERROR(node_->get_logger(), "CartesianTwistController: acceleration limit produces non-positive scale %f", scale);
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Acceleration limit produces non-positive scale %f", scale);
     scale = 0.0;
   }
 
@@ -310,7 +319,8 @@ void CartesianTwistController::command(const geometry_msgs::msg::TwistStamped::S
   // Need to initialize KDL structs
   if (!initialized_)
   {
-    RCLCPP_ERROR(node_->get_logger(), "CartesianTwistController: Cannot accept goal, controller is not initialized.");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Cannot accept goal, controller is not initialized.");
     return;
   }
 
@@ -332,7 +342,8 @@ void CartesianTwistController::command(const geometry_msgs::msg::TwistStamped::S
   {
     if (!std::isfinite(twist(ii)))
     {
-      RCLCPP_ERROR(node_->get_logger(), "CartesianTwistController: Twist command value (%d) is not finite : %f", ii, twist(ii));
+      RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                   "Twist command value (%d) is not finite : %f", ii, twist(ii));
       twist(ii) = 0.0;
     }
   }
@@ -345,10 +356,12 @@ void CartesianTwistController::command(const geometry_msgs::msg::TwistStamped::S
     twist_command_ = twist;
     last_command_time_ = now;
   }
+
   // Try to start up
   if (!is_active_ && manager_->requestStart(getName()) != 0)
   {
-    RCLCPP_ERROR(node_->get_logger(), "CartesianTwistController: Cannot start, blocked by another controller.");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Cannot start, blocked by another controller.");
     return;
   }
 }

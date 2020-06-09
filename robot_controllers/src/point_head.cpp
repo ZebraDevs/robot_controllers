@@ -62,6 +62,8 @@ int PointHeadController::init(const std::string& name,
   // We absolutely need access to the controller manager
   if (!manager)
   {
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "No controller manager available.");
     server_.reset();
     return -1;
   }
@@ -86,14 +88,15 @@ int PointHeadController::init(const std::string& name,
   std::string robot_description = declare_parameter_once<std::string>("robot_description", "", node);
   if (!model.initString(robot_description))
   {
-    RCLCPP_ERROR(node->get_logger(),
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
       "Failed to parse URDF, is robot_description parameter set?");
     return -1;
   }
 
   if (!kdl_parser::treeFromUrdfModel(model, kdl_tree_))
   {
-    RCLCPP_ERROR(node->get_logger(), "Failed to construct KDL tree");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Failed to construct KDL tree");
     return -1;
   }
 
@@ -142,7 +145,7 @@ bool PointHeadController::start()
 
   if (!active_goal_)
   {
-    RCLCPP_ERROR(node_->get_logger(),
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
                  "Unable to start, action server has no goal.");
     return false;
   }
@@ -203,7 +206,8 @@ void PointHeadController::update(const rclcpp::Time& now, const rclcpp::Duration
       auto result = std::make_shared<PointHeadAction::Result>();
       active_goal_->succeed(result);
       active_goal_.reset();
-      RCLCPP_INFO(node_->get_logger(), "PointHead goal succeeded");
+      RCLCPP_DEBUG(rclcpp::get_logger(getName()),
+                   "PointHead goal succeeded");
     }
 
     // Send trajectory to joints
@@ -227,7 +231,8 @@ rclcpp_action::GoalResponse PointHeadController::handle_goal(
 {
   if (!server_)
   {
-    // Can't even log here - we aren't initialized
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Unable to start, action server not initialized.");
     return rclcpp_action::GoalResponse::REJECT;
   }
 
@@ -240,7 +245,10 @@ rclcpp_action::CancelResponse PointHeadController::handle_cancel(
   // Always accept
   if (active_goal_ && active_goal_->get_goal_id() == goal_handle->get_goal_id())
   {
-    RCLCPP_INFO(node_->get_logger(), "PointHead goal cancelled.");
+    RCLCPP_INFO(rclcpp::get_logger(getName()),
+                "Goal cancelled.");
+    auto result = std::make_shared<PointHeadAction::Result>();
+    active_goal_->canceled(result);
     active_goal_.reset();
   }
 
@@ -258,7 +266,8 @@ void PointHeadController::handle_accepted(const std::shared_ptr<PointHeadGoal> g
     //       https://github.com/ros2/rclcpp/issues/1104
     active_goal_->abort(result);
     active_goal_.reset();
-    RCLCPP_INFO(node_->get_logger(), "PointHead goal preempted.");
+    RCLCPP_DEBUG(rclcpp::get_logger(getName()),
+                 "Goal preempted.");
     preempted = true;
   }
 
@@ -277,7 +286,8 @@ void PointHeadController::handle_accepted(const std::shared_ptr<PointHeadGoal> g
   catch (const tf2::TransformException& ex)
   {
     goal_handle->abort(result);
-    RCLCPP_ERROR(node_->get_logger(), "Could not transform PointHead goal.");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Could not transform goal using TF2.");
     return;
   }
 
@@ -331,12 +341,12 @@ void PointHeadController::handle_accepted(const std::shared_ptr<PointHeadGoal> g
   {
     active_goal_->abort(result);
     active_goal_.reset();
-    RCLCPP_ERROR(node_->get_logger(),
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
                  "Cannot point head, unable to start controller.");
     return;
   }
 
-  RCLCPP_INFO(node_->get_logger(), "PointHead goal started.");
+  RCLCPP_DEBUG(rclcpp::get_logger(getName()), "PointHead goal started.");
 }
 
 std::vector<std::string> PointHeadController::getCommandedNames()

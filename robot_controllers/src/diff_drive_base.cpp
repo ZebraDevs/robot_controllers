@@ -70,7 +70,8 @@ int DiffDriveBaseController::init(const std::string& name,
   // We absolutely need access to the controller manager
   if (!manager)
   {
-    RCLCPP_ERROR(node_->get_logger(), "No controller manager available.");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "No controller manager available.");
     initialized_ = false;
     return -1;
   }
@@ -86,7 +87,7 @@ int DiffDriveBaseController::init(const std::string& name,
   right_ = manager_->getJointHandle(r_name);
   if (left_ == NULL || right_ == NULL)
   {
-    RCLCPP_ERROR(node_->get_logger(), "Cannot get wheel joints.");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()), "Cannot get wheel joints.");
     initialized_ = false;
     return -1;
   }
@@ -161,7 +162,8 @@ void DiffDriveBaseController::command(const geometry_msgs::msg::Twist::SharedPtr
 {
   if (!initialized_)
   {
-    RCLCPP_ERROR(node_->get_logger(), "Unable to accept command, not initialized.");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Unable to accept command, not initialized.");
     return;
   }
 
@@ -174,7 +176,8 @@ void DiffDriveBaseController::command(const geometry_msgs::msg::Twist::SharedPtr
   }
   else
   {
-    RCLCPP_ERROR(node_->get_logger(), "Commanded velocities not finite!");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Commanded velocities not finite!");
     return;
   }
 
@@ -185,7 +188,8 @@ bool DiffDriveBaseController::start()
 {
   if (!initialized_)
   {
-    RCLCPP_ERROR(node_->get_logger(), "Unable to start, not initialized.");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Unable to start, not initialized.");
     return false;
   }
 
@@ -224,7 +228,8 @@ void DiffDriveBaseController::update(const rclcpp::Time& now, const rclcpp::Dura
   // See if we have timed out and need to stop
   if (now - last_command_ >= timeout_)
   {
-    RCLCPP_DEBUG(node_->get_logger(), "Command timed out.");
+    RCLCPP_DEBUG(rclcpp::get_logger(getName()),
+                 "Command timed out.");
     std::scoped_lock lock(command_mutex_);
     desired_x_ = desired_r_ = 0.0;
   }

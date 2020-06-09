@@ -79,7 +79,8 @@ int FollowJointTrajectoryController::init(
   joint_names_ = node->declare_parameter<std::vector<std::string>>(name + ".joints", std::vector<std::string>());
   if (joint_names_.empty())
   {
-    RCLCPP_ERROR(node->get_logger(), "No joints given for %s", name.c_str());
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "No joints given for %s", name.c_str());
     return -1;
   }
 
@@ -139,13 +140,15 @@ bool FollowJointTrajectoryController::start()
 {
   if (!server_)
   {
-    // Can't log (not intialized)
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Unable to start, action server not initialized.");
     return false;
   }
 
   if (!active_goal_)
   {
-    RCLCPP_ERROR(node_->get_logger(), "Unable to start, action server has no goal.");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Unable to start, action server has no goal.");
     return false;
   }
 
@@ -253,7 +256,9 @@ void FollowJointTrajectoryController::update(const rclcpp::Time& now, const rclc
             auto result = std::make_shared<FollowJointTrajectoryAction::Result>();
             result->error_code = result->PATH_TOLERANCE_VIOLATED;
             active_goal_->abort(result);
-            RCLCPP_ERROR(node_->get_logger(), "Trajectory path tolerances violated (position).");
+            active_goal_.reset();
+            RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                         "Trajectory path tolerances violated (position).");
             if (stop_on_path_violation_)
             {
               manager_->requestStop(getName());
@@ -267,7 +272,9 @@ void FollowJointTrajectoryController::update(const rclcpp::Time& now, const rclc
             auto result = std::make_shared<FollowJointTrajectoryAction::Result>();
             result->error_code = result->PATH_TOLERANCE_VIOLATED;
             active_goal_->abort(result);
-            RCLCPP_ERROR(node_->get_logger(), "Trajectory path tolerances violated (velocity).");
+            active_goal_.reset();
+            RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                         "Trajectory path tolerances violated (velocity).");
             if (stop_on_path_violation_)
             {
               manager_->requestStop(getName());
@@ -299,14 +306,17 @@ void FollowJointTrajectoryController::update(const rclcpp::Time& now, const rclc
           // Stop this controller if desired (and not preempted)
           if (stop_with_action_)
             manager_->requestStop(getName());
-          RCLCPP_INFO(node_->get_logger(), "Trajectory succeeded");
+          RCLCPP_DEBUG(rclcpp::get_logger(getName()),
+                      "Trajectory succeeded");
         }
         else if (now_sec > (sampler_->end_time() + goal_time_tolerance_ + 0.6))  // 0.6s matches PR2
         {
           auto result = std::make_shared<FollowJointTrajectoryAction::Result>();
           result->error_code = result->GOAL_TOLERANCE_VIOLATED;
           active_goal_->abort(result);
-          RCLCPP_ERROR(node_->get_logger(), "Trajectory not executed within time limits");
+          active_goal_.reset();
+          RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                       "Trajectory not executed within time limits");
         }
       }
 
@@ -356,7 +366,8 @@ rclcpp_action::GoalResponse FollowJointTrajectoryController::handle_goal(
 
   if (goal_handle->trajectory.joint_names.size() != joints_.size())
   {
-    RCLCPP_ERROR(node_->get_logger(), "Trajectory goal size does not match controlled joints size.");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Trajectory goal size does not match controlled joints size.");
     return rclcpp_action::GoalResponse::REJECT;
   }
 
@@ -369,6 +380,10 @@ rclcpp_action::CancelResponse FollowJointTrajectoryController::handle_cancel(
   // Always accept
   if (active_goal_ && active_goal_->get_goal_id() == goal_handle->get_goal_id())
   {
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Trajectory cancelled.");
+    auto result = std::make_shared<FollowJointTrajectoryAction::Result>();
+    active_goal_->canceled(result);
     active_goal_.reset();
     return rclcpp_action::CancelResponse::ACCEPT;
   }
@@ -387,8 +402,9 @@ void FollowJointTrajectoryController::handle_accepted(const std::shared_ptr<Foll
     result->error_code = -6;
     result->error_string = "preempted";
     active_goal_->abort(result);
-    RCLCPP_WARN(node_->get_logger(), "Action preempted.");
     active_goal_.reset();
+    RCLCPP_DEBUG(rclcpp::get_logger(getName()),
+                 "Trajectory preempted.");
   }
 
   const auto goal = goal_handle->get_goal();
@@ -413,7 +429,8 @@ void FollowJointTrajectoryController::handle_accepted(const std::shared_ptr<Foll
     active_goal_.reset();
     result->error_code = result->INVALID_JOINTS;
     goal_handle->abort(result);
-    RCLCPP_ERROR(node_->get_logger(), "Trajectory goal does not match controlled joints");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Trajectory goal does not match controlled joints");
     return;
   }
 
@@ -431,7 +448,8 @@ void FollowJointTrajectoryController::handle_accepted(const std::shared_ptr<Foll
         active_goal_.reset();
         result->error_code = result->INVALID_JOINTS;
         goal_handle->abort(result);
-        RCLCPP_ERROR(node_->get_logger(), "Unable to splice trajectory");
+        RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                     "Unable to splice trajectory");
         return;
       }
     }
@@ -448,7 +466,7 @@ void FollowJointTrajectoryController::handle_accepted(const std::shared_ptr<Foll
         active_goal_.reset();
         result->error_code = result->INVALID_JOINTS;
         goal_handle->abort(result);
-        RCLCPP_ERROR(node_->get_logger(), "Unable to splice trajectory");
+        RCLCPP_ERROR(rclcpp::get_logger(getName()), "Unable to splice trajectory");
         return;
       }
     }
@@ -513,7 +531,8 @@ void FollowJointTrajectoryController::handle_accepted(const std::shared_ptr<Foll
           active_goal_.reset();
           result->error_code = result->INVALID_JOINTS;
           goal_handle->abort(result);
-          RCLCPP_ERROR(node_->get_logger(), "Unable to convert path tolerances");
+          RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                       "Unable to convert path tolerances");
           return;
         }
         path_tolerance_.q[j] = goal->path_tolerance[index].position;
@@ -547,7 +566,8 @@ void FollowJointTrajectoryController::handle_accepted(const std::shared_ptr<Foll
           active_goal_.reset();
           result->error_code = result->INVALID_JOINTS;
           goal_handle->abort(result);
-          RCLCPP_ERROR(node_->get_logger(), "Unable to convert goal tolerances");
+          RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                       "Unable to convert goal tolerances");
           return;
         }
         goal_tolerance_.q[j] = goal->goal_tolerance[index].position;
@@ -570,12 +590,14 @@ void FollowJointTrajectoryController::handle_accepted(const std::shared_ptr<Foll
     active_goal_ = goal_handle;
   }
 
-  RCLCPP_INFO(node_->get_logger(), "Executing new trajectory");
+  RCLCPP_DEBUG(rclcpp::get_logger(getName()),
+               "Executing new trajectory");
 
   if (manager_->requestStart(getName()) != 0)
   {
     active_goal_.reset();
-    RCLCPP_ERROR(node_->get_logger(), "Cannot execute trajectory, unable to start controller.");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Cannot execute trajectory, unable to start controller.");
     result->error_code = result->GOAL_TOLERANCE_VIOLATED;
     goal_handle->abort(result);
     return;

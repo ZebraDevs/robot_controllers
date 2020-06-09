@@ -59,7 +59,8 @@ int GravityCompensation::init(const std::string& name,
   std::string robot_description = declare_parameter_once<std::string>("robot_description", "", node);
   if (!model.initString(robot_description))
   {
-    RCLCPP_ERROR(node->get_logger(), "Failed to parse URDF");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Failed to parse URDF");
     return -1;
   }
 
@@ -67,7 +68,8 @@ int GravityCompensation::init(const std::string& name,
   KDL::Tree kdl_tree;
   if (!kdl_parser::treeFromUrdfModel(model, kdl_tree))
   {
-    RCLCPP_ERROR(node->get_logger(), "Could not construct tree from URDF");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Could not construct tree from URDF");
     return -1;
   }
 
@@ -76,7 +78,8 @@ int GravityCompensation::init(const std::string& name,
   std::string tip = node->declare_parameter<std::string>(getName() + ".tip", "wrist_roll_link");
   if(!kdl_tree.getChain(root, tip, kdl_chain_))
   {
-    RCLCPP_ERROR(node->get_logger(), "Could not construct chain from URDF");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Could not construct chain from URDF");
     return -1;
   }
 

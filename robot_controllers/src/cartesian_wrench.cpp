@@ -84,7 +84,8 @@ int CartesianWrenchController::init(const std::string& name,
   std::string robot_description = declare_parameter_once<std::string>("robot_description", "", node);
   if (!model.initString(robot_description))
   {
-    RCLCPP_ERROR(node_->get_logger(), "Failed to parse URDF");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Failed to parse URDF");
     return -1;
   }
 
@@ -92,14 +93,16 @@ int CartesianWrenchController::init(const std::string& name,
   KDL::Tree kdl_tree;
   if (!kdl_parser::treeFromUrdfModel(model, kdl_tree))
   {
-    RCLCPP_ERROR(node_->get_logger(), "Could not construct tree from URDF");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Could not construct tree from URDF");
     return -1;
   }
 
   // Populate the chain
   if(!kdl_tree.getChain(root_link_, tip, kdl_chain_))
   {
-    RCLCPP_ERROR(node_->get_logger(), "Could not construct chain from URDF");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Could not construct chain from URDF");
     return -1;
   }
 
@@ -128,13 +131,15 @@ bool CartesianWrenchController::start()
 {
   if (!initialized_)
   {
-    RCLCPP_ERROR(node_->get_logger(), "Unable to start, not initialized.");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Unable to start, not initialized.");
     return false;
   }
 
   if (node_->now() - last_command_ > rclcpp::Duration(3, 0))
   {
-    RCLCPP_ERROR(node_->get_logger(), "Unable to start, no goal.");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Unable to start, no goal.");
     return false;
   }
 
@@ -206,7 +211,8 @@ void CartesianWrenchController::command(const geometry_msgs::msg::Wrench::Shared
   // Try to start up
   if (manager_->requestStart(getName()) != 0)
   {
-    RCLCPP_ERROR(node_->get_logger(), "CartesianWrenchController: Cannot start, blocked by another controller.");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Cannot start, blocked by another controller.");
     return;
   }
 }

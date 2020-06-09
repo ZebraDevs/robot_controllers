@@ -77,7 +77,7 @@ int ParallelGripperController::init(const std::string& name,
   // Checking to see if Joint Handles exists
   if (!left_)
   {
-    RCLCPP_ERROR(node_->get_logger(),
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
                  "Unable to retrieve joint (%s), Namespace: %s/l_gripper_joint",
                  l_name.c_str(), name.c_str());
     return -1;  
@@ -85,7 +85,7 @@ int ParallelGripperController::init(const std::string& name,
   
   if (!right_)
   {
-    RCLCPP_ERROR(node_->get_logger(),
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
                  "Unable to retrieve joint (%s), Namespace: %s/r_gripper_joint",
                  r_name.c_str(), name.c_str());
     return -1;
@@ -125,7 +125,8 @@ bool ParallelGripperController::start()
 
   if (!active_goal_)
   {
-    RCLCPP_ERROR(node_->get_logger(), "Unable to start, action server has no goal.");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Unable to start, action server has no goal.");
     return false;
   }
 
@@ -147,7 +148,8 @@ bool ParallelGripperController::stop(bool force)
       result->effort = feedback_->effort;
       result->reached_goal = false;
       result->stalled = false;
-      RCLCPP_INFO(node_->get_logger(), "ParallelGripperController preempted.");
+      RCLCPP_DEBUG(rclcpp::get_logger(getName()),
+                   "Goal preempted.");
       active_goal_->abort(result);
       active_goal_.reset();
       return true;
@@ -205,7 +207,8 @@ void ParallelGripperController::update(const rclcpp::Time& now, const rclcpp::Du
     result->effort = feedback_->effort;
     result->reached_goal = true;
     result->stalled = false;
-    RCLCPP_INFO(node_->get_logger(), "ParallelGripperController succeeded.");
+    RCLCPP_DEBUG(rclcpp::get_logger(getName()),
+                 "Goal succeeded.");
     active_goal_->succeed(result);
     active_goal_.reset();
     return;
@@ -226,7 +229,8 @@ void ParallelGripperController::update(const rclcpp::Time& now, const rclcpp::Du
       result->effort = feedback_->effort;
       result->reached_goal = false;
       result->stalled = true;
-      RCLCPP_INFO(node_->get_logger(), "ParallelGripperController sstalled, but succeeding.");
+      RCLCPP_DEBUG(rclcpp::get_logger(getName()),
+                   "ParallelGripperController sstalled, but succeeding.");
       active_goal_->succeed(result);
       active_goal_.reset();
       return;
@@ -253,7 +257,8 @@ rclcpp_action::CancelResponse ParallelGripperController::handle_cancel(
   // Always accept
   if (active_goal_ && active_goal_->get_goal_id() == goal_handle->get_goal_id())
   {
-    RCLCPP_INFO(node_->get_logger(), "ParallelGripper goal cancelled.");
+    RCLCPP_INFO(rclcpp::get_logger(getName()),
+                "Goal cancelled.");
     active_goal_.reset();
   }
 

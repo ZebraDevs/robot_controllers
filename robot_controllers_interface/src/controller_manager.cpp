@@ -326,7 +326,7 @@ void ControllerManager::callback(
       // Create controller (in a loader)
       if (!load(static_cast<std::string>(state.name)))
       {
-        RCLCPP_ERROR(node_->get_logger(), "Failed to load controller %s", state.name);
+        RCLCPP_ERROR(node_->get_logger(), "Failed to load controller %s", state.name.c_str());
         return;
       }
     }
@@ -336,7 +336,7 @@ void ControllerManager::callback(
     {
       if (requestStop(state.name) != 0)
       {
-        RCLCPP_ERROR(node_->get_logger(), "Unable to stop %s", state.name);
+        RCLCPP_ERROR(node_->get_logger(), "Unable to stop %s", state.name.c_str());
         return;
       }
     }
@@ -344,7 +344,7 @@ void ControllerManager::callback(
     {
       if (requestStart(state.name) != 0)
       {
-        RCLCPP_ERROR(node_->get_logger(), "Unable to start %s", state.name);
+        RCLCPP_ERROR(node_->get_logger(), "Unable to start %s", state.name.c_str());
         return;
       }
     }
