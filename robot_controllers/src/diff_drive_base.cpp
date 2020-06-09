@@ -95,6 +95,7 @@ int DiffDriveBaseController::init(const std::string& name,
   right_last_position_ = right_->getPosition();
   last_update_ = node->now();
   last_command_ = node_->now();
+  last_laser_scan_ = node_->now();
 
   // Get base parameters
   track_width_ = node->declare_parameter<double>(name + ".track_width", 0.37476);
