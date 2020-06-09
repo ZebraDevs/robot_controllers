@@ -34,15 +34,17 @@
 
 // Author: Michael Ferguson
 
-#include <pluginlib/class_list_macros.h>
+#include <pluginlib/class_list_macros.hpp>
 #include <robot_controllers/scaled_mimic.h>
 
-PLUGINLIB_EXPORT_CLASS(robot_controllers::ScaledMimicController, robot_controllers::Controller)
+PLUGINLIB_EXPORT_CLASS(robot_controllers::ScaledMimicController, robot_controllers_interface::Controller)
 
 namespace robot_controllers
 {
 
-int ScaledMimicController::init(ros::NodeHandle& nh, ControllerManager* manager)
+int ScaledMimicController::init(const std::string& name,
+                                rclcpp::Node::SharedPtr node,
+                                robot_controllers_interface::ControllerManagerPtr manager)
 {
   // We absolutely need access to the controller manager
   if (!manager)
@@ -51,21 +53,19 @@ int ScaledMimicController::init(ros::NodeHandle& nh, ControllerManager* manager)
     return -1;
   }
 
-  Controller::init(nh, manager);
+  Controller::init(name, node, manager);
 
   // Setup Joints, Params
-  std::string mimic, controlled;
-  nh.param<std::string>("mimic_joint", mimic, "torso_lift_joint");
-  nh.param<std::string>("controlled_joint", controlled, "bellows_joint");
+  std::string mimic = node->declare_parameter<std::string>(getName() + ".mimic_joint", "torso_lift_joint");
+  std::string controlled = node->declare_parameter<std::string>(getName() + ".mimic_joint", "bellows_joint");
   joint_to_mimic_ = manager->getJointHandle(mimic);
   joint_to_control_ = manager->getJointHandle(controlled);
-  nh.param<double>("mimic_scale", scale_, 1.0);
+  scale_ = node->declare_parameter<double>(getName() + ".mimic_scale", 1.0);
 
   initialized_ = true;
 
   // Should we autostart?
-  bool autostart;
-  nh.param("autostart", autostart, false);
+  bool autostart = node->declare_parameter<bool>(getName() + ".autostart", false);
   if (autostart)
     manager->requestStart(getName());
 
@@ -76,8 +76,7 @@ bool ScaledMimicController::start()
 {
   if (!initialized_)
   {
-    ROS_ERROR_NAMED("ScaledMimicController",
-                    "Unable to start, not initialized.");
+    // Can't log, no logger available
     return false;
   }
   return true;
@@ -95,7 +94,7 @@ bool ScaledMimicController::reset()
   return true;
 }
 
-void ScaledMimicController::update(const ros::Time& now, const ros::Duration& dt)
+void ScaledMimicController::update(const rclcpp::Time& now, const rclcpp::Duration& dt)
 {
   if (!initialized_)
     return;

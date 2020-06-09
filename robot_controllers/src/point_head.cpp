@@ -162,6 +162,7 @@ bool PointHeadController::stop(bool force)
       // Shut down the action
       auto result = std::make_shared<PointHeadAction::Result>();
       active_goal_->abort(result);
+      active_goal_.reset();
       return true;
     }
     // Do not abort unless forced
@@ -241,7 +242,6 @@ rclcpp_action::CancelResponse PointHeadController::handle_cancel(
   {
     RCLCPP_INFO(node_->get_logger(), "PointHead goal cancelled.");
     active_goal_.reset();
-    return rclcpp_action::CancelResponse::ACCEPT;
   }
 
   return rclcpp_action::CancelResponse::ACCEPT;

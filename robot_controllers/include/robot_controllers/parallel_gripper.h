@@ -37,16 +37,17 @@
 #ifndef ROBOT_CONTROLLERS_PARALLEL_GRIPPER_H
 #define ROBOT_CONTROLLERS_PARALLEL_GRIPPER_H
 
+#include <memory>
 #include <string>
 #include <vector>
 
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
+#include <rclcpp_action/rclcpp_action.hpp>
 #include <robot_controllers/pid.h>
 #include <robot_controllers_interface/controller.h>
 #include <robot_controllers_interface/joint_handle.h>
 #include <robot_controllers_interface/controller_manager.h>
-#include <control_msgs/GripperCommandAction.h>
-#include <actionlib/server/simple_action_server.h>
+#include <control_msgs/action/gripper_command.hpp>
 
 namespace robot_controllers
 {
@@ -55,13 +56,13 @@ namespace robot_controllers
  * @brief Controller for a parallel jaw gripper, is really only intended for
  *        use in simulation.
  */
-class ParallelGripperController : public Controller
+class ParallelGripperController : public robot_controllers_interface::Controller
 {
-  typedef actionlib::SimpleActionServer<control_msgs::GripperCommandAction> server_t;
+  using GripperCommandAction = control_msgs::action::GripperCommand;
+  using GripperCommandGoal = rclcpp_action::ServerGoalHandle<GripperCommandAction>;
 
 public:
   ParallelGripperController() :
-    initialized_(false),
     use_centering_controller_(false) {}
   virtual ~ParallelGripperController() {}
 
@@ -72,7 +73,9 @@ public:
    *        controller to get information about joints, etc.
    * @returns 0 if succesfully configured, negative values are error codes.
    */
-  virtual int init(ros::NodeHandle& nh, ControllerManager* manager);
+  virtual int init(const std::string& name,
+                   rclcpp::Node::SharedPtr node,
+                   robot_controllers_interface::ControllerManagerPtr manager);
 
   /**
    * @brief Attempt to start the controller. This should be called only by the
@@ -103,7 +106,7 @@ public:
    * @param time The system time.
    * @param dt The timestep since last call to update.
    */
-  virtual void update(const ros::Time& now, const ros::Duration& dt);
+  virtual void update(const rclcpp::Time& now, const rclcpp::Duration& dt);
 
   /** @brief Get the type of this controller. */
   virtual std::string getType()
@@ -118,16 +121,32 @@ public:
   virtual std::vector<std::string> getClaimedNames();
 
 private:
-  void executeCb(const control_msgs::GripperCommandGoalConstPtr& goal);
+  // rclcpp callbacks
+  rclcpp_action::GoalResponse handle_goal(
+    const rclcpp_action::GoalUUID & uuid,
+    std::shared_ptr<const GripperCommandAction::Goal> goal_handle);
+  rclcpp_action::CancelResponse handle_cancel(
+    const std::shared_ptr<GripperCommandGoal> goal_handle);
+  void handle_accepted(const std::shared_ptr<GripperCommandGoal> goal_handle);
 
-  bool initialized_;
-  ControllerManager* manager_;
+  /** @brief Publish feedback if goal is active */
+  void publishCallback();
 
-  JointHandlePtr left_;
-  JointHandlePtr right_;
+  rclcpp::Node::SharedPtr node_;
+  robot_controllers_interface::ControllerManagerPtr manager_;
+
+  robot_controllers_interface::JointHandlePtr left_;
+  robot_controllers_interface::JointHandlePtr right_;
 
   double goal_, effort_, max_position_, max_effort_;
-  boost::shared_ptr<server_t> server_;
+  rclcpp_action::Server<GripperCommandAction>::SharedPtr server_;
+  std::shared_ptr<GripperCommandAction::Feedback> feedback_;
+  std::shared_ptr<GripperCommandGoal> active_goal_;
+  rclcpp::TimerBase::SharedPtr publish_timer_;
+
+  // For stall detection
+  double last_position_;
+  rclcpp::Time last_position_time_;
 
   bool use_centering_controller_;
   robot_controllers::PID centering_pid_;

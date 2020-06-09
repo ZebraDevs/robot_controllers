@@ -128,12 +128,8 @@ private:
   rclcpp_action::GoalResponse handle_goal(
     const rclcpp_action::GoalUUID & uuid,
     std::shared_ptr<const PointHeadAction::Goal> goal_handle);
-
-  /** @brief Action interface */
   rclcpp_action::CancelResponse handle_cancel(
     const std::shared_ptr<PointHeadGoal> goal_handle);
-
-  /** @brief Action interface */
   void handle_accepted(const std::shared_ptr<PointHeadGoal> goal_handle);
 
   // Handles to node, manager

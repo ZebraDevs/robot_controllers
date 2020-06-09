@@ -159,11 +159,6 @@ bool FollowJointTrajectoryController::stop(bool force)
 
   if (active_goal_)
   {
-
-  }
-
-  if (active_goal_)
-  {
     if (force)
     {
       // Shut down the action
@@ -171,6 +166,7 @@ bool FollowJointTrajectoryController::stop(bool force)
       result->error_code = result->GOAL_TOLERANCE_VIOLATED;
       result->error_string = "Controller manager forced preemption.";
       active_goal_->abort(result);
+      active_goal_.reset();
       return true;
     }
     // Do not abort unless forced

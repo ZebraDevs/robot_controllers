@@ -39,10 +39,10 @@ add_library(robot_controllers SHARED
   src/diff_drive_base.cpp
   src/follow_joint_trajectory.cpp
   src/gravity_compensation.cpp
-#  src/parallel_gripper.cpp
+  src/parallel_gripper.cpp
   src/pid.cpp
   src/point_head.cpp
-#  src/scaled_mimic.cpp
+  src/scaled_mimic.cpp
 )
 target_link_libraries(robot_controllers
   ${orocos_kdl_LIBRARIES}
