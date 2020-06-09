@@ -395,6 +395,7 @@ void FollowJointTrajectoryController::handle_accepted(const std::shared_ptr<Foll
 {
   auto result = std::make_shared<FollowJointTrajectoryAction::Result>();
 
+  bool preempted = false;
   if (active_goal_)
   {
     // TODO: if rclcpp_action ever supports preempted, note it here
@@ -405,6 +406,7 @@ void FollowJointTrajectoryController::handle_accepted(const std::shared_ptr<Foll
     active_goal_.reset();
     RCLCPP_DEBUG(rclcpp::get_logger(getName()),
                  "Trajectory preempted.");
+    preempted = true;
   }
 
   const auto goal = goal_handle->get_goal();
@@ -435,7 +437,7 @@ void FollowJointTrajectoryController::handle_accepted(const std::shared_ptr<Foll
   }
 
   // If we are preempting a trajectory, need to splice on things together
-  if (active_goal_)
+  if (preempted)
   {
     // If the sampler had a large trajectory, we may just be cutting into it
     if (sampler_ && (sampler_->getTrajectory().size() > 2))
