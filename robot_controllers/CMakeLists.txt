@@ -82,13 +82,13 @@ install(
   TARGETS robot_controllers
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
-  RUNTIME DESTINATION lib/robot_controllers_interface
+  RUNTIME DESTINATION lib/robot_controllers
 )
 
 pluginlib_export_plugin_description_file(robot_controllers_interface robot_controllers.xml)
 
 ament_export_include_directories(include)
-ament_export_libraries(robot_controllers_interface)
+ament_export_libraries(robot_controllers)
 ament_export_dependencies(
   control_msgs
   geometry_msgs

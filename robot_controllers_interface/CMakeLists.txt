@@ -12,7 +12,6 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(rclcpp_action REQUIRED)
 find_package(robot_controllers_msgs REQUIRED)
 
 include_directories(
@@ -26,7 +25,6 @@ add_library(robot_controllers_interface SHARED
 ament_target_dependencies(robot_controllers_interface
   pluginlib
   rclcpp
-  rclcpp_action
   robot_controllers_msgs
 )
 
@@ -56,7 +54,6 @@ ament_export_libraries(robot_controllers_interface)
 ament_export_dependencies(
   pluginlib
   rclcpp
-  rclcpp_action
   robot_controllers_msgs
 )
 ament_package()

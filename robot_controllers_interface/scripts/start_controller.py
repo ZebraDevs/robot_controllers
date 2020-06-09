@@ -29,14 +29,26 @@
 # Author: Michael Ferguson
 
 import sys
-import rospy
-import actionlib
-from actionlib_msgs.msg import GoalStatus
-from robot_controllers_msgs.msg import QueryControllerStatesAction, \
-                                       QueryControllerStatesGoal, \
-                                       ControllerState
 
-ACTION_NAME = "/query_controller_states"
+import rclpy
+from rclpy.node import Node
+
+from robot_controllers_msgs.srv import QueryControllerStates
+from robot_controllers_msgs.msg import ControllerState
+
+
+class MinimalClientAsync(Node):
+
+    def __init__(self):
+        super().__init__("start_controller")
+        self.client = self.create_client(QueryControllerStates, "query_controller_states")
+        while not self.client.wait_for_service(timeout_sec=1.0):
+            print('query_controller_states not available, waiting again...')
+
+    def send_request(self, req):
+        self.req = req
+        self.future = self.client.call_async(self.req)
+
 
 if __name__ == "__main__":
 
@@ -44,12 +56,8 @@ if __name__ == "__main__":
         print("usage: start_controller.py <controller_name> [optional_controller_type]")
         exit(-1)
 
-    rospy.init_node("start_robot_controllers")
-
-    rospy.loginfo("Connecting to %s..." % ACTION_NAME)
-    client = actionlib.SimpleActionClient(ACTION_NAME, QueryControllerStatesAction)
-    client.wait_for_server()
-    rospy.loginfo("Done.")
+    rclpy.init()
+    client = MinimalClientAsync()
 
     state = ControllerState()
     state.name = sys.argv[1]
@@ -57,13 +65,21 @@ if __name__ == "__main__":
         state.type = sys.argv[2]
     state.state = state.RUNNING
 
-    goal = QueryControllerStatesGoal()
-    goal.updates.append(state)
+    req = QueryControllerStates.Request()
+    req.updates.append(state)
+    client.send_request(req)
 
-    rospy.loginfo("Requesting that %s be started..." % state.name)
-    client.send_goal(goal)
-    client.wait_for_result()
-    if client.get_state() == GoalStatus.SUCCEEDED:
-        rospy.loginfo("Done.")
-    elif client.get_state() == GoalStatus.ABORTED:
-        rospy.logerr(client.get_goal_status_text())
+    while rclpy.ok():
+        rclpy.spin_once(client)
+        if client.future.done():
+            response = client.future.result()
+            for state in response.state:
+                if state.name == sys.argv[1]:
+                    if state.state == state.RUNNING:
+                        print(" RUNNING %s [%s]" % (state.name, state.type))
+                    elif state.state == state.STOPPED:
+                        print(" STOPPED %s [%s]" % (state.name, state.type))
+                    elif state.state == state.ERROR:
+                        print("  ERROR  %s [%s]" % (state.name, state.type))
+                    exit(0)
+            print("Unable to update controller")

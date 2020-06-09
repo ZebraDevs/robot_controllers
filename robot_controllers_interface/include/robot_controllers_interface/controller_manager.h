@@ -35,9 +35,8 @@
 #include <memory>
 #include <string>
 #include <rclcpp/rclcpp.hpp>
-#include <rclcpp_action/rclcpp_action.hpp>
 
-#include <robot_controllers_msgs/action/query_controller_states.hpp>
+#include <robot_controllers_msgs/srv/query_controller_states.hpp>
 
 #include <robot_controllers_interface/joint_handle.h>
 #include <robot_controllers_interface/gyro_handle.h>
@@ -50,9 +49,6 @@ namespace robot_controllers_interface
 /** @brief Base class for a controller manager. */
 class ControllerManager : public std::enable_shared_from_this<ControllerManager>
 {
-  using QueryControllerStates = robot_controllers_msgs::action::QueryControllerStates;
-  using QueryControllerStatesGoal = rclcpp_action::ServerGoalHandle<QueryControllerStates>;
-
   using ControllerList = std::vector<ControllerLoaderPtr>;
   using JointHandleList = std::vector<JointHandlePtr> ;
   using GyroHandleList = std::vector<GyroHandlePtr>;
@@ -115,20 +111,13 @@ public:
   GyroHandlePtr getGyroHandle(const std::string& name);
 
 private:
-  rclcpp_action::GoalResponse handle_goal(
-    const rclcpp_action::GoalUUID & uuid,
-    std::shared_ptr<const QueryControllerStates::Goal> goal_handle);
-
-  rclcpp_action::CancelResponse handle_cancel(
-    const std::shared_ptr<QueryControllerStatesGoal> goal_handle);
-
-  void handle_accepted(const std::shared_ptr<QueryControllerStatesGoal> goal_handle);
-
-  /** @brief Action callback. */
-  void execute(const std::shared_ptr<QueryControllerStatesGoal> goal_handle);
+  /** @brief Service callback */
+  void callback(
+    const std::shared_ptr<robot_controllers_msgs::srv::QueryControllerStates::Request> request,
+    std::shared_ptr<robot_controllers_msgs::srv::QueryControllerStates::Response> response);
 
   /** @brief Fill in the current state of controllers. */
-  void getState(std::shared_ptr<QueryControllerStates::Result> result);
+  void getState(std::vector<robot_controllers_msgs::msg::ControllerState>& states);
 
   /** @brief Load a controller. */
   bool load(const std::string& name);
@@ -138,7 +127,7 @@ private:
   GyroHandleList gyros_;
 
   rclcpp::Node::SharedPtr node_;
-  rclcpp_action::Server<robot_controllers_msgs::action::QueryControllerStates>::SharedPtr server_;
+  rclcpp::Service<robot_controllers_msgs::srv::QueryControllerStates>::SharedPtr server_;
 };
 
 using ControllerManagerPtr = std::shared_ptr<ControllerManager>;

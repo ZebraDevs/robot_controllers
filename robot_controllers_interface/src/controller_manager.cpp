@@ -62,15 +62,9 @@ int ControllerManager::init(std::shared_ptr<rclcpp::Node> node)
   }
 
   // Setup actionlib server
-  server_ = rclcpp_action::create_server<QueryControllerStates>(
-    node_->get_node_base_interface(),
-    node_->get_node_clock_interface(),
-    node_->get_node_logging_interface(),
-    node_->get_node_waitables_interface(),
+  server_ = node_->create_service<robot_controllers_msgs::srv::QueryControllerStates>(
     "query_controller_states",
-    std::bind(&ControllerManager::handle_goal, this, _1, _2),
-    std::bind(&ControllerManager::handle_cancel, this, _1),
-    std::bind(&ControllerManager::handle_accepted, this, _1)
+    std::bind(&ControllerManager::callback, this, _1, _2)
   );
 
   return 0;
@@ -295,41 +289,12 @@ GyroHandlePtr ControllerManager::getGyroHandle(const std::string& name)
   return GyroHandlePtr();
 }
 
-rclcpp_action::GoalResponse
-ControllerManager::handle_goal(
-  const rclcpp_action::GoalUUID & uuid,
-  std::shared_ptr<const QueryControllerStates::Goal> goal)
+void ControllerManager::callback(
+    const std::shared_ptr<robot_controllers_msgs::srv::QueryControllerStates::Request> request,
+    std::shared_ptr<robot_controllers_msgs::srv::QueryControllerStates::Response> response)
 {
-  // Accept all
-  return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
-}
-
-rclcpp_action::CancelResponse
-ControllerManager::handle_cancel(const std::shared_ptr<QueryControllerStatesGoal> goal_handle)
-{
-  // Accept all cancels
-  return rclcpp_action::CancelResponse::ACCEPT;
-}
-
-void ControllerManager::handle_accepted(const std::shared_ptr<QueryControllerStatesGoal> goal_handle)
-{
-  // Straight out of the example
-  // This needs to return quickly to avoid blocking the executor, so spin up a new thread
-  std::thread{std::bind(&ControllerManager::execute, this, _1), goal_handle}.detach();
-}
-
-//void ControllerManager::execute(const robot_controllers_msgs::QueryControllerStatesGoalConstPtr& goal)
-void ControllerManager::execute(const std::shared_ptr<QueryControllerStatesGoal> goal_handle)
-{
-  auto feedback = std::make_shared<QueryControllerStates::Feedback>();
-  auto result = std::make_shared<QueryControllerStates::Result>();
-  const auto goal = goal_handle->get_goal();
-
-  for (size_t i = 0; i < goal->updates.size(); i++)
+  for (auto state : request->updates)
   {
-    // Update this controller
-    const auto state = goal->updates[i];
-
     // Make sure controller exists
     bool in_controller_list = false;
     for (const auto& c: controllers_)
@@ -349,8 +314,6 @@ void ControllerManager::execute(const std::shared_ptr<QueryControllerStatesGoal>
                                               state.name,
                                               c->getController()->getType(),
                                               state.type);
-            getState(result);
-            goal_handle->abort(result);
             return;
           }
         }
@@ -364,8 +327,6 @@ void ControllerManager::execute(const std::shared_ptr<QueryControllerStatesGoal>
       if (!load(static_cast<std::string>(state.name)))
       {
         RCLCPP_ERROR(node_->get_logger(), "Failed to load controller %s", state.name);
-        getState(result);
-        goal_handle->abort(result);
         return;
       }
     }
@@ -376,8 +337,6 @@ void ControllerManager::execute(const std::shared_ptr<QueryControllerStatesGoal>
       if (requestStop(state.name) != 0)
       {
         RCLCPP_ERROR(node_->get_logger(), "Unable to stop %s", state.name);
-        getState(result);
-        goal_handle->abort(result);
         return;
       }
     }
@@ -386,8 +345,6 @@ void ControllerManager::execute(const std::shared_ptr<QueryControllerStatesGoal>
       if (requestStart(state.name) != 0)
       {
         RCLCPP_ERROR(node_->get_logger(), "Unable to start %s", state.name);
-        getState(result);
-        goal_handle->abort(result);
         return;
       }
     }
@@ -396,21 +353,18 @@ void ControllerManager::execute(const std::shared_ptr<QueryControllerStatesGoal>
       RCLCPP_ERROR(node_->get_logger(), "Invalid state for controller %s: %d",
                                         state.name,
                                         static_cast<int>(state.state));
-      getState(result);
-      goal_handle->abort(result);
       return;
     }
   }
 
   // Send result
-  getState(result);
-  goal_handle->succeed(result);
+  getState(response->state);
 }
 
 void ControllerManager::getState(
-    std::shared_ptr<QueryControllerStates::Result> result)
+    std::vector<robot_controllers_msgs::msg::ControllerState>& states)
 {
-  result->state.clear();
+  states.clear();
   for (auto& c: controllers_)
   {
     robot_controllers_msgs::msg::ControllerState state;
@@ -424,7 +378,7 @@ void ControllerManager::getState(
     {
       state.state = state.STOPPED;
     }
-    result->state.push_back(state);
+    states.push_back(state);
   }
 }
 
