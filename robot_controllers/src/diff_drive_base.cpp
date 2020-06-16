@@ -235,10 +235,12 @@ void DiffDriveBaseController::update(const rclcpp::Time& now, const rclcpp::Dura
     desired_x_ = desired_r_ = 0.0;
   }
 
-  // Make sure laser has not timed out
+  // Make sure laser has not timed out (0.5 seconds)
   if ((safety_scaling_distance_ > 0.0) &&
-      (now - last_laser_scan_ > rclcpp::Duration(0.5)))
+      (now - last_laser_scan_ > rclcpp::Duration(0, 5e8)))
   {
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Laser has timed out.");
     safety_scaling_ = 0.1;
   }
 
@@ -419,7 +421,7 @@ void DiffDriveBaseController::scanCallback(
 
   std::lock_guard<std::mutex> lock(command_mutex_);
   safety_scaling_ = std::max(0.1, min_dist / safety_scaling_distance_);
-  last_laser_scan_ = node_->now();
+  last_laser_scan_ = scan->header.stamp;
 }
 
 void DiffDriveBaseController::setCommand(float left, float right)
