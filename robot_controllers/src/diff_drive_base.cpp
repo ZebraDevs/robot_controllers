@@ -170,7 +170,7 @@ void DiffDriveBaseController::command(const geometry_msgs::msg::Twist::SharedPtr
 
   if (std::isfinite(msg->linear.x) && std::isfinite(msg->angular.z))
   {
-    std::scoped_lock lock(command_mutex_);
+    std::lock_guard<std::mutex> lock(command_mutex_);
     last_command_ = node_->now();
     desired_x_ = msg->linear.x;
     desired_r_ = msg->angular.z;
@@ -231,7 +231,7 @@ void DiffDriveBaseController::update(const rclcpp::Time& now, const rclcpp::Dura
   {
     RCLCPP_DEBUG(rclcpp::get_logger(getName()),
                  "Command timed out.");
-    std::scoped_lock lock(command_mutex_);
+    std::lock_guard<std::mutex> lock(command_mutex_);
     desired_x_ = desired_r_ = 0.0;
   }
 
@@ -245,7 +245,7 @@ void DiffDriveBaseController::update(const rclcpp::Time& now, const rclcpp::Dura
   // Do velocity acceleration/limiting
   double x, r;
   {
-    std::scoped_lock lock(command_mutex_);
+    std::lock_guard<std::mutex> lock(command_mutex_);
     // Limit linear velocity based on obstacles
     x = std::max(-max_velocity_x_ * safety_scaling_, std::min(desired_x_, max_velocity_x_ * safety_scaling_));
     // Compute how much we actually scaled the linear velocity
@@ -330,7 +330,7 @@ void DiffDriveBaseController::update(const rclcpp::Time& now, const rclcpp::Dura
   }
 
   // Lock mutex before updating
-  std::scoped_lock lock(odom_mutex_);
+  std::lock_guard<std::mutex> lock(odom_mutex_);
 
   // Update stored odometry pose...
   theta_ += th/2.0;
@@ -367,7 +367,7 @@ void DiffDriveBaseController::publishCallback()
   // Copy message under lock of mutex
   nav_msgs::msg::Odometry msg;
   {
-    std::scoped_lock lock(odom_mutex_);
+    std::lock_guard<std::mutex> lock(odom_mutex_);
     msg = odom_;
   }
 
@@ -417,7 +417,7 @@ void DiffDriveBaseController::scanCallback(
     }
   }
 
-  std::scoped_lock lock(command_mutex_);
+  std::lock_guard<std::mutex> lock(command_mutex_);
   safety_scaling_ = std::max(0.1, min_dist / safety_scaling_distance_);
   last_laser_scan_ = node_->now();
 }

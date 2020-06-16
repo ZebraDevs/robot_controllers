@@ -72,7 +72,7 @@ int FollowJointTrajectoryController::init(
   manager_ = manager;
 
   // No initial sampler
-  std::scoped_lock lock(sampler_mutex_);
+  std::lock_guard<std::mutex> lock(sampler_mutex_);
   sampler_.reset();
 
   // Get Joint Names
@@ -194,7 +194,7 @@ void FollowJointTrajectoryController::update(const rclcpp::Time& now, const rclc
   // Is trajectory active?
   if (active_goal_ && sampler_)
   {
-    std::scoped_lock lock(sampler_mutex_);
+    std::lock_guard<std::mutex> lock(sampler_mutex_);
 
     // Interpolate trajectory
     TrajectoryPoint p = sampler_->sample(to_sec(now));
@@ -395,6 +395,9 @@ void FollowJointTrajectoryController::handle_accepted(const std::shared_ptr<Foll
 {
   auto result = std::make_shared<FollowJointTrajectoryAction::Result>();
 
+  // This mutex also protects the active_goal_
+  std::lock_guard<std::mutex> lock(sampler_mutex_);
+
   bool preempted = false;
   if (active_goal_)
   {
@@ -508,7 +511,6 @@ void FollowJointTrajectoryController::handle_accepted(const std::shared_ptr<Foll
 
   // Create trajectory sampler
   {
-    std::scoped_lock lock(sampler_mutex_);
     sampler_.reset(new SplineTrajectorySampler(executable_trajectory));
 
     // Convert the path tolerances into a more usable form

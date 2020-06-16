@@ -38,6 +38,8 @@
 #ifndef ROBOT_CONTROLLERS_TRAJECTORY_H_
 #define ROBOT_CONTROLLERS_TRAJECTORY_H_
 
+#include <iomanip>
+
 #include <rclcpp/rclcpp.hpp>
 #include <angles/angles.h>
 #include <trajectory_msgs/msg/joint_trajectory.hpp>

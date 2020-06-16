@@ -73,7 +73,7 @@ int PointHeadController::init(const std::string& name,
   manager_ = manager;
 
   // No initial sampler
-  std::scoped_lock lock(sampler_mutex_);
+  std::lock_guard<std::mutex> lock(sampler_mutex_);
   sampler_.reset();
 
   // Get parameters
@@ -190,7 +190,7 @@ void PointHeadController::update(const rclcpp::Time& now, const rclcpp::Duration
   // We have a trajectory to execute?
   if (active_goal_ && sampler_)
   {
-    std::scoped_lock lock(sampler_mutex_);
+    std::lock_guard<std::mutex> lock(sampler_mutex_);
 
     // Interpolate trajectory
     TrajectoryPoint p = sampler_->sample(to_sec(now));
@@ -332,7 +332,7 @@ void PointHeadController::handle_accepted(const std::shared_ptr<PointHeadGoal> g
   t.points[1].time = t.points[0].time + fmax(fmax(pan_transit, tilt_transit), msg_to_sec(goal->min_duration));
 
   {
-    std::scoped_lock lock(sampler_mutex_);
+    std::lock_guard<std::mutex> lock(sampler_mutex_);
     sampler_.reset(new SplineTrajectorySampler(t));
     active_goal_ = goal_handle;
   }

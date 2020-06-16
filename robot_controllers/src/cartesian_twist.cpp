@@ -185,7 +185,7 @@ void CartesianTwistController::update(const rclcpp::Time& now, const rclcpp::Dur
   KDL::Twist twist;
   rclcpp::Time last_command_time;
   {
-    std::scoped_lock lock(mutex_);
+    std::lock_guard<std::mutex> lock(mutex_);
     // FK is used to transform the twist command seen from end-effector frame to the one seen from body frame.
     if (fksolver_->JntToCart(tgt_jnt_pos_, cart_pose) < 0)
     {
@@ -351,7 +351,7 @@ void CartesianTwistController::command(const geometry_msgs::msg::TwistStamped::S
   rclcpp::Time now = node_->now();
 
   {
-    std::scoped_lock lock(mutex_);
+    std::lock_guard<std::mutex> lock(mutex_);
     twist_command_frame_ = goal->header.frame_id;
     twist_command_ = twist;
     last_command_time_ = now;
