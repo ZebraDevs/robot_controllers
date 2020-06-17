@@ -1,6 +1,7 @@
 /*********************************************************************
  *  Software License Agreement (BSD License)
  *
+ *  Copyright (c) 2020, Michael Ferguson
  *  Copyright (c) 2014, Fetch Robotics Inc.
  *  Copyright (c) 2013, Unbounded Robotics Inc.
  *  All rights reserved.
@@ -38,17 +39,17 @@
 #ifndef ROBOT_CONTROLLERS_FOLLOW_JOINT_TRAJECTORY_H
 #define ROBOT_CONTROLLERS_FOLLOW_JOINT_TRAJECTORY_H
 
+#include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
-#include <boost/shared_ptr.hpp>
-#include <boost/thread.hpp>
 
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
+#include <rclcpp_action/rclcpp_action.hpp>
 #include <robot_controllers_interface/controller.h>
 #include <robot_controllers_interface/joint_handle.h>
 #include <robot_controllers_interface/controller_manager.h>
-#include <control_msgs/FollowJointTrajectoryAction.h>
-#include <actionlib/server/simple_action_server.h>
+#include <control_msgs/action/follow_joint_trajectory.hpp>
 
 #include <angles/angles.h>
 #include <robot_controllers/trajectory.h>
@@ -62,9 +63,10 @@ namespace robot_controllers
  *  @brief This ROS interface implements a FollowJointTrajectoryAction
  *         interface for controlling (primarily) robot arms.
  */
-class FollowJointTrajectoryController : public Controller
+class FollowJointTrajectoryController : public robot_controllers_interface::Controller
 {
-  typedef actionlib::SimpleActionServer<control_msgs::FollowJointTrajectoryAction> server_t;
+  using FollowJointTrajectoryAction = control_msgs::action::FollowJointTrajectory;
+  using FollowJointTrajectoryGoal = rclcpp_action::ServerGoalHandle<FollowJointTrajectoryAction>;
 
 public:
   FollowJointTrajectoryController();
@@ -72,12 +74,14 @@ public:
 
   /**
    * @brief Initialize the controller and any required data structures.
-   * @param nh Node handle for this controller.
+   * @param node Node handle for this controller.
    * @param manager The controller manager instance, this is needed for the
    *        controller to get information about joints, etc.
    * @returns 0 if succesfully configured, negative values are error codes.
    */
-  virtual int init(ros::NodeHandle& nh, ControllerManager* manager);
+  virtual int init(const std::string& name,
+                   rclcpp::Node::SharedPtr node,
+                   robot_controllers_interface::ControllerManagerPtr manager);
 
   /**
    * @brief Attempt to start the controller. This should be called only by the
@@ -108,7 +112,7 @@ public:
    * @param time The system time.
    * @param dt The timestep since last call to update.
    */
-  virtual void update(const ros::Time& now, const ros::Duration& dt);
+  virtual void update(const rclcpp::Time& now, const rclcpp::Duration& dt);
 
   /** @brief Get the type of this controller. */
   virtual std::string getType()
@@ -123,28 +127,38 @@ public:
   virtual std::vector<std::string> getClaimedNames();
 
 private:
-  /** @brief Callback for goal */
-  void executeCb(const control_msgs::FollowJointTrajectoryGoalConstPtr& goal);
+  // rclcpp callbacks for action
+  rclcpp_action::GoalResponse handle_goal(
+    const rclcpp_action::GoalUUID & uuid,
+    std::shared_ptr<const FollowJointTrajectoryAction::Goal> goal_handle);
+  rclcpp_action::CancelResponse handle_cancel(
+    const std::shared_ptr<FollowJointTrajectoryGoal> goal_handle);
+  void handle_accepted(const std::shared_ptr<FollowJointTrajectoryGoal> goal_handle);
+
+  /** @brief Publish feedback if goal is active */
+  void publishCallback();
 
   /** @brief Get a trajectory point from the current position/velocity/acceleration. */
   TrajectoryPoint getPointFromCurrent(bool incl_vel, bool incl_acc, bool zero_vel);
 
-  bool initialized_;
-  ControllerManager* manager_;
+  // Handles to node, manager
+  rclcpp::Node::SharedPtr node_;
+  robot_controllers_interface::ControllerManagerPtr manager_;
 
-  std::vector<JointHandlePtr> joints_;
+  // Parameters
   std::vector<std::string> joint_names_;
-  std::vector<bool> continuous_;
-  boost::shared_ptr<server_t> server_;
-
-  boost::shared_ptr<TrajectorySampler> sampler_;
-  boost::mutex sampler_mutex_;
-
   bool stop_with_action_;  /// should we stop this controller when the
                            /// action has terminated (or hold position)?
-
   bool stop_on_path_violation_;  /// should we stop this controller when
                                  /// a path tolerance has been violated?
+
+  // Joint handles
+  std::vector<robot_controllers_interface::JointHandlePtr> joints_;
+  std::vector<bool> continuous_;
+
+  // Trajectory generation parameters
+  std::shared_ptr<TrajectorySampler> sampler_;
+  std::mutex sampler_mutex_;
 
   /*
    * In certain cases, we want to start a trajectory at our last sample,
@@ -153,8 +167,13 @@ private:
    * starting point.
    */
   TrajectoryPoint last_sample_;
-  bool preempted_;  /// action was preempted
-                    /// (has nothing to do with preempt() above).
+
+  // RCLCPP action server interface
+  rclcpp_action::Server<FollowJointTrajectoryAction>::SharedPtr server_;
+  std::shared_ptr<FollowJointTrajectoryAction::Feedback> feedback_;
+  std::shared_ptr<FollowJointTrajectoryGoal> active_goal_;
+  rclcpp::TimerBase::SharedPtr publish_timer_;
+
   bool has_path_tolerance_;
   TrajectoryPoint path_tolerance_;
 
@@ -162,8 +181,7 @@ private:
   TrajectoryPoint goal_tolerance_;
   double goal_time_tolerance_;
 
-  control_msgs::FollowJointTrajectoryFeedback feedback_;
-  ros::Time goal_time;
+  rclcpp::Time goal_time_;
 };
 
 }  // namespace robot_controllers

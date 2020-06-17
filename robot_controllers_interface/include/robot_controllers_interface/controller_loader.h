@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2020, Michael Ferguson
  * Copyright (c) 2014, Fetch Robotics Inc.
  * All rights reserved.
  *
@@ -31,12 +32,13 @@
 #ifndef ROBOT_CONTROLLERS_INTERFACE_CONTROLLER_LOADER_H
 #define ROBOT_CONTROLLERS_INTERFACE_CONTROLLER_LOADER_H
 
+#include <memory>
 #include <string>
-#include <ros/ros.h>
-#include <pluginlib/class_loader.h>
+#include <rclcpp/rclcpp.hpp>
+#include <pluginlib/class_loader.hpp>
 #include <robot_controllers_interface/controller.h>
 
-namespace robot_controllers
+namespace robot_controllers_interface
 {
 
 // Forward def
@@ -50,7 +52,9 @@ public:
   ControllerLoader();
 
   /** @brief Load the controller. */
-  bool init(const std::string& name, ControllerManager* manager);
+  bool init(const std::string& name,
+            std::shared_ptr<rclcpp::Node> node,
+            std::shared_ptr<ControllerManager> manager);
 
   /** @brief This calls through to controller, saves state locally. */
   bool start();
@@ -62,7 +66,7 @@ public:
   bool reset();
 
   /** @brief If controller is active, calls through to controller. */
-  void update(const ros::Time& time, const ros::Duration& dt);
+  void update(const rclcpp::Time& time, const rclcpp::Duration& dt);
 
   /** @brief Returns true if the controller is active. */
   bool isActive();
@@ -71,13 +75,13 @@ public:
   ControllerPtr getController();
 
 private:
-  pluginlib::ClassLoader<robot_controllers::Controller> plugin_loader_;
+  pluginlib::ClassLoader<robot_controllers_interface::Controller> plugin_loader_;
   ControllerPtr controller_;
   bool active_;
 };
 
-typedef boost::shared_ptr<ControllerLoader> ControllerLoaderPtr;
+using ControllerLoaderPtr = std::shared_ptr<ControllerLoader>;
 
-}  // namespace robot_controllers
+}  // namespace robot_controllers_interface
 
 #endif  // ROBOT_CONTROLLERS_INTERFACE_CONTROLLER_MANAGER_H

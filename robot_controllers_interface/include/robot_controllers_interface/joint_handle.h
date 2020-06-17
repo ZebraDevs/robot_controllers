@@ -33,7 +33,7 @@
 
 #include <robot_controllers_interface/handle.h>
 
-namespace robot_controllers
+namespace robot_controllers_interface
 {
 
 /**
@@ -109,8 +109,8 @@ private:
   JointHandle& operator=(const JointHandle&);
 };
 
-typedef boost::shared_ptr<JointHandle> JointHandlePtr;
+using JointHandlePtr = std::shared_ptr<JointHandle>;
 
-}  // namespace robot_controllers
+}  // namespace robot_controllers_interface
 
 #endif  // ROBOT_CONTROLLERS_INTERFACE_JOINT_HANDLE_H

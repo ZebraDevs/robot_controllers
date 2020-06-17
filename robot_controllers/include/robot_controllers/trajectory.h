@@ -38,9 +38,12 @@
 #ifndef ROBOT_CONTROLLERS_TRAJECTORY_H_
 #define ROBOT_CONTROLLERS_TRAJECTORY_H_
 
-#include <ros/ros.h>
+#include <iomanip>
+
+#include <rclcpp/rclcpp.hpp>
 #include <angles/angles.h>
-#include <trajectory_msgs/JointTrajectory.h>
+#include <trajectory_msgs/msg/joint_trajectory.hpp>
+#include <robot_controllers_interface/utils.h>
 
 namespace robot_controllers
 {
@@ -73,8 +76,9 @@ struct Trajectory
  *  @param trajectory The returned trajectory
  *  @returns True if trajectory generated, false otherwise.
  */
-inline bool trajectoryFromMsg(const trajectory_msgs::JointTrajectory& message,
+inline bool trajectoryFromMsg(const trajectory_msgs::msg::JointTrajectory& message,
                               const std::vector<std::string> joints,
+                              const rclcpp::Time now,
                               Trajectory* trajectory)
 {
   // Find mapping of joint names into message joint names
@@ -98,9 +102,9 @@ inline bool trajectoryFromMsg(const trajectory_msgs::JointTrajectory& message,
   // Make sure trajectory is empty
   trajectory->points.clear();
 
-  double start_time = message.header.stamp.toSec();
+  double start_time = robot_controllers_interface::msg_to_sec(message.header.stamp);
   if (start_time == 0.0)
-    start_time = ros::Time::now().toSec();
+    start_time = robot_controllers_interface::to_sec(now);
 
   // Fill in Trajectory
   for (size_t p = 0; p < message.points.size(); ++p)
@@ -114,7 +118,7 @@ inline bool trajectoryFromMsg(const trajectory_msgs::JointTrajectory& message,
       if (message.points[p].accelerations.size() == message.points[p].positions.size())
         point.qdd.push_back(message.points[p].accelerations[mapping[j]]);
     }
-    point.time = start_time + message.points[p].time_from_start.toSec(); 
+    point.time = start_time + robot_controllers_interface::msg_to_sec(message.points[p].time_from_start);
     trajectory->points.push_back(point);
   }
 
@@ -218,28 +222,28 @@ inline bool spliceTrajectories(const Trajectory& t1,
 /**
  *  @brief Print trajectory to ROS INFO
  */
-inline void rosPrintTrajectory(Trajectory& t)
+inline void rosPrintTrajectory(rclcpp::Node::SharedPtr node, Trajectory& t)
 {
-  ROS_INFO_STREAM("Trajectory with " << t.size() << " points:");
+  RCLCPP_INFO_STREAM(node->get_logger(), "Trajectory with " << t.size() << " points:");
   for (size_t p = 0; p < t.size(); ++p)
   {
-    ROS_INFO_STREAM("  Point " << p << " at " << std::setprecision (15) << t.points[p].time);
+    RCLCPP_INFO_STREAM(node->get_logger(), "  Point " << p << " at " << std::setprecision (15) << t.points[p].time);
     for (size_t j = 0; j < t.points[p].q.size(); ++j)
     {
       if (t.points[p].qdd.size() == t.points[p].q.size())
       {
-        ROS_INFO_STREAM("    " << std::setprecision (5) << t.points[p].q[j] <<
+        RCLCPP_INFO_STREAM(node->get_logger(), "    " << std::setprecision (5) << t.points[p].q[j] <<
                           ", " << std::setprecision (5) << t.points[p].qd[j] <<
                           ", " << std::setprecision (5) << t.points[p].qdd[j]);
       }
       else if(t.points[p].q.size() == t.points[p].q.size())
       {
-        ROS_INFO_STREAM("    " << std::setprecision (5) << t.points[p].q[j] <<
+        RCLCPP_INFO_STREAM(node->get_logger(), "    " << std::setprecision (5) << t.points[p].q[j] <<
                           ", " << std::setprecision (5) << t.points[p].qd[j]);
       }
       else
       {
-        ROS_INFO_STREAM("    " << std::setprecision (5) << t.points[p].q[j]);
+        RCLCPP_INFO_STREAM(node->get_logger(), "    " << std::setprecision (5) << t.points[p].q[j]);
       }
     }
   }

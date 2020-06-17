@@ -35,88 +35,98 @@
 
 // Author: Michael Ferguson
 
-#include <pluginlib/class_list_macros.h>
+#include <pluginlib/class_list_macros.hpp>
 #include <robot_controllers/parallel_gripper.h>
+#include <robot_controllers_interface/utils.h>
 
-PLUGINLIB_EXPORT_CLASS(robot_controllers::ParallelGripperController, robot_controllers::Controller)
+PLUGINLIB_EXPORT_CLASS(robot_controllers::ParallelGripperController, robot_controllers_interface::Controller)
 
 namespace robot_controllers
 {
 
-int ParallelGripperController::init(ros::NodeHandle& nh, ControllerManager* manager)
+using namespace std::placeholders;
+using robot_controllers_interface::get_safe_topic_name;
+using robot_controllers_interface::to_sec;
+
+int ParallelGripperController::init(const std::string& name,
+                                    rclcpp::Node::SharedPtr node,
+                                    robot_controllers_interface::ControllerManagerPtr manager)
 {
   // We absolutely need access to the controller manager
   if (!manager)
   {
-    initialized_ = false;
+    server_.reset();
     return -1;
   }
 
-  Controller::init(nh, manager);
+  Controller::init(name, node, manager);
+  node_ = node;
   manager_ = manager;
 
-  // Setup Joints */
-  std::string l_name, r_name;
-  nh.param<std::string>("l_gripper_joint", l_name, "l_gripper_finger_joint");
-  nh.param<std::string>("r_gripper_joint", r_name, "r_gripper_finger_joint");
+  // Get parameters
+  max_position_ = node_->declare_parameter<double>(name + ".max_position", 0.1);
+  max_effort_ = node_->declare_parameter<double>(name + ".max_effort", 10.0);
+  std::string l_name = node_->declare_parameter<std::string>(name + ".l_gripper_joint", "l_gripper_finger_joint");
+  std::string r_name = node_->declare_parameter<std::string>(name + ".r_gripper_joint", "r_gripper_finger_joint");
+  use_centering_controller_ = node_->declare_parameter<bool>(name + ".use_centering", false);
 
+  // Setup joints
   left_ = manager_->getJointHandle(l_name);
   right_ = manager_->getJointHandle(r_name);
 
   // Checking to see if Joint Handles exists
   if (!left_)
   {
-    ROS_ERROR_NAMED("ParallelGripperController",
-                    "Unable to retreive joint (%s), Namespace: %s/l_gripper_joint",
-                    l_name.c_str(), nh.getNamespace().c_str());
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Unable to retrieve joint (%s), Namespace: %s/l_gripper_joint",
+                 l_name.c_str(), name.c_str());
     return -1;  
   }
   
   if (!right_)
   {
-    ROS_ERROR_NAMED("ParallelGripperController",
-                    "Unable to retreive joint (%s), Namespace: %s/r_gripper_joint",
-                    r_name.c_str(), nh.getNamespace().c_str());
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Unable to retrieve joint (%s), Namespace: %s/r_gripper_joint",
+                 r_name.c_str(), name.c_str());
     return -1;
   } 
 
+  // Timer to publish feedback
+  publish_timer_ = node->create_wall_timer(std::chrono::milliseconds(20),
+                     std::bind(&ParallelGripperController::publishCallback, this));
+
   // Start action server
-  server_.reset(new server_t(nh, "",
-                boost::bind(&ParallelGripperController::executeCb, this, _1),
-                false));
-  server_->start();
-
-  // Get Params
-  nh.param<double>("max_position", max_position_, 0.1);
-  nh.param<double>("max_effort", max_effort_, 10.0);
-
-  // PID controller for centering the gripper
-  if (centering_pid_.init(ros::NodeHandle(nh, "centering")))
-  {
-    use_centering_controller_ = true;
-  }
+  active_goal_.reset();
+  server_ = rclcpp_action::create_server<GripperCommandAction>(
+    node_->get_node_base_interface(),
+    node_->get_node_clock_interface(),
+    node_->get_node_logging_interface(),
+    node_->get_node_waitables_interface(),
+    robot_controllers_interface::get_safe_topic_name(name),
+    std::bind(&ParallelGripperController::handle_goal, this, _1, _2),
+    std::bind(&ParallelGripperController::handle_cancel, this, _1),
+    std::bind(&ParallelGripperController::handle_accepted, this, _1)
+  );
 
   // Set default to max
   goal_ = max_position_;
   effort_ = max_effort_;
 
-  initialized_ = true;
   return 0;
 }
 
 bool ParallelGripperController::start()
 {
-  if (!initialized_)
+  if (!server_)
   {
-    ROS_ERROR_NAMED("ParallelGripperController",
-                    "Unable to start, not initialized.");
+    // No logger available yet
     return false;
   }
 
-  if (!server_->isActive())
+  if (!active_goal_)
   {
-    ROS_ERROR_NAMED("ParallelGripperController",
-                    "Unable to start, action server is not active.");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Unable to start, action server has no goal.");
     return false;
   }
 
@@ -125,15 +135,23 @@ bool ParallelGripperController::start()
 
 bool ParallelGripperController::stop(bool force)
 {
-  if (!initialized_)
+  if (!server_)
     return true;
 
-  if (server_->isActive())
+  if (active_goal_)
   {
     if (force)
     {
       // Shut down the action
-      server_->setPreempted();
+      auto result = std::make_shared<GripperCommandAction::Result>();
+      result->position = feedback_->position;
+      result->effort = feedback_->effort;
+      result->reached_goal = false;
+      result->stalled = false;
+      RCLCPP_DEBUG(rclcpp::get_logger(getName()),
+                   "Goal preempted.");
+      active_goal_->abort(result);
+      active_goal_.reset();
       return true;
     }
 
@@ -151,9 +169,9 @@ bool ParallelGripperController::reset()
   return true;
 }
 
-void ParallelGripperController::update(const ros::Time& now, const ros::Duration& dt)
+void ParallelGripperController::update(const rclcpp::Time& now, const rclcpp::Duration& dt)
 {
-  if (!initialized_)
+  if (!server_)
     return;
 
   if (use_centering_controller_)
@@ -165,7 +183,7 @@ void ParallelGripperController::update(const ros::Time& now, const ros::Duration
       effort = -effort;
     }
 
-    double offset = centering_pid_.update(left_->getPosition() - right_->getPosition(), dt.toSec());
+    double offset = centering_pid_.update(left_->getPosition() - right_->getPosition(), to_sec(dt));
 
     left_->setEffort(effort - offset);
     right_->setEffort(effort + offset);
@@ -175,26 +193,93 @@ void ParallelGripperController::update(const ros::Time& now, const ros::Duration
     left_->setPosition(goal_/2.0, 0, effort_);
     right_->setPosition(goal_/2.0, 0, effort_);
   }
+
+  feedback_->position = left_->getPosition() + right_->getPosition();
+  feedback_->effort = left_->getEffort() + right_->getEffort();
+  feedback_->reached_goal = false;
+  feedback_->stalled = false;
+
+  // Goal detection
+  if (fabs(feedback_->position - active_goal_->get_goal()->command.position) < 0.002)
+  {
+    auto result = std::make_shared<GripperCommandAction::Result>();
+    result->position = feedback_->position;
+    result->effort = feedback_->effort;
+    result->reached_goal = true;
+    result->stalled = false;
+    RCLCPP_DEBUG(rclcpp::get_logger(getName()),
+                 "Goal succeeded.");
+    active_goal_->succeed(result);
+    active_goal_.reset();
+    return;
+  }
+
+  // Stall detection
+  if (fabs(feedback_->position - last_position_) > 0.005)
+  {
+    last_position_ = feedback_->position;
+    last_position_time_ = node_->now();
+  }
+  else
+  {
+    if (node_->now() - last_position_time_ > rclcpp::Duration(2, 0))
+    {
+      auto result = std::make_shared<GripperCommandAction::Result>();
+      result->position = feedback_->position;
+      result->effort = feedback_->effort;
+      result->reached_goal = false;
+      result->stalled = true;
+      RCLCPP_DEBUG(rclcpp::get_logger(getName()),
+                   "ParallelGripperController sstalled, but succeeding.");
+      active_goal_->succeed(result);
+      active_goal_.reset();
+      return;
+    }
+  }
 }
 
-void ParallelGripperController::executeCb(const control_msgs::GripperCommandGoalConstPtr& goal)
+rclcpp_action::GoalResponse ParallelGripperController::handle_goal(
+    const rclcpp_action::GoalUUID & uuid,
+    std::shared_ptr<const GripperCommandAction::Goal> goal_handle)
 {
-  control_msgs::GripperCommandFeedback feedback;
-  control_msgs::GripperCommandResult result;
-
-  if (!initialized_)
+  if (!server_)
   {
-    server_->setAborted(result, "Controller is not initialized.");
-    return;
+    // Can't even log here - we aren't initialized
+    return rclcpp_action::GoalResponse::REJECT;
   }
 
-  if (manager_->requestStart(getName()) != 0)
+  return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+}
+
+rclcpp_action::CancelResponse ParallelGripperController::handle_cancel(
+    const std::shared_ptr<GripperCommandGoal> goal_handle)
+{
+  // Always accept
+  if (active_goal_ && active_goal_->get_goal_id() == goal_handle->get_goal_id())
   {
-    server_->setAborted(result, "Cannot execute, unable to start controller.");
-    ROS_ERROR_NAMED("ParallelGripperController",
-                    "Cannot execute, unable to start controller.");
-    return;
+    RCLCPP_INFO(rclcpp::get_logger(getName()),
+                "Goal cancelled.");
+    active_goal_.reset();
   }
+
+  return rclcpp_action::CancelResponse::ACCEPT;
+}
+
+void ParallelGripperController::handle_accepted(const std::shared_ptr<GripperCommandGoal> goal_handle)
+{
+  auto result = std::make_shared<GripperCommandAction::Result>();
+  feedback_ = std::make_shared<GripperCommandAction::Feedback>();
+
+  if (active_goal_)
+  {
+    // TODO: if rclcpp_action ever supports preempted, note it here
+    //       https://github.com/ros2/rclcpp/issues/1104
+    active_goal_->abort(result);
+    active_goal_.reset();
+    RCLCPP_INFO(node_->get_logger(), "ParallelGripper goal preempted.");
+  }
+
+  const auto goal = goal_handle->get_goal();
 
   // Effort of 0.0 means use max
   if (goal->command.max_effort <= 0.0 || goal->command.max_effort > max_effort_)
@@ -221,60 +306,29 @@ void ParallelGripperController::executeCb(const control_msgs::GripperCommandGoal
   }
 
   // Track position/time for stall detection
-  float last_position = left_->getPosition() + right_->getPosition();
-  ros::Time last_position_time = ros::Time::now();
+  last_position_time_ = node_->now();
+  // It's probably not safe to read joints in this thread
+  // valid position ranges from 0->max, so this will absolutely
+  // not trigger a stall detection on the next cycle.
+  last_position_ = -1.0;
 
-  ros::Rate r(50);
-  while (true)
+  active_goal_ = goal_handle;
+  if (manager_->requestStart(getName()) != 0)
   {
-    // Abort detection
-    if (server_->isPreemptRequested() || !ros::ok())
-    {
-      ROS_DEBUG_NAMED("ParallelGripperController", "Command preempted.");
-      server_->setPreempted();
-      break;
-    }
+    active_goal_->abort(result);
+    active_goal_.reset();
+    RCLCPP_ERROR(node_->get_logger(), "Cannot execute, unable to start controller.");
+    return;
+  }
 
-    // Publish feedback before possibly completing
-    feedback.position = left_->getPosition() + right_->getPosition();
-    feedback.effort = left_->getEffort() + right_->getEffort();
-    feedback.reached_goal = false;
-    feedback.stalled = false;
-    server_->publishFeedback(feedback);
+  RCLCPP_INFO(node_->get_logger(), "ParallelGripper goal started.");
+}
 
-    // Goal detection
-    if (fabs(feedback.position - goal->command.position) < 0.002)
-    {
-      result.position = feedback.position;
-      result.effort = feedback.effort;
-      result.reached_goal = true;
-      result.stalled = false;
-      ROS_DEBUG_NAMED("ParallelGripperController", "Command Succeeded.");
-      server_->setSucceeded(result);
-      return;
-    }
-
-    // Stall detection
-    if (fabs(feedback.position - last_position) > 0.005)
-    {
-      last_position = feedback.position;
-      last_position_time = ros::Time::now();
-    }
-    else
-    {
-      if (ros::Time::now() - last_position_time > ros::Duration(2.0))
-      {
-        result.position = feedback.position;
-        result.effort = feedback.effort;
-        result.reached_goal = false;
-        result.stalled = true;
-        ROS_DEBUG_NAMED("ParallelGripperController", "Gripper stalled, but succeeding.");
-        server_->setSucceeded(result);
-        return;
-      }
-    }
-
-    r.sleep();
+void ParallelGripperController::publishCallback()
+{
+  if (active_goal_)
+  {
+    active_goal_->publish_feedback(feedback_);
   }
 }
 

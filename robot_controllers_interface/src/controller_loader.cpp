@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2020, Michael Ferguson
  * Copyright (c) 2014-2017, Fetch Robotics Inc.
  * All rights reserved.
  *
@@ -28,38 +29,40 @@
 
 // Author: Michael Ferguson
 
+#include <rclcpp/logging.hpp>
 #include <robot_controllers_interface/controller_loader.h>
 
-namespace robot_controllers
+namespace robot_controllers_interface
 {
 
 ControllerLoader::ControllerLoader() :
-    plugin_loader_("robot_controllers", "robot_controllers::Controller"),
+    plugin_loader_("robot_controllers_interface", "robot_controllers_interface::Controller"),
     active_(false)
 {
 }
 
-bool ControllerLoader::init(const std::string& name, ControllerManager* manager)
+bool ControllerLoader::init(const std::string& name,
+                            std::shared_ptr<rclcpp::Node> node,
+                            std::shared_ptr<ControllerManager> manager)
 {
-  ros::NodeHandle nh(name);
-  std::string controller_type;
-
-  if (nh.getParam("type", controller_type))
+  std::string controller_type = node->declare_parameter<std::string>(name + ".type", "");
+  if (!controller_type.empty())
   {
     // If plugin is bad, catch pluginlib exception
     try
     {
-      controller_ = plugin_loader_.createInstance(controller_type);
-      controller_->init(nh, manager);
+      controller_ = plugin_loader_.createSharedInstance(controller_type);
+      controller_->init(name, node, manager);
     }
     catch (pluginlib::LibraryLoadException& e)
     {
-      ROS_ERROR_STREAM("Plugin error while loading controller: " << e.what());
+      RCLCPP_ERROR_STREAM(node->get_logger(), "Plugin error while loading controller: " << e.what());
       return false;
     }
     return true;
   }
-  ROS_ERROR_STREAM("Unable to load controller " << name.c_str());
+
+  RCLCPP_ERROR(node->get_logger(), "Unable to load controller ", name.c_str());
   return false;
 }
 
@@ -93,7 +96,7 @@ bool ControllerLoader::isActive()
   return active_;
 }
 
-void ControllerLoader::update(const ros::Time& time, const ros::Duration& dt)
+void ControllerLoader::update(const rclcpp::Time& time, const rclcpp::Duration& dt)
 {
   if (active_)
   {
@@ -106,4 +109,4 @@ ControllerPtr ControllerLoader::getController()
   return controller_;
 }
 
-}  // namespace robot_controllers
+}  // namespace robot_controllers_interface

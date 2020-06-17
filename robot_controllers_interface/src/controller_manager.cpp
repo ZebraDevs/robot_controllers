@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2020, Michael Ferguson
  * Copyright (c) 2014-2015, Fetch Robotics Inc.
  * All rights reserved.
  *
@@ -31,53 +32,40 @@
 #include <sstream>
 #include <robot_controllers_interface/controller_manager.h>
 
-namespace robot_controllers
+namespace robot_controllers_interface
 {
+
+using namespace std::placeholders;
 
 ControllerManager::ControllerManager()
 {
 }
 
-int ControllerManager::init(ros::NodeHandle& nh)
+int ControllerManager::init(std::shared_ptr<rclcpp::Node> node)
 {
-  // Find and load default controllers
-  XmlRpc::XmlRpcValue controller_params;
-  if (nh.getParam("default_controllers", controller_params))
-  {
-    if (controller_params.getType() != XmlRpc::XmlRpcValue::TypeArray)
-    {
-      ROS_ERROR_NAMED("ControllerManager", "Parameter 'default_controllers' should be a list.");
-      return -1;
-    }
-    else
-    {
-      // Load each controller
-      for (int c = 0; c < controller_params.size(); c++)
-      {
-        // Make sure name is valid
-        XmlRpc::XmlRpcValue &controller_name = controller_params[c];
-        if (controller_name.getType() != XmlRpc::XmlRpcValue::TypeString)
-        {
-          ROS_WARN_NAMED("ControllerManager", "Controller name is not a string?");
-          continue;
-        }
+  node_ = node;
 
-        // Create controller (in a loader)
-        load(static_cast<std::string>(controller_name));
-      }
-    }
-  }
-  else
+  // Find and load default controllers
+  std::vector<std::string> controller_names =
+    node_->declare_parameter<std::vector<std::string>>("default_controllers", std::vector<std::string>());
+  if (controller_names.empty())
   {
-    ROS_WARN_NAMED("ControllerManager", "No controllers loaded.");
+    RCLCPP_WARN(node_->get_logger(), "No controllers loaded.");
     return -1;
   }
 
+  // Load each controller
+  for (auto controller_name : controller_names)
+  {
+    RCLCPP_INFO(node->get_logger(), "Loading %s", controller_name.c_str());
+    load(controller_name);
+  }
+
   // Setup actionlib server
-  server_.reset(new ServerT(nh, "/query_controller_states",
-                             boost::bind(&ControllerManager::execute, this, _1),
-                             false));
-  server_->start();
+  server_ = node_->create_service<robot_controllers_msgs::srv::QueryControllerStates>(
+    "query_controller_states",
+    std::bind(&ControllerManager::callback, this, _1, _2)
+  );
 
   return 0;
 }
@@ -98,14 +86,14 @@ int ControllerManager::requestStart(const std::string& name)
   // Does controller exist?
   if (!controller)
   {
-    ROS_ERROR_STREAM_NAMED("ControllerManager", "Unable to start " << name.c_str() << ": no such controller.");
+    RCLCPP_ERROR_STREAM(node_->get_logger(), "Unable to start " << name.c_str() << ": no such controller.");
     return -1;
   }
 
   // Is controller already running?
   if (controller->isActive())
   {
-    ROS_DEBUG_STREAM_NAMED("ControllerManager", "Unable to start " << name.c_str() << ": already running.");
+    RCLCPP_DEBUG_STREAM(node_->get_logger(), "Unable to start " << name.c_str() << ": already running.");
     return 0;
   }
 
@@ -136,12 +124,12 @@ int ControllerManager::requestStart(const std::string& name)
     {
       if (c->stop(false))
       {
-        ROS_INFO_STREAM_NAMED("ControllerManager", "Stopped " << c->getController()->getName().c_str());
+        RCLCPP_INFO_STREAM(node_->get_logger(), "Stopped " << c->getController()->getName().c_str());
       }
       else
       {
         // Unable to stop c, cannot start controller
-        ROS_ERROR_STREAM_NAMED("ControllerManager", "Unable to stop " <<
+        RCLCPP_ERROR_STREAM(node_->get_logger(), "Unable to stop " <<
                                                     c->getController()->getName().c_str() <<
                                                     " when trying to start " << name.c_str());
         return -1;
@@ -152,7 +140,7 @@ int ControllerManager::requestStart(const std::string& name)
   // Start controller
   if (controller->start())
   {
-    ROS_INFO_STREAM_NAMED("ControllerManager", "Started " << controller->getController()->getName().c_str());
+    RCLCPP_INFO_STREAM(node_->get_logger(), "Started " << controller->getController()->getName().c_str());
     return 0;
   }
 
@@ -169,7 +157,7 @@ int ControllerManager::requestStop(const std::string& name)
       // Stop controller (with force)
       if (c->stop(true))
       {
-        ROS_INFO_STREAM_NAMED("ControllerManager", "Stopped " << c->getController()->getName().c_str());
+        RCLCPP_INFO_STREAM(node_->get_logger(), "Stopped " << c->getController()->getName().c_str());
         return 0;
       }
       else
@@ -181,7 +169,7 @@ int ControllerManager::requestStop(const std::string& name)
   return -1;  // no such controller
 }
 
-void ControllerManager::update(const ros::Time& time, const ros::Duration& dt)
+void ControllerManager::update(const rclcpp::Time& time, const rclcpp::Duration& dt)
 {
   // Reset handles
   for (const auto& joint_handle: joints_)
@@ -301,16 +289,12 @@ GyroHandlePtr ControllerManager::getGyroHandle(const std::string& name)
   return GyroHandlePtr();
 }
 
-void ControllerManager::execute(const robot_controllers_msgs::QueryControllerStatesGoalConstPtr& goal)
+void ControllerManager::callback(
+    const std::shared_ptr<robot_controllers_msgs::srv::QueryControllerStates::Request> request,
+    std::shared_ptr<robot_controllers_msgs::srv::QueryControllerStates::Response> response)
 {
-  robot_controllers_msgs::QueryControllerStatesFeedback feedback;
-  robot_controllers_msgs::QueryControllerStatesResult result;
-
-  for (size_t i = 0; i < goal->updates.size(); i++)
+  for (auto state : request->updates)
   {
-    // Update this controller
-    robot_controllers_msgs::ControllerState state = goal->updates[i];
-
     // Make sure controller exists
     bool in_controller_list = false;
     for (const auto& c: controllers_)
@@ -326,10 +310,10 @@ void ControllerManager::execute(const robot_controllers_msgs::QueryControllerSta
           }
           else
           {
-            std::stringstream ss;
-            ss << "Controller " << state.name << " is of type " << c->getController()->getType() << " not " << state.type;
-            getState(result);
-            server_->setAborted(result, ss.str());
+            RCLCPP_ERROR(node_->get_logger(), "Controller %s is of type %s not %s",
+                                              state.name,
+                                              c->getController()->getType(),
+                                              state.type);
             return;
           }
         }
@@ -339,26 +323,10 @@ void ControllerManager::execute(const robot_controllers_msgs::QueryControllerSta
     }
     if (!in_controller_list)
     {
-      // Check if controller exists on parameter server
-      ros::NodeHandle nh;
-      if (nh.hasParam(state.name))
-      { 
-        // Create controller (in a loader)
-        if (!load(static_cast<std::string>(state.name)))
-        {
-          std::stringstream ss;
-          ss << "Failed to load controller: " << state.name;
-          getState(result);
-          server_->setAborted(result, ss.str());
-          return;
-        }
-      }
-      else
+      // Create controller (in a loader)
+      if (!load(static_cast<std::string>(state.name)))
       {
-        std::stringstream ss;
-        ss << "No such controller to update: " << state.name;
-        getState(result);
-        server_->setAborted(result, ss.str());
+        RCLCPP_ERROR(node_->get_logger(), "Failed to load controller %s", state.name.c_str());
         return;
       }
     }
@@ -368,10 +336,7 @@ void ControllerManager::execute(const robot_controllers_msgs::QueryControllerSta
     {
       if (requestStop(state.name) != 0)
       {
-        std::stringstream ss;
-        ss << "Unable to stop " << state.name;
-        getState(result);
-        server_->setAborted(result, ss.str());
+        RCLCPP_ERROR(node_->get_logger(), "Unable to stop %s", state.name.c_str());
         return;
       }
     }
@@ -379,35 +344,30 @@ void ControllerManager::execute(const robot_controllers_msgs::QueryControllerSta
     {
       if (requestStart(state.name) != 0)
       {
-        std::stringstream ss;
-        ss << "Unable to start " << state.name;
-        getState(result);
-        server_->setAborted(result, ss.str());
+        RCLCPP_ERROR(node_->get_logger(), "Unable to start %s", state.name.c_str());
         return;
       }
     }
     else
     {
-      std::stringstream ss;
-      ss << "Invalid state for controller " << state.name << ": " << static_cast<int>(state.state);
-      getState(result);
-      server_->setAborted(result, ss.str());
+      RCLCPP_ERROR(node_->get_logger(), "Invalid state for controller %s: %d",
+                                        state.name,
+                                        static_cast<int>(state.state));
       return;
     }
   }
 
   // Send result
-  getState(result);
-  server_->setSucceeded(result);
+  getState(response->state);
 }
 
 void ControllerManager::getState(
-    robot_controllers_msgs::QueryControllerStatesResult& result)
+    std::vector<robot_controllers_msgs::msg::ControllerState>& states)
 {
-  result.state.clear();
+  states.clear();
   for (auto& c: controllers_)
   {
-    robot_controllers_msgs::ControllerState state;
+    robot_controllers_msgs::msg::ControllerState state;
     state.name = c->getController()->getName();
     state.type = c->getController()->getType();
     if (c->isActive())
@@ -418,7 +378,7 @@ void ControllerManager::getState(
     {
       state.state = state.STOPPED;
     }
-    result.state.push_back(state);
+    states.push_back(state);
   }
 }
 
@@ -430,7 +390,7 @@ bool ControllerManager::load(const std::string& name)
   // Push back controller (so that autostart will work)
   controllers_.push_back(controller);
   // Now initialize controller
-  if (!controller->init(name, this))
+  if (!controller->init(name, node_, shared_from_this()))
   {
     // Remove if init fails
     controllers_.pop_back();
@@ -439,4 +399,4 @@ bool ControllerManager::load(const std::string& name)
   return true;
 }
 
-}  // namespace robot_controllers
+}  // namespace robot_controllers_interface

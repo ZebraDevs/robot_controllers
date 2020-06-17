@@ -39,25 +39,32 @@
  * Author: Michael Ferguson, Wim Meeussen
  */
 
-#include <pluginlib/class_list_macros.h>
+#include <pluginlib/class_list_macros.hpp>
 #include <robot_controllers/cartesian_pose.h>
+#include <robot_controllers_interface/utils.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 #include <urdf/model.h>
 #include <kdl_parser/kdl_parser.hpp>
 
-#include <tf_conversions/tf_kdl.h>
-
-PLUGINLIB_EXPORT_CLASS(robot_controllers::CartesianPoseController, robot_controllers::Controller)
+PLUGINLIB_EXPORT_CLASS(robot_controllers::CartesianPoseController, robot_controllers_interface::Controller)
 
 namespace robot_controllers
 {
+
+using namespace std::placeholders;
+using robot_controllers_interface::declare_parameter_once;
+using robot_controllers_interface::get_safe_topic_name;
+using robot_controllers_interface::to_sec;
 
 CartesianPoseController::CartesianPoseController() :
     initialized_(false)
 {
 }
 
-int CartesianPoseController::init(ros::NodeHandle& nh, ControllerManager* manager)
+int CartesianPoseController::init(const std::string& name,
+                                  rclcpp::Node::SharedPtr node,
+                                  robot_controllers_interface::ControllerManagerPtr manager)
 {
   // We absolutely need access to the controller manager
   if (!manager)
@@ -66,19 +73,21 @@ int CartesianPoseController::init(ros::NodeHandle& nh, ControllerManager* manage
     return -1;
   }
 
-  Controller::init(nh, manager);
+  Controller::init(name, node, manager);
+  node_ = node;
   manager_ = manager;
 
   // Initialize KDL structures
-  std::string tip_link;
-  nh.param<std::string>("root_name", root_link_, "torso_lift_link");
-  nh.param<std::string>("tip_name", tip_link, "gripper_link");
+  root_link_ = node_->declare_parameter<std::string>(getName() + ".root", "torso_lift_link");
+  std::string tip = node_->declare_parameter<std::string>(getName() + ".tip", "wrist_roll_link");
 
   // Load URDF
   urdf::Model model;
-  if (!model.initParam("robot_description"))
+  std::string robot_description = declare_parameter_once<std::string>("robot_description", "", node);
+  if (!model.initString(robot_description))
   {
-    ROS_ERROR("Failed to parse URDF");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Failed to parse URDF");
     return -1;
   }
 
@@ -86,14 +95,16 @@ int CartesianPoseController::init(ros::NodeHandle& nh, ControllerManager* manage
   KDL::Tree kdl_tree;
   if (!kdl_parser::treeFromUrdfModel(model, kdl_tree))
   {
-    ROS_ERROR("Could not construct tree from URDF");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Could not construct tree from URDF");
     return -1;
   }
 
   // Populate the chain
-  if(!kdl_tree.getChain(root_link_, tip_link, kdl_chain_))
+  if(!kdl_tree.getChain(root_link_, tip, kdl_chain_))
   {
-    ROS_ERROR("Could not construct chain from URDF");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Could not construct chain from URDF");
     return -1;
   }
 
@@ -105,10 +116,10 @@ int CartesianPoseController::init(ros::NodeHandle& nh, ControllerManager* manage
 
   // Initialize controllers
   robot_controllers::PID pid_controller;
-  if (!pid_controller.init(ros::NodeHandle(nh,"fb_trans"))) return false;
+  if (!pid_controller.init(name + ".fb_trans", node_)) return false;
   for (unsigned int i = 0; i < 3; i++)
     pid_.push_back(pid_controller);
-  if (!pid_controller.init(ros::NodeHandle(nh,"fb_rot"))) return false;
+  if (!pid_controller.init(name + ".fb_rot", node_)) return false;
   for (unsigned int i = 0; i < 3; i++)
     pid_.push_back(pid_controller);
 
@@ -118,13 +129,19 @@ int CartesianPoseController::init(ros::NodeHandle& nh, ControllerManager* manage
     if (kdl_chain_.getSegment(i).getJoint().getType() != KDL::Joint::None)
       joints_.push_back(manager_->getJointHandle(kdl_chain_.getSegment(i).getJoint().getName()));
 
+  // Setup transform listener
+  tf_buffer_.reset(new tf2_ros::Buffer(node_->get_clock()));
+  tf_listener_.reset(new tf2_ros::TransformListener(*tf_buffer_));
+
   // Subscribe to command
-  command_sub_ = nh.subscribe<geometry_msgs::PoseStamped>("command", 1,
-                    boost::bind(&CartesianPoseController::command, this, _1));
-  last_command_ = ros::Time(0);
+  std::string topic_name = get_safe_topic_name(name) + "/command";
+  command_sub_ = node_->create_subscription<geometry_msgs::msg::PoseStamped>(topic_name, 1,
+                    std::bind(&CartesianPoseController::command, this, _1));
+  last_command_ = node_->now();
 
   // Feedback of twist
-  feedback_pub_ = nh.advertise<geometry_msgs::Twist>("feedback", 10);
+  topic_name = get_safe_topic_name(name) + "/feedback";
+  feedback_pub_ = node->create_publisher<geometry_msgs::msg::TwistStamped>(topic_name, 10);
 
   initialized_ = true;
   return 0;
@@ -134,15 +151,15 @@ bool CartesianPoseController::start()
 {
   if (!initialized_)
   {
-    ROS_ERROR_NAMED("CartesianPoseController",
-                    "Unable to start, not initialized.");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Unable to start, not initialized.");
     return false;
   }
 
-  if (ros::Time::now() - last_command_ > ros::Duration(3.0))
+  if (node_->now() - last_command_ > rclcpp::Duration(3, 0))
   {
-    ROS_ERROR_NAMED("CartesianPoseController",
-                    "Unable to start, no goal.");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Unable to start, no goal.");
     return false;
   }
 
@@ -161,7 +178,7 @@ bool CartesianPoseController::reset()
   return (manager_->requestStop(getName()) == 0);
 }
 
-void CartesianPoseController::update(const ros::Time& now, const ros::Duration& dt)
+void CartesianPoseController::update(const rclcpp::Time& now, const rclcpp::Duration& dt)
 {
   // Need to initialize KDL structs
   if (!initialized_)
@@ -172,18 +189,19 @@ void CartesianPoseController::update(const ros::Time& now, const ros::Duration& 
 
   // Pose feedback
   twist_error_ = KDL::diff(actual_pose_, desired_pose_);
-  geometry_msgs::Twist t;
-  t.linear.x = twist_error_(0);
-  t.linear.y = twist_error_(1);
-  t.linear.z = twist_error_(2);
-  t.angular.x = twist_error_(3);
-  t.angular.y = twist_error_(4);
-  t.angular.z = twist_error_(5);
-  feedback_pub_.publish(t);
+  geometry_msgs::msg::TwistStamped t;
+  t.header.stamp = now;
+  t.twist.linear.x = twist_error_(0);
+  t.twist.linear.y = twist_error_(1);
+  t.twist.linear.z = twist_error_(2);
+  t.twist.angular.x = twist_error_(3);
+  t.twist.angular.y = twist_error_(4);
+  t.twist.angular.z = twist_error_(5);
+  feedback_pub_->publish(t);
 
   // Update PID
   for (size_t i = 0; i < 6; ++i)
-    twist_error_(i) = pid_[i].update(twist_error_(i), dt.toSec());
+    twist_error_(i) = pid_[i].update(twist_error_(i), to_sec(dt));
 
   // Get jacobian
   jac_solver_->JntToJac(jnt_pos_, jacobian_);
@@ -212,38 +230,45 @@ KDL::Frame CartesianPoseController::getPose()
   return result;
 }
 
-void CartesianPoseController::command(const geometry_msgs::PoseStamped::ConstPtr& goal)
+void CartesianPoseController::command(const geometry_msgs::msg::PoseStamped::SharedPtr goal)
 {
   // Need to initialize KDL structs
   if (!initialized_)
   {
-    ROS_ERROR("CartesianPoseController: Cannot accept goal, controller is not initialized.");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Cannot accept goal, controller is not initialized.");
     return;
   }
 
-  // Need transform
-  if (!tf_.waitForTransform(goal->header.frame_id, root_link_,
-                            goal->header.stamp, ros::Duration(0.1)))
+  try
   {
-    ROS_ERROR_STREAM("CartesianPoseController: Unable to transform goal to " << root_link_ << ".");
+    geometry_msgs::msg::PoseStamped ps;
+    tf_buffer_->transform(*goal, ps, root_link_);
+    desired_pose_ = KDL::Frame(KDL::Rotation::Quaternion(ps.pose.orientation.x,
+                                                         ps.pose.orientation.y,
+                                                         ps.pose.orientation.z,
+                                                         ps.pose.orientation.w),
+                               KDL::Vector(ps.pose.position.x,
+                                           ps.pose.position.y,
+                                           ps.pose.position.z));
+  }
+  catch (const tf2::TransformException& ex)
+  {
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Could not transform goal.");
     return;
   }
 
   // Update last command time before trying to start controller
-  last_command_ = ros::Time::now();
+  last_command_ = node_->now();
 
   // Try to start up
   if (manager_->requestStart(getName()) != 0)
   {
-    ROS_ERROR("CartesianPoseController: Cannot start, blocked by another controller.");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Cannot start, blocked by another controller.");
     return;
   }
-
-  tf::Stamped<tf::Pose> stamped;
-  tf::poseStampedMsgToTF(*goal, stamped);
-
-  tf_.transformPose(root_link_, stamped, stamped);
-  tf::poseTFToKDL(stamped, desired_pose_);
 }
 
 std::vector<std::string> CartesianPoseController::getCommandedNames()

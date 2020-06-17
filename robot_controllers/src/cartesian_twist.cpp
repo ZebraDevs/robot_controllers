@@ -39,25 +39,32 @@
  * Author: Michael Ferguson, Wim Meeussen, Hanjun Song
  */
 
-#include <pluginlib/class_list_macros.h>
+#include <pluginlib/class_list_macros.hpp>
 #include <robot_controllers/cartesian_twist.h>
+#include <robot_controllers_interface/utils.h>
 
 #include <urdf/model.h>
 #include <kdl_parser/kdl_parser.hpp>
 
-#include <tf_conversions/tf_kdl.h>
-
-PLUGINLIB_EXPORT_CLASS(robot_controllers::CartesianTwistController, robot_controllers::Controller)
+PLUGINLIB_EXPORT_CLASS(robot_controllers::CartesianTwistController, robot_controllers_interface::Controller)
 
 namespace robot_controllers
 {
+
+using namespace std::placeholders;
+using robot_controllers_interface::declare_parameter_once;
+using robot_controllers_interface::get_safe_topic_name;
+using robot_controllers_interface::to_sec;
+
 CartesianTwistController::CartesianTwistController() :
   initialized_(false),
   is_active_(false)
 {
 }
 
-int CartesianTwistController::init(ros::NodeHandle& nh, ControllerManager* manager)
+int CartesianTwistController::init(const std::string& name,
+                                   rclcpp::Node::SharedPtr node,
+                                   robot_controllers_interface::ControllerManagerPtr manager)
 {
   // We absolutely need access to the controller manager
   if (!manager)
@@ -66,19 +73,21 @@ int CartesianTwistController::init(ros::NodeHandle& nh, ControllerManager* manag
     return -1;
   }
 
-  Controller::init(nh, manager);
+  Controller::init(name, node, manager);
+  node_ = node;
   manager_ = manager;
 
   // Initialize KDL structures
-  std::string tip_link, root_link;
-  nh.param<std::string>("root_name", root_link, "torso_lift_link");
-  nh.param<std::string>("tip_name", tip_link, "wrist_roll_link");
+  std::string root = node_->declare_parameter<std::string>(getName() + ".root", "torso_lift_link");
+  std::string tip = node_->declare_parameter<std::string>(getName() + ".tip", "wrist_roll_link");
 
   // Load URDF
   urdf::Model model;
-  if (!model.initParam("robot_description"))
+  std::string robot_description = declare_parameter_once<std::string>("robot_description", "", node);
+  if (!model.initString(robot_description))
   {
-    ROS_ERROR("Failed to parse URDF");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Failed to parse URDF");
     return -1;
   }
 
@@ -86,14 +95,16 @@ int CartesianTwistController::init(ros::NodeHandle& nh, ControllerManager* manag
   KDL::Tree kdl_tree;
   if (!kdl_parser::treeFromUrdfModel(model, kdl_tree))
   {
-    ROS_ERROR("Could not construct tree from URDF");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Could not construct tree from URDF");
     return -1;
   }
 
   // Populate the Chain
-  if (!kdl_tree.getChain(root_link, tip_link, kdl_chain_))
+  if (!kdl_tree.getChain(root, tip, kdl_chain_))
   {
-    ROS_ERROR("Could not construct chain from URDF");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Could not construct chain from URDF");
     return -1;
   }
 
@@ -112,7 +123,8 @@ int CartesianTwistController::init(ros::NodeHandle& nh, ControllerManager* manag
 
   if (joints_.size() != num_joints)
   {
-    ROS_ERROR("Inconsistant joint count %d, %d", num_joints, int(joints_.size()));
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Inconsistant joint count %d, %d", num_joints, int(joints_.size()));
     return -1;
   }
 
@@ -122,9 +134,10 @@ int CartesianTwistController::init(ros::NodeHandle& nh, ControllerManager* manag
   }
 
   // Subscribe to command
-  command_sub_ = nh.subscribe<geometry_msgs::TwistStamped>("command", 1,
-                    boost::bind(&CartesianTwistController::command, this, _1));
-  last_command_time_ = ros::Time(0);
+  std::string topic_name = get_safe_topic_name(name) + "/command";
+  command_sub_ = node_->create_subscription<geometry_msgs::msg::TwistStamped>(topic_name, 1,
+                    std::bind(&CartesianTwistController::command, this, _1));
+  last_command_time_ = node_->now();
 
   initialized_ = true;
   return 0;
@@ -134,8 +147,8 @@ bool CartesianTwistController::start()
 {
   if (!initialized_)
   {
-    ROS_ERROR_NAMED("CartesianTwistController",
-                    "Unable to start, not initialized.");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Unable to start, not initialized.");
     is_active_ = false;
     return false;
   }
@@ -161,7 +174,7 @@ bool CartesianTwistController::reset()
   return (manager_->requestStop(getName()) == 0);
 }
 
-void CartesianTwistController::update(const ros::Time& now, const ros::Duration& dt)
+void CartesianTwistController::update(const rclcpp::Time& now, const rclcpp::Duration& dt)
 {
   // Need to initialize KDL structs
   if (!initialized_)
@@ -170,20 +183,21 @@ void CartesianTwistController::update(const ros::Time& now, const ros::Duration&
   KDL::Frame cart_pose;
   // Copy desired twist and update time to local var to reduce lock contention
   KDL::Twist twist;
-  ros::Time last_command_time;
+  rclcpp::Time last_command_time;
   {
-    boost::mutex::scoped_lock lock(mutex_);
+    std::lock_guard<std::mutex> lock(mutex_);
     // FK is used to transform the twist command seen from end-effector frame to the one seen from body frame.
     if (fksolver_->JntToCart(tgt_jnt_pos_, cart_pose) < 0)
     {
       twist.Zero();
-      ROS_ERROR_THROTTLE(1.0, "FKsolver solver failed");
+      RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                   "CartesianTwistController: FKsolver solver failed");
     }
     else
     {
       if (twist_command_frame_ == "end_effector_frame")
       {
-        twist = cart_pose.M*twist_command_;
+        twist = cart_pose.M * twist_command_;
       }
       else
       {
@@ -195,7 +209,7 @@ void CartesianTwistController::update(const ros::Time& now, const ros::Duration&
 
   unsigned num_joints = joints_.size();
 
-  if ((now - last_command_time) > ros::Duration(0.5))
+  if ((now - last_command_time) > rclcpp::Duration(0, 5e8))
   {
     manager_->requestStop(getName());
   }
@@ -225,7 +239,8 @@ void CartesianTwistController::update(const ros::Time& now, const ros::Duration&
     {
       tgt_jnt_vel_(ii) *= scale;
     }
-    ROS_DEBUG_THROTTLE(1.0, "Joint velocity limit reached.");
+    RCLCPP_DEBUG(rclcpp::get_logger(getName()),
+                 "Joint velocity limit reached.");
   }
 
   // Make sure solver didn't generate any NaNs. 
@@ -233,7 +248,8 @@ void CartesianTwistController::update(const ros::Time& now, const ros::Duration&
   {
     if (!std::isfinite(tgt_jnt_vel_(ii)))
     {
-      ROS_ERROR_THROTTLE(1.0, "Target joint velocity (%d) is not finite : %f", ii, tgt_jnt_vel_(ii));
+      RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                   "Target joint velocity (%d) is not finite : %f", ii, tgt_jnt_vel_(ii));
       tgt_jnt_vel_(ii) = 1.0;
     }
   }
@@ -242,7 +258,7 @@ void CartesianTwistController::update(const ros::Time& now, const ros::Duration&
   // somewhere between previous and current value
   scale = 1.0;
   double accel_limit = 1.0;
-  double vel_delta_limit = accel_limit * dt.toSec();
+  double vel_delta_limit = accel_limit * to_sec(dt);
   for (unsigned ii = 0; ii < num_joints; ++ii)
   {
     double vel_delta = std::abs(tgt_jnt_vel_(ii) - last_tgt_jnt_vel_(ii));
@@ -254,7 +270,8 @@ void CartesianTwistController::update(const ros::Time& now, const ros::Duration&
 
   if (scale <= 0.0)
   {
-    ROS_ERROR_THROTTLE(1.0, "CartesianTwistController: acceleration limit produces non-positive scale %f", scale);
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Acceleration limit produces non-positive scale %f", scale);
     scale = 0.0;
   }
 
@@ -267,7 +284,7 @@ void CartesianTwistController::update(const ros::Time& now, const ros::Duration&
   }
 
   // Calculate new target position of joint.  Put target position a few timesteps into the future
-  double dt_sec = dt.toSec();
+  double dt_sec = to_sec(dt);
   for (unsigned ii = 0; ii < num_joints; ++ii)
   {
     tgt_jnt_pos_(ii) += tgt_jnt_vel_(ii) * dt_sec;
@@ -297,12 +314,13 @@ void CartesianTwistController::update(const ros::Time& now, const ros::Duration&
   }
 }
 
-void CartesianTwistController::command(const geometry_msgs::TwistStamped::ConstPtr& goal)
+void CartesianTwistController::command(const geometry_msgs::msg::TwistStamped::SharedPtr goal)
 {
   // Need to initialize KDL structs
   if (!initialized_)
   {
-    ROS_ERROR("CartesianTwistController: Cannot accept goal, controller is not initialized.");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Cannot accept goal, controller is not initialized.");
     return;
   }
 
@@ -324,23 +342,26 @@ void CartesianTwistController::command(const geometry_msgs::TwistStamped::ConstP
   {
     if (!std::isfinite(twist(ii)))
     {
-      ROS_ERROR_THROTTLE(1.0, "Twist command value (%d) is not finite : %f", ii, twist(ii));
+      RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                   "Twist command value (%d) is not finite : %f", ii, twist(ii));
       twist(ii) = 0.0;
     }
   }
 
-  ros::Time now(ros::Time::now());
+  rclcpp::Time now = node_->now();
 
   {
-    boost::mutex::scoped_lock lock(mutex_);
+    std::lock_guard<std::mutex> lock(mutex_);
     twist_command_frame_ = goal->header.frame_id;
     twist_command_ = twist;
     last_command_time_ = now;
   }
+
   // Try to start up
   if (!is_active_ && manager_->requestStart(getName()) != 0)
   {
-    ROS_ERROR("CartesianTwistController: Cannot start, blocked by another controller.");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Cannot start, blocked by another controller.");
     return;
   }
 }

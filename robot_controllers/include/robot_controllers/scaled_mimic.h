@@ -40,12 +40,10 @@
 #include <string>
 #include <vector>
 
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 #include <robot_controllers_interface/controller.h>
 #include <robot_controllers_interface/joint_handle.h>
 #include <robot_controllers_interface/controller_manager.h>
-#include <control_msgs/GripperCommandAction.h>
-#include <actionlib/server/simple_action_server.h>
 
 namespace robot_controllers
 {
@@ -55,9 +53,8 @@ namespace robot_controllers
  *        Primary design use case is making a fake bellows joint that moves
  *        in relation to a torso lift joint.
  */
-class ScaledMimicController : public Controller
+class ScaledMimicController : public robot_controllers_interface::Controller
 {
-  typedef actionlib::SimpleActionServer<control_msgs::GripperCommandAction> server_t;
 
 public:
   ScaledMimicController() : initialized_(false) {}
@@ -70,7 +67,9 @@ public:
    *        controller to get information about joints, etc.
    * @returns 0 if succesfully configured, negative values are error codes.
    */
-  virtual int init(ros::NodeHandle& nh, ControllerManager* manager);
+  virtual int init(const std::string& name,
+                   rclcpp::Node::SharedPtr node,
+                   robot_controllers_interface::ControllerManagerPtr manager);
 
   /**
    * @brief Attempt to start the controller. This should be called only by the
@@ -101,7 +100,7 @@ public:
    * @param time The system time.
    * @param dt The timestep since last call to update.
    */
-  virtual void update(const ros::Time& now, const ros::Duration& dt);
+  virtual void update(const rclcpp::Time& now, const rclcpp::Duration& dt);
 
   /** @brief Get the type of this controller. */
   virtual std::string getType()
@@ -117,8 +116,8 @@ public:
 
 private:
   bool initialized_;
-  JointHandlePtr joint_to_mimic_;
-  JointHandlePtr joint_to_control_;
+  robot_controllers_interface::JointHandlePtr joint_to_mimic_;
+  robot_controllers_interface::JointHandlePtr joint_to_control_;
   double scale_;
 };
 

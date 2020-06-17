@@ -42,27 +42,26 @@
 #ifndef ROBOT_CONTROLLERS_CARTESIAN_WRENCH_H
 #define ROBOT_CONTROLLERS_CARTESIAN_WRENCH_H
 
+#include <memory>
 #include <string>
 #include <vector>
-#include <boost/shared_ptr.hpp>
 
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 #include <robot_controllers_interface/controller.h>
 #include <robot_controllers_interface/joint_handle.h>
 #include <robot_controllers_interface/controller_manager.h>
-#include <geometry_msgs/Wrench.h>
+#include <geometry_msgs/msg/wrench.hpp>
 
 #include <kdl/chain.hpp>
 #include <kdl/chainjnttojacsolver.hpp>
 #include <kdl/frames.hpp>
 
-#include <tf/transform_datatypes.h>
-#include <tf/transform_listener.h>
+#include <tf2_ros/transform_listener.h>
 
 namespace robot_controllers
 {
 
-class CartesianWrenchController : public Controller
+class CartesianWrenchController : public robot_controllers_interface::Controller
 {
 public:
   CartesianWrenchController();
@@ -75,7 +74,9 @@ public:
    *        controller to get information about joints, etc.
    * @returns 0 if succesfully configured, negative values are error codes.
    */
-  virtual int init(ros::NodeHandle& nh, ControllerManager* manager);
+  virtual int init(const std::string& name,
+                   rclcpp::Node::SharedPtr node,
+                   robot_controllers_interface::ControllerManagerPtr manager);
 
   /**
    * @brief Attempt to start the controller. This should be called only by the
@@ -106,7 +107,7 @@ public:
    * @param time The system time.
    * @param dt The timestep since last call to update.
    */
-  virtual void update(const ros::Time& now, const ros::Duration& dt);
+  virtual void update(const rclcpp::Time& now, const rclcpp::Duration& dt);
 
   /** @brief Get the type of this controller. */
   virtual std::string getType()
@@ -121,31 +122,32 @@ public:
   virtual std::vector<std::string> getClaimedNames();
 
   /** @brief Controller command. */
-  void command(const geometry_msgs::Wrench::ConstPtr& goal);
+  void command(const geometry_msgs::msg::Wrench::SharedPtr goal);
 
 private:
   void updateJoints();
 
   bool initialized_;
-  ControllerManager* manager_;
+  rclcpp::Node::SharedPtr node_;
+  robot_controllers_interface::ControllerManagerPtr manager_;
 
   bool enabled_;
   std::string root_link_;
-  ros::Time last_command_;
+  rclcpp::Time last_command_;
 
   KDL::Wrench desired_wrench_;
 
   KDL::Chain kdl_chain_;
-  boost::shared_ptr<KDL::ChainJntToJacSolver> jac_solver_;
+  std::shared_ptr<KDL::ChainJntToJacSolver> jac_solver_;
   KDL::JntArray jnt_pos_;
   KDL::JntArray jnt_eff_;
   KDL::Jacobian jacobian_;
 
-  ros::Publisher feedback_pub_;
-  ros::Subscriber command_sub_;
+  rclcpp::Subscription<geometry_msgs::msg::Wrench>::SharedPtr command_sub_;
 
-  tf::TransformListener tf_;
-  std::vector<JointHandlePtr> joints_;
+  std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
+  std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+  std::vector<robot_controllers_interface::JointHandlePtr> joints_;
 };
 
 }  // namespace robot_controllers

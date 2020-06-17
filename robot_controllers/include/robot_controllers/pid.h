@@ -37,7 +37,7 @@
 #ifndef ROBOT_CONTROLLERS_PID_H
 #define ROBOT_CONTROLLERS_PID_H
 
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 
 namespace robot_controllers
 {
@@ -59,7 +59,8 @@ public:
   PID();
 
   /** @brief initialize gain settings from ROS parameter values */
-  bool init(const ros::NodeHandle &nh);
+  bool init(const std::string& name,
+            rclcpp::Node::SharedPtr node);
 
   /** @brief Reset integral wind-up term */
   void reset();
@@ -105,6 +106,8 @@ protected:
 
   /// Last error value, used for calculating error_dot when not provided
   double error_last_;
+
+  rclcpp::Node::SharedPtr node_;
 };
 
 }  // namespace robot_controllers

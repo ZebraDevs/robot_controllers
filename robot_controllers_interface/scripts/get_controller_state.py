@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Copyright (c) 2015, Fetch Robotics Inc.
 # All rights reserved.
@@ -29,35 +29,42 @@
 # Author: Michael Ferguson
 
 import sys
-import rospy
-import actionlib
-from actionlib_msgs.msg import GoalStatus
-from robot_controllers_msgs.msg import QueryControllerStatesAction, \
-                                       QueryControllerStatesGoal, \
-                                       ControllerState
 
-ACTION_NAME = "/query_controller_states"
+import rclpy
+from rclpy.node import Node
+
+from robot_controllers_msgs.srv import QueryControllerStates
+
+
+class MinimalClientAsync(Node):
+
+    def __init__(self):
+        super().__init__("get_controller_state")
+        self.client = self.create_client(QueryControllerStates, "query_controller_states")
+        while not self.client.wait_for_service(timeout_sec=1.0):
+            print('query_controller_states not available, waiting again...')
+
+    def send_request(self):
+        self.req = QueryControllerStates.Request()
+        self.future = self.client.call_async(self.req)
+
 
 if __name__ == "__main__":
-    rospy.init_node("get_robot_controllers_state")
+    rclpy.init()
 
-    rospy.loginfo("Connecting to %s..." % ACTION_NAME)
-    client = actionlib.SimpleActionClient(ACTION_NAME, QueryControllerStatesAction)
-    client.wait_for_server()
+    client = MinimalClientAsync()
+    print("Requesting state of controllers...")
+    client.send_request()
 
-    rospy.loginfo("Requesting state of controllers...")
-
-    goal = QueryControllerStatesGoal()
-    client.send_goal(goal)
-    client.wait_for_result()
-    if client.get_state() == GoalStatus.SUCCEEDED:
-        result = client.get_result()
-        for state in result.state:
-            if state.state == state.RUNNING:
-                print("%s[%s]: RUNNING" % (state.name, state.type))
-            elif state.state == state.STOPPED:
-                print("%s[%s]: STOPPED" % (state.name, state.type))
-            elif state.state == state.ERROR:
-                print("%s[%s]: ERROR!!" % (state.name, state.type))
-    elif client.get_state() == GoalStatus.ABORTED:
-        rospy.logerr(client.get_goal_status_text())
+    while rclpy.ok():
+        rclpy.spin_once(client)
+        if client.future.done():
+            response = client.future.result()
+            for state in response.state:
+                if state.state == state.RUNNING:
+                    print(" RUNNING %s [%s]" % (state.name, state.type))
+                elif state.state == state.STOPPED:
+                    print(" STOPPED %s [%s]" % (state.name, state.type))
+                elif state.state == state.ERROR:
+                    print("  ERROR  %s [%s]" % (state.name, state.type))
+            break

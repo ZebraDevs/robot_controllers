@@ -32,9 +32,9 @@
 #define ROBOT_CONTROLLERS_INTERFACE_HANDLE_H
 
 #include <string>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 
-namespace robot_controllers
+namespace robot_controllers_interface
 {
 
 /**
@@ -61,8 +61,8 @@ private:
   Handle& operator=(const Handle&);
 };
 
-typedef boost::shared_ptr<Handle> HandlePtr;
+using HandlePtr = std::shared_ptr<Handle>;
 
-}  // namespace robot_controllers
+}  // namespace robot_controllers_interface
 
 #endif  // ROBOT_CONTROLLERS_INTERFACE_HANDLE_H

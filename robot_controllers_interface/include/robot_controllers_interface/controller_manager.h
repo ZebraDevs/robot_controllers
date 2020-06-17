@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2020, Michael Ferguson
  * Copyright (c) 2014-2020, Fetch Robotics Inc.
  * All rights reserved.
  *
@@ -31,25 +32,23 @@
 #ifndef ROBOT_CONTROLLERS_INTERFACE_CONTROLLER_MANAGER_H
 #define ROBOT_CONTROLLERS_INTERFACE_CONTROLLER_MANAGER_H
 
+#include <memory>
 #include <string>
-#include <ros/ros.h>
-#include <actionlib/server/simple_action_server.h>
+#include <rclcpp/rclcpp.hpp>
 
-#include <robot_controllers_msgs/QueryControllerStatesAction.h>
+#include <robot_controllers_msgs/srv/query_controller_states.hpp>
 
 #include <robot_controllers_interface/joint_handle.h>
 #include <robot_controllers_interface/gyro_handle.h>
 #include <robot_controllers_interface/controller.h>
 #include <robot_controllers_interface/controller_loader.h>
 
-namespace robot_controllers
+namespace robot_controllers_interface
 {
 
 /** @brief Base class for a controller manager. */
-class ControllerManager
+class ControllerManager : public std::enable_shared_from_this<ControllerManager>
 {
-  using ServerT = actionlib::SimpleActionServer<robot_controllers_msgs::QueryControllerStatesAction>;
-
   using ControllerList = std::vector<ControllerLoaderPtr>;
   using JointHandleList = std::vector<JointHandlePtr> ;
   using GyroHandleList = std::vector<GyroHandlePtr>;
@@ -69,7 +68,7 @@ public:
    *
    * Note: JointHandles should be added before this is called.
    */
-  virtual int init(ros::NodeHandle& nh);
+  virtual int init(std::shared_ptr<rclcpp::Node> node);
 
   /** @brief Start a controller. */
   virtual int requestStart(const std::string& name);
@@ -78,7 +77,7 @@ public:
   virtual int requestStop(const std::string& name);
 
   /** @brief Update active controllers. */
-  virtual void update(const ros::Time& time, const ros::Duration& dt);
+  virtual void update(const rclcpp::Time& time, const rclcpp::Duration& dt);
 
   /** @brief Reset all controllers. */
   virtual void reset();
@@ -112,11 +111,13 @@ public:
   GyroHandlePtr getGyroHandle(const std::string& name);
 
 private:
-  /** @brief Action callback. */
-  void execute(const robot_controllers_msgs::QueryControllerStatesGoalConstPtr& goal);
+  /** @brief Service callback */
+  void callback(
+    const std::shared_ptr<robot_controllers_msgs::srv::QueryControllerStates::Request> request,
+    std::shared_ptr<robot_controllers_msgs::srv::QueryControllerStates::Response> response);
 
   /** @brief Fill in the current state of controllers. */
-  void getState(robot_controllers_msgs::QueryControllerStatesResult& result);
+  void getState(std::vector<robot_controllers_msgs::msg::ControllerState>& states);
 
   /** @brief Load a controller. */
   bool load(const std::string& name);
@@ -125,9 +126,12 @@ private:
   JointHandleList joints_;
   GyroHandleList gyros_;
 
-  boost::shared_ptr<ServerT> server_;
+  rclcpp::Node::SharedPtr node_;
+  rclcpp::Service<robot_controllers_msgs::srv::QueryControllerStates>::SharedPtr server_;
 };
 
-}  // namespace robot_controllers
+using ControllerManagerPtr = std::shared_ptr<ControllerManager>;
+
+}  // namespace robot_controllers_interface
 
 #endif  // ROBOT_CONTROLLERS_INTERFACE_CONTROLLER_MANAGER_H

@@ -39,23 +39,30 @@
  * Author: Michael Ferguson, Wim Meeussen
  */
 
-#include <pluginlib/class_list_macros.h>
+#include <pluginlib/class_list_macros.hpp>
 #include <robot_controllers/cartesian_wrench.h>
+#include <robot_controllers_interface/utils.h>
 
 #include <urdf/model.h>
 #include <kdl_parser/kdl_parser.hpp>
 
-PLUGINLIB_EXPORT_CLASS(robot_controllers::CartesianWrenchController, robot_controllers::Controller)
+PLUGINLIB_EXPORT_CLASS(robot_controllers::CartesianWrenchController, robot_controllers_interface::Controller)
 
 namespace robot_controllers
 {
+
+using namespace std::placeholders;
+using robot_controllers_interface::declare_parameter_once;
+using robot_controllers_interface::get_safe_topic_name;
 
 CartesianWrenchController::CartesianWrenchController() :
     initialized_(false)
 {
 }
 
-int CartesianWrenchController::init(ros::NodeHandle& nh, ControllerManager* manager)
+int CartesianWrenchController::init(const std::string& name,
+                                    rclcpp::Node::SharedPtr node,
+                                    robot_controllers_interface::ControllerManagerPtr manager)
 {
   // We absolutely need access to the controller manager
   if (!manager)
@@ -64,19 +71,21 @@ int CartesianWrenchController::init(ros::NodeHandle& nh, ControllerManager* mana
     return -1;
   }
 
-  Controller::init(nh, manager);
+  Controller::init(name, node, manager);
+  node_ = node;
   manager_ = manager;
 
   // Initialize KDL structures
-  std::string tip_link;
-  nh.param<std::string>("root_name", root_link_, "torso_lift_link");
-  nh.param<std::string>("tip_name", tip_link, "gripper_link");
+  root_link_ = node_->declare_parameter<std::string>(getName() + ".root", "torso_lift_link");
+  std::string tip = node_->declare_parameter<std::string>(getName() + ".tip", "wrist_roll_link");
 
   // Load URDF
   urdf::Model model;
-  if (!model.initParam("robot_description"))
+  std::string robot_description = declare_parameter_once<std::string>("robot_description", "", node);
+  if (!model.initString(robot_description))
   {
-    ROS_ERROR("Failed to parse URDF");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Failed to parse URDF");
     return -1;
   }
 
@@ -84,14 +93,16 @@ int CartesianWrenchController::init(ros::NodeHandle& nh, ControllerManager* mana
   KDL::Tree kdl_tree;
   if (!kdl_parser::treeFromUrdfModel(model, kdl_tree))
   {
-    ROS_ERROR("Could not construct tree from URDF");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Could not construct tree from URDF");
     return -1;
   }
 
   // Populate the chain
-  if(!kdl_tree.getChain(root_link_, tip_link, kdl_chain_))
+  if(!kdl_tree.getChain(root_link_, tip, kdl_chain_))
   {
-    ROS_ERROR("Could not construct chain from URDF");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Could not construct chain from URDF");
     return -1;
   }
 
@@ -107,9 +118,10 @@ int CartesianWrenchController::init(ros::NodeHandle& nh, ControllerManager* mana
       joints_.push_back(manager_->getJointHandle(kdl_chain_.getSegment(i).getJoint().getName()));
 
   // Subscribe to command
-  command_sub_ = nh.subscribe<geometry_msgs::Wrench>("command", 1,
-                    boost::bind(&CartesianWrenchController::command, this, _1));
-  last_command_ = ros::Time(0);
+  std::string topic_name = get_safe_topic_name(name) + "/command";
+  command_sub_ = node_->create_subscription<geometry_msgs::msg::Wrench>(topic_name, 1,
+                    std::bind(&CartesianWrenchController::command, this, _1));
+  last_command_ = node->now();
 
   initialized_ = true;
   return 0;
@@ -119,15 +131,15 @@ bool CartesianWrenchController::start()
 {
   if (!initialized_)
   {
-    ROS_ERROR_NAMED("CartesianWrenchController",
-                    "Unable to start, not initialized.");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Unable to start, not initialized.");
     return false;
   }
 
-  if (ros::Time::now() - last_command_ > ros::Duration(3.0))
+  if (node_->now() - last_command_ > rclcpp::Duration(3, 0))
   {
-    ROS_ERROR_NAMED("CartesianWrenchController",
-                    "Unable to start, no goal.");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Unable to start, no goal.");
     return false;
   }
 
@@ -145,13 +157,13 @@ bool CartesianWrenchController::reset()
   return (manager_->requestStop(getName()) == 0);
 }
 
-void CartesianWrenchController::update(const ros::Time& now, const ros::Duration& dt)
+void CartesianWrenchController::update(const rclcpp::Time& now, const rclcpp::Duration& dt)
 {
   // Need to initialize KDL structs
   if (!initialized_)
     return;
 
-  if (ros::Time::now() - last_command_ > ros::Duration(0.1))
+  if (now - last_command_ > rclcpp::Duration(0, 1e8))
   {
     // Command has timed out, shutdown
     manager_->requestStop(getName());
@@ -183,7 +195,7 @@ void CartesianWrenchController::updateJoints()
     jnt_pos_(i) = joints_[i]->getPosition();
 }
 
-void CartesianWrenchController::command(const geometry_msgs::Wrench::ConstPtr& goal)
+void CartesianWrenchController::command(const geometry_msgs::msg::Wrench::SharedPtr goal)
 {
   // Update command
   desired_wrench_.force(0) = goal->force.x;
@@ -194,12 +206,13 @@ void CartesianWrenchController::command(const geometry_msgs::Wrench::ConstPtr& g
   desired_wrench_.torque(2) = goal->torque.z;
 
   // Update last command time before trying to start controller
-  last_command_ = ros::Time::now();
+  last_command_ = node_->now();
 
   // Try to start up
   if (manager_->requestStart(getName()) != 0)
   {
-    ROS_ERROR("CartesianWrenchController: Cannot start, blocked by another controller.");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Cannot start, blocked by another controller.");
     return;
   }
 }

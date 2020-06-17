@@ -33,7 +33,7 @@
 
 #include <robot_controllers_interface/handle.h>
 
-namespace robot_controllers
+namespace robot_controllers_interface
 {
 
 /**
@@ -77,8 +77,8 @@ private:
   GyroHandle& operator=(const GyroHandle&);
 };
 
-using GyroHandlePtr = boost::shared_ptr<GyroHandle>;
+using GyroHandlePtr = std::shared_ptr<GyroHandle>;
 
-}  // namespace robot_controllers
+}  // namespace robot_controllers_interface
 
 #endif  // ROBOT_CONTROLLERS_INTERFACE_GYRO_HANDLE_H

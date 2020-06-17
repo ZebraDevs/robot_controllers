@@ -1,6 +1,7 @@
 /*********************************************************************
  *  Software License Agreement (BSD License)
  *
+ *  Copyright (c) 2020, Michael Ferguson
  *  Copyright (c) 2014-2015, Fetch Robotics Inc.
  *  Copyright (c) 2013, Unbounded Robotics Inc.
  *  All rights reserved.
@@ -35,85 +36,78 @@
 
 /* Author: Michael Ferguson */
 
-#include <pluginlib/class_list_macros.h>
+#include <pluginlib/class_list_macros.hpp>
+#include <robot_controllers_interface/utils.h>
 #include <robot_controllers/follow_joint_trajectory.h>
 
-using angles::shortest_angular_distance;
-
-PLUGINLIB_EXPORT_CLASS(robot_controllers::FollowJointTrajectoryController, robot_controllers::Controller)
+PLUGINLIB_EXPORT_CLASS(robot_controllers::FollowJointTrajectoryController, robot_controllers_interface::Controller)
 
 namespace robot_controllers
 {
 
-FollowJointTrajectoryController::FollowJointTrajectoryController() :
-    initialized_(false)
+using angles::shortest_angular_distance;
+using robot_controllers_interface::to_sec;
+using robot_controllers_interface::msg_to_sec;
+
+FollowJointTrajectoryController::FollowJointTrajectoryController()
 {
 }
 
-int FollowJointTrajectoryController::init(ros::NodeHandle& nh, ControllerManager* manager)
+int FollowJointTrajectoryController::init(
+    const std::string& name,
+    rclcpp::Node::SharedPtr node,
+    robot_controllers_interface::ControllerManagerPtr manager)
 {
+  using namespace std::placeholders;
+
   // We absolutely need access to the controller manager
   if (!manager)
   {
-    initialized_ = false;
+    server_.reset();
     return -1;
   }
 
-  Controller::init(nh, manager);
+  Controller::init(name, node, manager);
+  node_ = node;
   manager_ = manager;
 
   // No initial sampler
-  boost::mutex::scoped_lock lock(sampler_mutex_);
+  std::lock_guard<std::mutex> lock(sampler_mutex_);
   sampler_.reset();
-  preempted_ = false;
 
   // Get Joint Names
-  joint_names_.clear();
-  XmlRpc::XmlRpcValue names;
-  if (!nh.getParam("joints", names))
+  joint_names_ = node->declare_parameter<std::vector<std::string>>(name + ".joints", std::vector<std::string>());
+  if (joint_names_.empty())
   {
-    ROS_ERROR_STREAM("No joints given for " << nh.getNamespace());
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "No joints given for %s", name.c_str());
     return -1;
-  }
-  if (names.getType() != XmlRpc::XmlRpcValue::TypeArray)
-  {
-    ROS_ERROR_STREAM("Joints not in a list for " << nh.getNamespace());
-    return -1;
-  }
-  for (int i = 0; i < names.size(); ++i)
-  {
-    XmlRpc::XmlRpcValue &name_value = names[i];
-    if (name_value.getType() != XmlRpc::XmlRpcValue::TypeString)
-    {
-      ROS_ERROR_STREAM("Not all joint names are strings for " << nh.getNamespace());
-      return -1;
-    }
-    joint_names_.push_back(static_cast<std::string>(name_value));
   }
 
   // Get parameters
-  nh.param<bool>("stop_with_action", stop_with_action_, false);
-  nh.param<bool>("stop_on_path_violation", stop_on_path_violation_, false);
+  stop_with_action_ = node->declare_parameter<bool>(name + ".stop_with_action", false);
+  stop_on_path_violation_ = node->declare_parameter<bool>(name + ".stop_on_path_violation", false);
 
   // Get Joint Handles, setup feedback
   joints_.clear();
+  feedback_ = std::make_shared<FollowJointTrajectoryAction::Feedback>();
   for (size_t i = 0; i < joint_names_.size(); ++i)
   {
-    JointHandlePtr j = manager_->getJointHandle(joint_names_[i]);
-    feedback_.joint_names.push_back(j->getName());
+    robot_controllers_interface::JointHandlePtr j = manager_->getJointHandle(joint_names_[i]);
+    feedback_->joint_names.push_back(j->getName());
     joints_.push_back(j);
     continuous_.push_back(j->isContinuous());
   }
 
   // Update feedback
-  feedback_.desired.positions.resize(joints_.size());
-  feedback_.desired.velocities.resize(joints_.size());
-  feedback_.desired.accelerations.resize(joints_.size());
-  feedback_.actual.positions.resize(joints_.size());
-  feedback_.actual.velocities.resize(joints_.size());
-  feedback_.actual.effort.resize(joints_.size());
-  feedback_.error.positions.resize(joints_.size());
-  feedback_.error.velocities.resize(joints_.size());
+  feedback_->desired.positions.resize(joints_.size());
+  feedback_->desired.velocities.resize(joints_.size());
+  feedback_->desired.accelerations.resize(joints_.size());
+  feedback_->actual.positions.resize(joints_.size());
+  feedback_->actual.velocities.resize(joints_.size());
+  feedback_->actual.effort.resize(joints_.size());
+  feedback_->error.positions.resize(joints_.size());
+  feedback_->error.velocities.resize(joints_.size());
 
   // Update tolerances
   path_tolerance_.q.resize(joints_.size());
@@ -123,29 +117,38 @@ int FollowJointTrajectoryController::init(ros::NodeHandle& nh, ControllerManager
   goal_tolerance_.qd.resize(joints_.size());
   goal_tolerance_.qdd.resize(joints_.size());
 
-  // Setup ROS interfaces
-  server_.reset(new server_t(nh, "",
-                             boost::bind(&FollowJointTrajectoryController::executeCb, this, _1),
-                             false));
-  server_->start();
+  publish_timer_ = node->create_wall_timer(std::chrono::milliseconds(20),
+                     std::bind(&FollowJointTrajectoryController::publishCallback, this));
 
-  initialized_ = true;
+  // Setup actionlib server
+  active_goal_.reset();
+  server_ = rclcpp_action::create_server<FollowJointTrajectoryAction>(
+    node_->get_node_base_interface(),
+    node_->get_node_clock_interface(),
+    node_->get_node_logging_interface(),
+    node_->get_node_waitables_interface(),
+    robot_controllers_interface::get_safe_topic_name(name),
+    std::bind(&FollowJointTrajectoryController::handle_goal, this, _1, _2),
+    std::bind(&FollowJointTrajectoryController::handle_cancel, this, _1),
+    std::bind(&FollowJointTrajectoryController::handle_accepted, this, _1)
+  );
+
   return 0;
 }
 
 bool FollowJointTrajectoryController::start()
 {
-  if (!initialized_)
+  if (!server_)
   {
-    ROS_ERROR_NAMED("FollowJointTrajectoryController",
-                    "Unable to start, not initialized.");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Unable to start, action server not initialized.");
     return false;
   }
 
-  if (!server_->isActive())
+  if (!active_goal_)
   {
-    ROS_ERROR_NAMED("FollowJointTrajectoryController",
-                    "Unable to start, action server is not active.");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Unable to start, action server has no goal.");
     return false;
   }
 
@@ -154,16 +157,19 @@ bool FollowJointTrajectoryController::start()
 
 bool FollowJointTrajectoryController::stop(bool force)
 {
-  if (!initialized_)
+  if (!server_)
     return true;
 
-  if (server_->isActive())
+  if (active_goal_)
   {
     if (force)
     {
       // Shut down the action
-      control_msgs::FollowJointTrajectoryResult result;
-      server_->setAborted(result, "Controller manager forced preemption.");
+      auto result = std::make_shared<FollowJointTrajectoryAction::Result>();
+      result->error_code = result->GOAL_TOLERANCE_VIOLATED;
+      result->error_string = "Controller manager forced preemption.";
+      active_goal_->abort(result);
+      active_goal_.reset();
       return true;
     }
     // Do not abort unless forced
@@ -180,18 +186,18 @@ bool FollowJointTrajectoryController::reset()
   return (manager_->requestStop(getName()) == 0);
 }
 
-void FollowJointTrajectoryController::update(const ros::Time& now, const ros::Duration& dt)
+void FollowJointTrajectoryController::update(const rclcpp::Time& now, const rclcpp::Duration& dt)
 {
-  if (!initialized_)
+  if (!server_)
     return;
 
   // Is trajectory active?
-  if (server_->isActive() && sampler_)
+  if (active_goal_ && sampler_)
   {
-    boost::mutex::scoped_lock lock(sampler_mutex_);
+    std::lock_guard<std::mutex> lock(sampler_mutex_);
 
     // Interpolate trajectory
-    TrajectoryPoint p = sampler_->sample(now.toSec());
+    TrajectoryPoint p = sampler_->sample(to_sec(now));
     unwindTrajectoryPoint(continuous_, p);
     last_sample_ = p;
 
@@ -201,7 +207,7 @@ void FollowJointTrajectoryController::update(const ros::Time& now, const ros::Du
       // Position is good
       for (size_t i = 0; i < joints_.size(); ++i)
       {
-        feedback_.desired.positions[i] = p.q[i];
+        feedback_->desired.positions[i] = p.q[i];
       }
 
       if (p.qd.size() == joints_.size())
@@ -209,7 +215,7 @@ void FollowJointTrajectoryController::update(const ros::Time& now, const ros::Du
         // Velocity is good
         for (size_t i = 0; i < joints_.size(); ++i)
         {
-          feedback_.desired.velocities[i] = p.qd[i];
+          feedback_->desired.velocities[i] = p.qd[i];
         }
 
         if (p.qdd.size() == joints_.size())
@@ -217,7 +223,7 @@ void FollowJointTrajectoryController::update(const ros::Time& now, const ros::Du
           // Acceleration is good
           for (size_t i = 0; i < joints_.size(); ++i)
           {
-            feedback_.desired.accelerations[i] = p.qdd[i];
+            feedback_->desired.accelerations[i] = p.qdd[i];
           }
         }
       }
@@ -225,18 +231,18 @@ void FollowJointTrajectoryController::update(const ros::Time& now, const ros::Du
       // Fill in actual
       for (size_t j = 0; j < joints_.size(); ++j)
       {
-        feedback_.actual.positions[j] = joints_[j]->getPosition();
-        feedback_.actual.velocities[j] = joints_[j]->getVelocity();
-        feedback_.actual.effort[j] = joints_[j]->getEffort();
+        feedback_->actual.positions[j] = joints_[j]->getPosition();
+        feedback_->actual.velocities[j] = joints_[j]->getVelocity();
+        feedback_->actual.effort[j] = joints_[j]->getEffort();
       }
 
       // Fill in error
       for (size_t j = 0; j < joints_.size(); ++j)
       {
-        feedback_.error.positions[j] = shortest_angular_distance(feedback_.desired.positions[j],
-                                                                 feedback_.actual.positions[j]);
-        feedback_.error.velocities[j] = feedback_.actual.velocities[j] -
-                                        feedback_.desired.velocities[j];
+        feedback_->error.positions[j] = shortest_angular_distance(feedback_->desired.positions[j],
+                                                                 feedback_->actual.positions[j]);
+        feedback_->error.velocities[j] = feedback_->actual.velocities[j] -
+                                        feedback_->desired.velocities[j];
       }
 
       // Check that we are within path tolerance
@@ -245,12 +251,14 @@ void FollowJointTrajectoryController::update(const ros::Time& now, const ros::Du
         for (size_t j = 0; j < joints_.size(); ++j)
         {
           if ((path_tolerance_.q[j] > 0) &&
-              (fabs(feedback_.error.positions[j]) > path_tolerance_.q[j]))
+              (fabs(feedback_->error.positions[j]) > path_tolerance_.q[j]))
           {
-            control_msgs::FollowJointTrajectoryResult result;
-            result.error_code = control_msgs::FollowJointTrajectoryResult::PATH_TOLERANCE_VIOLATED;
-            server_->setAborted(result, "Trajectory path tolerances violated (position).");
-            ROS_ERROR("Trajectory path tolerances violated (position).");
+            auto result = std::make_shared<FollowJointTrajectoryAction::Result>();
+            result->error_code = result->PATH_TOLERANCE_VIOLATED;
+            active_goal_->abort(result);
+            active_goal_.reset();
+            RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                         "Trajectory path tolerances violated (position).");
             if (stop_on_path_violation_)
             {
               manager_->requestStop(getName());
@@ -259,12 +267,14 @@ void FollowJointTrajectoryController::update(const ros::Time& now, const ros::Du
           }
 
           if ((path_tolerance_.qd[j] > 0) &&
-              (fabs(feedback_.error.velocities[j]) > path_tolerance_.qd[j]))
+              (fabs(feedback_->error.velocities[j]) > path_tolerance_.qd[j]))
           {
-            control_msgs::FollowJointTrajectoryResult result;
-            result.error_code = control_msgs::FollowJointTrajectoryResult::PATH_TOLERANCE_VIOLATED;
-            server_->setAborted(result, "Trajectory path tolerances violated (velocity).");
-            ROS_ERROR("Trajectory path tolerances violated (velocity).");
+            auto result = std::make_shared<FollowJointTrajectoryAction::Result>();
+            result->error_code = result->PATH_TOLERANCE_VIOLATED;
+            active_goal_->abort(result);
+            active_goal_.reset();
+            RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                         "Trajectory path tolerances violated (velocity).");
             if (stop_on_path_violation_)
             {
               manager_->requestStop(getName());
@@ -275,13 +285,14 @@ void FollowJointTrajectoryController::update(const ros::Time& now, const ros::Du
       }
 
       // Check that we are within goal tolerance
-      if (now.toSec() >= sampler_->end_time())
+      double now_sec = to_sec(now);
+      if (now_sec >= sampler_->end_time())
       {
         bool inside_tolerances = true;
         for (size_t j = 0; j < joints_.size(); ++j)
         {
           if ((goal_tolerance_.q[j] > 0) &&
-              (fabs(feedback_.error.positions[j]) > goal_tolerance_.q[j]))
+              (fabs(feedback_->error.positions[j]) > goal_tolerance_.q[j]))
           {
             inside_tolerances = false;
           }
@@ -289,25 +300,31 @@ void FollowJointTrajectoryController::update(const ros::Time& now, const ros::Du
 
         if (inside_tolerances)
         {
-          control_msgs::FollowJointTrajectoryResult result;
-          result.error_code = control_msgs::FollowJointTrajectoryResult::SUCCESSFUL;
-          server_->setSucceeded(result, "Trajectory succeeded.");
-          ROS_DEBUG("Trajectory succeeded");
+          auto result = std::make_shared<FollowJointTrajectoryAction::Result>();
+          active_goal_->succeed(result);
+          active_goal_.reset();
+          // Stop this controller if desired (and not preempted)
+          if (stop_with_action_)
+            manager_->requestStop(getName());
+          RCLCPP_DEBUG(rclcpp::get_logger(getName()),
+                      "Trajectory succeeded");
         }
-        else if (now.toSec() > (sampler_->end_time() + goal_time_tolerance_ + 0.6))  // 0.6s matches PR2
+        else if (now_sec > (sampler_->end_time() + goal_time_tolerance_ + 0.6))  // 0.6s matches PR2
         {
-          control_msgs::FollowJointTrajectoryResult result;
-          result.error_code = control_msgs::FollowJointTrajectoryResult::GOAL_TOLERANCE_VIOLATED;
-          server_->setAborted(result, "Trajectory not executed within time limits.");
-          ROS_ERROR("Trajectory not executed within time limits");
+          auto result = std::make_shared<FollowJointTrajectoryAction::Result>();
+          result->error_code = result->GOAL_TOLERANCE_VIOLATED;
+          active_goal_->abort(result);
+          active_goal_.reset();
+          RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                       "Trajectory not executed within time limits");
         }
       }
 
       // Update joints
       for (size_t j = 0; j < joints_.size(); ++j)
       {
-        joints_[j]->setPosition(feedback_.desired.positions[j],
-                                feedback_.desired.velocities[j],
+        joints_[j]->setPosition(feedback_->desired.positions[j],
+                                feedback_->desired.velocities[j],
                                 0.0);
       }
     }
@@ -337,62 +354,107 @@ void FollowJointTrajectoryController::update(const ros::Time& now, const ros::Du
   }
 }
 
-/*
- * Specification is basically the message:
- * http://ros.org/doc/indigo/api/control_msgs/html/action/FollowJointTrajectory.html
- */
-void FollowJointTrajectoryController::executeCb(const control_msgs::FollowJointTrajectoryGoalConstPtr& goal)
+rclcpp_action::GoalResponse FollowJointTrajectoryController::handle_goal(
+    const rclcpp_action::GoalUUID & uuid,
+    std::shared_ptr<const FollowJointTrajectoryAction::Goal> goal_handle)
 {
-  control_msgs::FollowJointTrajectoryResult result;
-
-  if (!initialized_)
+  if (!server_)
   {
-    server_->setAborted(result, "Controller is not initialized.");
-    return;
+    // Can't even log here - we aren't initialized
+    return rclcpp_action::GoalResponse::REJECT;
   }
 
+  if (goal_handle->trajectory.joint_names.size() != joints_.size())
+  {
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Trajectory goal size does not match controlled joints size.");
+    return rclcpp_action::GoalResponse::REJECT;
+  }
+
+  return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+}
+
+rclcpp_action::CancelResponse FollowJointTrajectoryController::handle_cancel(
+    const std::shared_ptr<FollowJointTrajectoryGoal> goal_handle)
+{
+  // Always accept
+  if (active_goal_ && active_goal_->get_goal_id() == goal_handle->get_goal_id())
+  {
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Trajectory cancelled.");
+    auto result = std::make_shared<FollowJointTrajectoryAction::Result>();
+    active_goal_->canceled(result);
+    active_goal_.reset();
+    return rclcpp_action::CancelResponse::ACCEPT;
+  }
+
+  return rclcpp_action::CancelResponse::ACCEPT;
+}
+
+void FollowJointTrajectoryController::handle_accepted(const std::shared_ptr<FollowJointTrajectoryGoal> goal_handle)
+{
+  auto result = std::make_shared<FollowJointTrajectoryAction::Result>();
+
+  // This mutex also protects the active_goal_
+  std::lock_guard<std::mutex> lock(sampler_mutex_);
+
+  bool preempted = false;
+  if (active_goal_)
+  {
+    // TODO: if rclcpp_action ever supports preempted, note it here
+    //       https://github.com/ros2/rclcpp/issues/1104
+    result->error_code = -6;
+    result->error_string = "preempted";
+    active_goal_->abort(result);
+    active_goal_.reset();
+    RCLCPP_DEBUG(rclcpp::get_logger(getName()),
+                 "Trajectory preempted.");
+    preempted = true;
+  }
+
+  const auto goal = goal_handle->get_goal();
+  
   if (goal->trajectory.points.empty())
   {
     // Stop
     manager_->requestStop(getName());
-    return;
-  }
-
-  if (goal->trajectory.joint_names.size() != joints_.size())
-  {
-    result.error_code = control_msgs::FollowJointTrajectoryResult::INVALID_JOINTS;
-    server_->setAborted(result, "Trajectory goal size does not match controlled joints size.");
-    ROS_ERROR("Trajectory goal size does not match controlled joints size.");
+    result->error_code = result->SUCCESSFUL;
+    result->error_string = "Controller stopped";
+    goal_handle->succeed(result);
     return;
   }
 
   Trajectory new_trajectory;
   Trajectory executable_trajectory;
-  goal_time = goal->trajectory.header.stamp;
+  goal_time_ = goal->trajectory.header.stamp;
 
   // Make a trajectory from our message
-  if (!trajectoryFromMsg(goal->trajectory, joint_names_, &new_trajectory))
+  if (!trajectoryFromMsg(goal->trajectory, joint_names_, node_->now(), &new_trajectory))
   {
-    result.error_code = control_msgs::FollowJointTrajectoryResult::INVALID_JOINTS;
-    server_->setAborted(result, "Trajectory goal does not match controlled joints");
-    ROS_ERROR("Trajectory goal does not match controlled joints");
+    active_goal_.reset();
+    result->error_code = result->INVALID_JOINTS;
+    goal_handle->abort(result);
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Trajectory goal does not match controlled joints");
     return;
   }
 
-  // If preempted, need to splice on things together
-  if (preempted_)
+  // If we are preempting a trajectory, need to splice on things together
+  if (preempted)
   {
     // If the sampler had a large trajectory, we may just be cutting into it
     if (sampler_ && (sampler_->getTrajectory().size() > 2))
     {
       if (!spliceTrajectories(sampler_->getTrajectory(),
                               new_trajectory,
-                              ros::Time::now().toSec(),
+                              to_sec(node_->now()),
                               &executable_trajectory))
       {
-        result.error_code = control_msgs::FollowJointTrajectoryResult::INVALID_JOINTS;
-        server_->setAborted(result, "Unable to splice trajectory");
-        ROS_ERROR("Unable to splice trajectory");
+        active_goal_.reset();
+        result->error_code = result->INVALID_JOINTS;
+        goal_handle->abort(result);
+        RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                     "Unable to splice trajectory");
         return;
       }
     }
@@ -406,9 +468,10 @@ void FollowJointTrajectoryController::executeCb(const control_msgs::FollowJointT
                               0.0, /* take all points */
                               &executable_trajectory))
       {
-        result.error_code = control_msgs::FollowJointTrajectoryResult::INVALID_JOINTS;
-        server_->setAborted(result, "Unable to splice trajectory");
-        ROS_ERROR("Unable to splice trajectory");
+        active_goal_.reset();
+        result->error_code = result->INVALID_JOINTS;
+        goal_handle->abort(result);
+        RCLCPP_ERROR(rclcpp::get_logger(getName()), "Unable to splice trajectory");
         return;
       }
     }
@@ -422,8 +485,8 @@ void FollowJointTrajectoryController::executeCb(const control_msgs::FollowJointT
 
       // if this hasn't started yet or if the header stamp is in the future,
       // need to insert current position
-      if (goal->trajectory.points[0].time_from_start.toSec() > 0.0 ||
-          executable_trajectory.points[0].time > ros::Time::now().toSec())
+      if (msg_to_sec(goal->trajectory.points[0].time_from_start) > 0 ||
+          executable_trajectory.points[0].time > to_sec(node_->now()))
       {
         executable_trajectory.points.insert(
           executable_trajectory.points.begin(),
@@ -448,125 +511,115 @@ void FollowJointTrajectoryController::executeCb(const control_msgs::FollowJointT
 
   // Create trajectory sampler
   {
-    boost::mutex::scoped_lock lock(sampler_mutex_);
     sampler_.reset(new SplineTrajectorySampler(executable_trajectory));
-  }
 
-  // Convert the path tolerances into a more usable form
-  if (goal->path_tolerance.size() == joints_.size())
-  {
-    has_path_tolerance_ = true;
-    for (size_t j = 0; j < joints_.size(); ++j)
+    // Convert the path tolerances into a more usable form
+    if (goal->path_tolerance.size() == joints_.size())
     {
-      // Find corresponding indices between path_tolerance and joints
-      int index = -1;
-      for (size_t i = 0; i < goal->path_tolerance.size(); ++i)
+      has_path_tolerance_ = true;
+      for (size_t j = 0; j < joints_.size(); ++j)
       {
-        if (joints_[j]->getName() == goal->path_tolerance[i].name)
+        // Find corresponding indices between path_tolerance and joints
+        int index = -1;
+        for (size_t i = 0; i < goal->path_tolerance.size(); ++i)
         {
-          index = i;
-          break;
+          if (joints_[j]->getName() == goal->path_tolerance[i].name)
+          {
+            index = i;
+            break;
+          }
         }
-      }
-      if (index == -1)
-      {
-        // Every joint must have a tolerance and this one does not
-        result.error_code = control_msgs::FollowJointTrajectoryResult::INVALID_JOINTS;
-        server_->setAborted(result, "Unable to convert path tolerances");
-        ROS_ERROR("Unable to convert path tolerances");
-        return;
-      }
-      path_tolerance_.q[j] = goal->path_tolerance[index].position;
-      path_tolerance_.qd[j] = goal->path_tolerance[index].velocity;
-      path_tolerance_.qdd[j] = goal->path_tolerance[index].acceleration;
-    }
-  }
-  else
-  {
-    has_path_tolerance_ = false;
-  }
-
-  // Convert the goal tolerances into a more usable form
-  if (goal->goal_tolerance.size() == joints_.size())
-  {
-    for (size_t j = 0; j < joints_.size(); ++j)
-    {
-      // Find corresponding indices between goal_tolerance and joints
-      int index = -1;
-      for (size_t i = 0; i < goal->goal_tolerance.size(); ++i)
-      {
-        if (joints_[j]->getName() == goal->goal_tolerance[i].name)
+        if (index == -1)
         {
-          index = i;
-          break;
+          // Every joint must have a tolerance and this one does not
+          active_goal_.reset();
+          result->error_code = result->INVALID_JOINTS;
+          goal_handle->abort(result);
+          RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                       "Unable to convert path tolerances");
+          return;
         }
+        path_tolerance_.q[j] = goal->path_tolerance[index].position;
+        path_tolerance_.qd[j] = goal->path_tolerance[index].velocity;
+        path_tolerance_.qdd[j] = goal->path_tolerance[index].acceleration;
       }
-      if (index == -1)
-      {
-        // Every joint must have a tolerance and this one does not
-        result.error_code = control_msgs::FollowJointTrajectoryResult::INVALID_JOINTS;
-        server_->setAborted(result, "Unable to convert goal tolerances");
-        ROS_ERROR("Unable to convert goal tolerances");
-        return;
-      }
-      goal_tolerance_.q[j] = goal->goal_tolerance[index].position;
-      goal_tolerance_.qd[j] = goal->goal_tolerance[index].velocity;
-      goal_tolerance_.qdd[j] = goal->goal_tolerance[index].acceleration;
     }
-  }
-  else
-  {
-    // Set defaults
-    for (size_t j = 0; j < joints_.size(); ++j)
+    else
     {
-      goal_tolerance_.q[j] = 0.02;  // tolerance is same as PR2
-      goal_tolerance_.qd[j] = 0.02;
-      goal_tolerance_.qdd[j] = 0.02;
+      has_path_tolerance_ = false;
     }
-  }
-  goal_time_tolerance_ = goal->goal_time_tolerance.toSec();
 
-  ROS_DEBUG("Executing new trajectory");
+    // Convert the goal tolerances into a more usable form
+    if (goal->goal_tolerance.size() == joints_.size())
+    {
+      for (size_t j = 0; j < joints_.size(); ++j)
+      {
+        // Find corresponding indices between goal_tolerance and joints
+        int index = -1;
+        for (size_t i = 0; i < goal->goal_tolerance.size(); ++i)
+        {
+          if (joints_[j]->getName() == goal->goal_tolerance[i].name)
+          {
+            index = i;
+            break;
+          }
+        }
+        if (index == -1)
+        {
+          // Every joint must have a tolerance and this one does not
+          active_goal_.reset();
+          result->error_code = result->INVALID_JOINTS;
+          goal_handle->abort(result);
+          RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                       "Unable to convert goal tolerances");
+          return;
+        }
+        goal_tolerance_.q[j] = goal->goal_tolerance[index].position;
+        goal_tolerance_.qd[j] = goal->goal_tolerance[index].velocity;
+        goal_tolerance_.qdd[j] = goal->goal_tolerance[index].acceleration;
+      }
+    }
+    else
+    {
+      // Set defaults
+      for (size_t j = 0; j < joints_.size(); ++j)
+      {
+        goal_tolerance_.q[j] = 0.02;  // tolerance is same as PR2
+        goal_tolerance_.qd[j] = 0.02;
+        goal_tolerance_.qdd[j] = 0.02;
+      }
+    }
+    goal_time_tolerance_ = msg_to_sec(goal->goal_time_tolerance);
+
+    active_goal_ = goal_handle;
+  }
+
+  RCLCPP_DEBUG(rclcpp::get_logger(getName()),
+               "Executing new trajectory");
 
   if (manager_->requestStart(getName()) != 0)
   {
-    result.error_code = control_msgs::FollowJointTrajectoryResult::GOAL_TOLERANCE_VIOLATED;
-    server_->setAborted(result, "Cannot execute trajectory, unable to start controller.");
-    ROS_ERROR("Cannot execute trajectory, unable to start controller.");
+    active_goal_.reset();
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Cannot execute trajectory, unable to start controller.");
+    result->error_code = result->GOAL_TOLERANCE_VIOLATED;
+    goal_handle->abort(result);
     return;
   }
+}
 
-  preempted_ = false;
-  while (server_->isActive())
+void FollowJointTrajectoryController::publishCallback()
+{
+  if (active_goal_)
   {
-    if (server_->isPreemptRequested())
-    {
-      control_msgs::FollowJointTrajectoryResult result;
-      server_->setPreempted(result, "Trajectory preempted");
-      ROS_DEBUG("Trajectory preempted");
-      preempted_ = true;
-      break;
-    }
-
     // Publish feedback
-    feedback_.header.stamp = ros::Time::now();
-    feedback_.desired.time_from_start = feedback_.header.stamp - goal_time;
-    feedback_.actual.time_from_start = feedback_.header.stamp - goal_time;
-    feedback_.error.time_from_start = feedback_.header.stamp - goal_time;
-    server_->publishFeedback(feedback_);
-    ros::Duration(1/50.0).sleep();
+    rclcpp::Time now = node_->now();
+    feedback_->header.stamp = now;
+    feedback_->desired.time_from_start = now - goal_time_;
+    feedback_->actual.time_from_start = now - goal_time_;
+    feedback_->error.time_from_start = now - goal_time_;
+    active_goal_->publish_feedback(feedback_);
   }
-
-  {
-    boost::mutex::scoped_lock lock(sampler_mutex_);
-    sampler_.reset();
-  }
-
-  // Stop this controller if desired (and not preempted)
-  if (stop_with_action_ && !preempted_)
-    manager_->requestStop(getName());
-
-  ROS_DEBUG("Done executing trajectory");
 }
 
 TrajectoryPoint FollowJointTrajectoryController::getPointFromCurrent(
@@ -599,7 +652,7 @@ TrajectoryPoint FollowJointTrajectoryController::getPointFromCurrent(
       point.qdd[j] = 0.0;
   }
 
-  point.time = ros::Time::now().toSec();
+  point.time = to_sec(node_->now());
 
   return point;
 }

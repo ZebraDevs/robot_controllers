@@ -81,7 +81,6 @@ TEST(TrajectoryTests, test_unwind)
   EXPECT_EQ(-3.0,  t.points[2].q[1]);
   EXPECT_EQ(-3.0, t.points[2].q[2]);
 
-
   // Make sure we catch mis-sized vectors
   t.points[1].q.resize(2);
   EXPECT_FALSE(windupTrajectory(continuous, t));
