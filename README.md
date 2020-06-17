@@ -9,3 +9,33 @@ as is the case for Fetch and Freight.
 
  * Devel Job Status: [![Build Status](http://build.ros.org/buildStatus/icon?job=Mdev__robot_controllers__ubuntu_bionic_amd64)](http://build.ros.org/job/Mdev__robot_controllers__ubuntu_bionic_amd64/)
  * AMD64 Debian Job Status: [![Build Status](http://build.ros.org/buildStatus/icon?job=Mbin_uB64__robot_controllers__ubuntu_bionic_amd64__binary)](http://build.ros.org/view/Mbin_uB64/job/Mbin_uB64__robot_controllers__ubuntu_bionic_amd64__binary/)
+
+## ROS1 -> ROS2 Migration
+
+ * ControllerManager:
+   * The ControllerManager class is now part of the robot_controllers_interface namespace.
+   * The ControllerManager is now passed to controllers by std::shared_ptr. It therefore derives
+     from std::enable_shared_from_this. You MUST create your ControllerManager instance as a
+     shared pointer - we recommend using std::make_shared.
+   * The action query interface has been converted to a service interface. ROS2 allows asynchronous
+     services and so the overhead of an action interface is no longer warranted. See the scripts
+     in robot_controllers_interface package for examples of using this interface.
+ * Controllers:
+   * All controllers have migrated to using TF2.
+   * The CartesianPose controller now takes a a TwistStamped (previously, it used an unstamped
+     message).
+ * Custom controllers:
+   * The Controller class is now in the robot_controllers_interface namespace. This was a bug in
+     ROS1 which caused all custom controller packages to need a dependency on robot_controllers,
+     so we took the opportunity to fix that dependency in ROS2.
+   * The init() call signature has changed. The first parameter is now the string name of the
+     controller. This is due to the changes in namespacing in ROS2 and some existing bugs in
+     "subnodes". Simply pass this name string onto Controller::init() and everything will continue
+     working. The ros::NodeHandle has been replaced by a std::shared_ptr to the rclcpp::Node. Most
+     controllers will need to keep a reference to this Node in order to access time and logging.
+     The controller manager is now passed as a std::shared_ptr as well.
+   * The calls to update() now take rclcpp::Time and rclcpp::Duration instances.
+   * ROS2 time is very different from ROS1 time - more analogous to std::chrono than ROS1 time.
+     If your controllers used toSec() significantly, you will want to check out
+     robot_controllers_interface/utils.h which includes some functions to quickly convert
+     rclcpp::Time and Duration to and from floating-point seconds.
