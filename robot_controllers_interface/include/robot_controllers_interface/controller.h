@@ -29,15 +29,15 @@
 
 // Author: Michael Ferguson
 
-#ifndef ROBOT_CONTROLLERS_INTERFACE_CONTROLLER_H
-#define ROBOT_CONTROLLERS_INTERFACE_CONTROLLER_H
+#ifndef ROBOT_CONTROLLERS_INTERFACE__CONTROLLER_H_
+#define ROBOT_CONTROLLERS_INTERFACE__CONTROLLER_H_
 
 #include <memory>
 #include <string>
 #include <vector>
 
-#include <rclcpp/rclcpp.hpp>
-#include <robot_controllers_interface/handle.h>
+#include "rclcpp/rclcpp.hpp"
+#include "robot_controllers_interface/handle.h"
 
 /**
  * \mainpage
@@ -93,6 +93,9 @@ public:
                    std::shared_ptr<ControllerManager> manager)
   {
     name_ = name;
+    // Suppress downstream build warnings
+    (void) node;
+    (void) manager;
     return 0;
   }
 
@@ -153,4 +156,4 @@ using ControllerPtr = std::shared_ptr<Controller>;
 
 }  // namespace robot_controllers_interface
 
-#endif  // ROBOT_CONTROLLERS_INTERFACE_CONTROLLER_H
+#endif  // ROBOT_CONTROLLERS_INTERFACE__CONTROLLER_H_

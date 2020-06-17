@@ -29,8 +29,12 @@
 
 // Author: Michael Ferguson
 
+#include <memory>
+#include <string>
 #include <sstream>
-#include <robot_controllers_interface/controller_manager.h>
+#include <vector>
+
+#include "robot_controllers_interface/controller_manager.h"
 
 namespace robot_controllers_interface
 {
@@ -47,7 +51,8 @@ int ControllerManager::init(std::shared_ptr<rclcpp::Node> node)
 
   // Find and load default controllers
   std::vector<std::string> controller_names =
-    node_->declare_parameter<std::vector<std::string>>("default_controllers", std::vector<std::string>());
+    node_->declare_parameter<std::vector<std::string>>("default_controllers",
+                                                       std::vector<std::string>());
   if (controller_names.empty())
   {
     RCLCPP_WARN(node_->get_logger(), "No controllers loaded.");
@@ -74,7 +79,7 @@ int ControllerManager::requestStart(const std::string& name)
 {
   // Find requested controller
   ControllerLoaderPtr controller;
-  for (const auto& c: controllers_)
+  for (const auto& c : controllers_)
   {
     if (c->getController()->getName() == name)
     {
@@ -86,20 +91,22 @@ int ControllerManager::requestStart(const std::string& name)
   // Does controller exist?
   if (!controller)
   {
-    RCLCPP_ERROR_STREAM(node_->get_logger(), "Unable to start " << name.c_str() << ": no such controller.");
+    RCLCPP_ERROR_STREAM(node_->get_logger(), "Unable to start " <<
+                        name.c_str() << ": no such controller.");
     return -1;
   }
 
   // Is controller already running?
   if (controller->isActive())
   {
-    RCLCPP_DEBUG_STREAM(node_->get_logger(), "Unable to start " << name.c_str() << ": already running.");
+    RCLCPP_DEBUG_STREAM(node_->get_logger(), "Unable to start " <<
+                        name.c_str() << ": already running.");
     return 0;
   }
 
   // Check for conflicts
   std::vector<std::string> names = controller->getController()->getCommandedNames();
-  for (const auto& c: controllers_)
+  for (const auto& c : controllers_)
   {
     // Only care about active controllers
     if (!c->isActive())
@@ -124,14 +131,15 @@ int ControllerManager::requestStart(const std::string& name)
     {
       if (c->stop(false))
       {
-        RCLCPP_INFO_STREAM(node_->get_logger(), "Stopped " << c->getController()->getName().c_str());
+        RCLCPP_INFO_STREAM(node_->get_logger(), "Stopped " <<
+                           c->getController()->getName().c_str());
       }
       else
       {
         // Unable to stop c, cannot start controller
         RCLCPP_ERROR_STREAM(node_->get_logger(), "Unable to stop " <<
-                                                    c->getController()->getName().c_str() <<
-                                                    " when trying to start " << name.c_str());
+                            c->getController()->getName().c_str() <<
+                            " when trying to start " << name.c_str());
         return -1;
       }
     }
@@ -140,7 +148,8 @@ int ControllerManager::requestStart(const std::string& name)
   // Start controller
   if (controller->start())
   {
-    RCLCPP_INFO_STREAM(node_->get_logger(), "Started " << controller->getController()->getName().c_str());
+    RCLCPP_INFO_STREAM(node_->get_logger(), "Started " <<
+                       controller->getController()->getName().c_str());
     return 0;
   }
 
@@ -150,14 +159,15 @@ int ControllerManager::requestStart(const std::string& name)
 int ControllerManager::requestStop(const std::string& name)
 {
   // Find controller
-  for (const auto& c: controllers_)
+  for (const auto& c : controllers_)
   {
     if (c->getController()->getName() == name)
     {
       // Stop controller (with force)
       if (c->stop(true))
       {
-        RCLCPP_INFO_STREAM(node_->get_logger(), "Stopped " << c->getController()->getName().c_str());
+        RCLCPP_INFO_STREAM(node_->get_logger(), "Stopped " <<
+                           c->getController()->getName().c_str());
         return 0;
       }
       else
@@ -172,11 +182,11 @@ int ControllerManager::requestStop(const std::string& name)
 void ControllerManager::update(const rclcpp::Time& time, const rclcpp::Duration& dt)
 {
   // Reset handles
-  for (const auto& joint_handle: joints_)
+  for (const auto& joint_handle : joints_)
     joint_handle->reset();
 
   // Update controllers
-  for (const auto& c: controllers_)
+  for (const auto& c : controllers_)
   {
     c->update(time, dt);
   }
@@ -185,7 +195,7 @@ void ControllerManager::update(const rclcpp::Time& time, const rclcpp::Duration&
 void ControllerManager::reset()
 {
   // Update controllers
-  for (const auto& c: controllers_)
+  for (const auto& c : controllers_)
   {
     c->reset();
   }
@@ -199,12 +209,12 @@ bool ControllerManager::addJointHandle(JointHandlePtr& joint_handle_ptr)
   {
     return false;
   }
-  for (const auto& joint_handle: joints_)
+  for (const auto& joint_handle : joints_)
   {
     if (joint_handle->getName() == joint_handle_ptr->getName())
     return false;
   }
-  
+
   joints_.push_back(joint_handle_ptr);
   return true;
 }
@@ -217,7 +227,7 @@ bool ControllerManager::addGyroHandle(GyroHandlePtr gyro_handle_ptr)
   {
     return false;
   }
-  for (const auto& gyro_handle: gyros_)
+  for (const auto& gyro_handle : gyros_)
   {
     if (gyro_handle->getName() == gyro_handle_ptr->getName())
     return false;
@@ -230,7 +240,7 @@ bool ControllerManager::addGyroHandle(GyroHandlePtr gyro_handle_ptr)
 HandlePtr ControllerManager::getHandle(const std::string& name)
 {
   // Try joints first
-  for (const auto& j: joints_)
+  for (const auto& j : joints_)
   {
     if (j->getName() == name)
     {
@@ -239,7 +249,7 @@ HandlePtr ControllerManager::getHandle(const std::string& name)
   }
 
   // Then gyros
-  for (const auto& gyro_handle_pointer: gyros_)
+  for (const auto& gyro_handle_pointer : gyros_)
   {
     if (gyro_handle_pointer->getName() == name)
     {
@@ -248,7 +258,7 @@ HandlePtr ControllerManager::getHandle(const std::string& name)
   }
 
   // Then controllers
-  for (const auto& controller: controllers_)
+  for (const auto& controller : controllers_)
   {
     if (controller->getController()->getName() == name)
     {
@@ -263,7 +273,7 @@ HandlePtr ControllerManager::getHandle(const std::string& name)
 JointHandlePtr ControllerManager::getJointHandle(const std::string& name)
 {
   // Try joints first
-  for (const auto& j: joints_)
+  for (const auto& j : joints_)
   {
     if (j->getName() == name)
     {
@@ -297,7 +307,7 @@ void ControllerManager::callback(
   {
     // Make sure controller exists
     bool in_controller_list = false;
-    for (const auto& c: controllers_)
+    for (const auto& c : controllers_)
     {
       if (c->getController()->getName() == state.name)
       {
@@ -365,7 +375,7 @@ void ControllerManager::getState(
     std::vector<robot_controllers_msgs::msg::ControllerState>& states)
 {
   states.clear();
-  for (auto& c: controllers_)
+  for (auto& c : controllers_)
   {
     robot_controllers_msgs::msg::ControllerState state;
     state.name = c->getController()->getName();

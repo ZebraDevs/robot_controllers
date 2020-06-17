@@ -37,10 +37,12 @@
 // Portions are based on splines.h of arm_navigation
 // Author: Michael Ferguson, Mrinal Kalakrishnan (splines.h)
 
-#ifndef ROBOT_CONTROLLERS_TRAJECTORY_SPLINE_SAMPLER_H_
-#define ROBOT_CONTROLLERS_TRAJECTORY_SPLINE_SAMPLER_H_
+#ifndef ROBOT_CONTROLLERS__TRAJECTORY_SPLINE_SAMPLER_H_
+#define ROBOT_CONTROLLERS__TRAJECTORY_SPLINE_SAMPLER_H_
 
-#include <robot_controllers/trajectory.h>
+#include <vector>
+
+#include "robot_controllers/trajectory.h"
 
 namespace robot_controllers
 {
@@ -62,7 +64,7 @@ enum SplineType
 static inline void generatePowers(int n, double x, double* powers)
 {
   powers[0] = 1.0;
-  for (int i=1; i<=n; i++)
+  for (int i = 1; i <= n; ++i)
   {
     powers[i] = powers[i-1]*x;
   }
@@ -212,7 +214,7 @@ class SplineTrajectorySampler : public TrajectorySampler
 
 public:
   /** @brief Construct a trajectory sampler */
-  SplineTrajectorySampler(const Trajectory& trajectory) :
+  explicit SplineTrajectorySampler(const Trajectory& trajectory) :
     trajectory_(trajectory)
   {
     // Check for invalid trajectory size
@@ -296,7 +298,7 @@ public:
         else
         {
           result.q.resize(num_joints);
- 
+
           // Lame -- only positions do linear
           for (size_t j = 0; j < num_joints; ++j)
           {
@@ -316,7 +318,7 @@ public:
   virtual TrajectoryPoint sample(double time)
   {
     // Which segment to sample from.
-    while ((seg_ + 1 < int(segments_.size())) &&
+    while ((seg_ + 1 < static_cast<int>(segments_.size())) &&
            (segments_[seg_ + 1].start_time < time))
     {
       ++seg_;
@@ -375,4 +377,4 @@ private:
 
 }  // namespace robot_controllers
 
-#endif  // ROBOT_CONTROLLERS_TRAJECTORY_SPLINE_SAMPLER_H_
+#endif  // ROBOT_CONTROLLERS__TRAJECTORY_SPLINE_SAMPLER_H_

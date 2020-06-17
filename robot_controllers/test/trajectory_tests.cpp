@@ -28,8 +28,10 @@
 
 // Author: Michael Ferguson
 
-#include <gtest/gtest.h>
-#include <robot_controllers/trajectory.h>
+#include <vector>
+
+#include "gtest/gtest.h"
+#include "robot_controllers/trajectory.h"
 
 TEST(TrajectoryTests, test_unwind)
 {

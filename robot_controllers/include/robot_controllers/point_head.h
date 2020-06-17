@@ -36,26 +36,26 @@
 
 // Author: Michael Ferguson
 
-#ifndef ROBOT_CONTROLLERS_POINT_HEAD_H
-#define ROBOT_CONTROLLERS_POINT_HEAD_H
+#ifndef ROBOT_CONTROLLERS__POINT_HEAD_H_
+#define ROBOT_CONTROLLERS__POINT_HEAD_H_
 
 #include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
 
-#include <rclcpp/rclcpp.hpp>
-#include <rclcpp_action/rclcpp_action.hpp>
-#include <robot_controllers_interface/controller.h>
-#include <robot_controllers_interface/joint_handle.h>
-#include <robot_controllers_interface/controller_manager.h>
-#include <tf2_ros/transform_listener.h>
-#include <control_msgs/action/point_head.hpp>
+#include "rclcpp/rclcpp.hpp"
+#include "rclcpp_action/rclcpp_action.hpp"
+#include "robot_controllers_interface/controller.h"
+#include "robot_controllers_interface/joint_handle.h"
+#include "robot_controllers_interface/controller_manager.h"
+#include "tf2_ros/transform_listener.h"
+#include "control_msgs/action/point_head.hpp"
 
-#include <robot_controllers/trajectory.h>
-#include <robot_controllers/trajectory_spline_sampler.h>
+#include "robot_controllers/trajectory.h"
+#include "robot_controllers/trajectory_spline_sampler.h"
 
-#include <kdl/tree.hpp>
+#include "kdl/tree.hpp"
 
 namespace robot_controllers
 {
@@ -168,4 +168,4 @@ private:
 
 }  // namespace robot_controllers
 
-#endif  // ROBOT_CONTROLLERS_POINT_HEAD_H
+#endif  // ROBOT_CONTROLLERS__POINT_HEAD_H_

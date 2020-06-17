@@ -36,11 +36,17 @@
 
 // Author: Michael Ferguson
 
-#include <angles/angles.h>
-#include <pluginlib/class_list_macros.hpp>
-#include <robot_controllers/diff_drive_base.h>
+#include <algorithm>
+#include <memory>
+#include <string>
+#include <vector>
 
-PLUGINLIB_EXPORT_CLASS(robot_controllers::DiffDriveBaseController, robot_controllers_interface::Controller)
+#include "angles/angles.h"
+#include "pluginlib/class_list_macros.hpp"
+#include "robot_controllers/diff_drive_base.h"
+
+PLUGINLIB_EXPORT_CLASS(robot_controllers::DiffDriveBaseController,
+                       robot_controllers_interface::Controller)
 
 using std::placeholders::_1;
 
@@ -81,8 +87,10 @@ int DiffDriveBaseController::init(const std::string& name,
   manager_ = manager;
 
   // Initialize joints
-  std::string l_name = node->declare_parameter<std::string>(name + ".l_wheel_joint", "l_wheel_joint");
-  std::string r_name = node->declare_parameter<std::string>(name + ".r_wheel_joint", "r_wheel_joint");
+  std::string l_name = node->declare_parameter<std::string>(name + ".l_wheel_joint",
+                                                            "l_wheel_joint");
+  std::string r_name = node->declare_parameter<std::string>(name + ".r_wheel_joint",
+                                                            "r_wheel_joint");
   left_ = manager_->getJointHandle(l_name);
   right_ = manager_->getJointHandle(r_name);
   if (left_ == NULL || right_ == NULL)
@@ -112,7 +120,8 @@ int DiffDriveBaseController::init(const std::string& name,
   odom_.child_frame_id = node->declare_parameter<std::string>(name + ".base_frame", "base_link");
 
   // Get various thresholds below which we supress noise
-  wheel_rotating_threshold_ = node->declare_parameter<double>(name + ".wheel_rotating_threshold", 0.001);
+  wheel_rotating_threshold_ = node->declare_parameter<double>(name + ".wheel_rotating_threshold",
+                                                              0.001);
   rotating_threshold_ = node->declare_parameter<double>(name + ".rotating_threshold", 0.05);
   moving_threshold_ = node->declare_parameter<double>(name + ".moving_threshold", 0.05);
 
@@ -146,7 +155,6 @@ int DiffDriveBaseController::init(const std::string& name,
   {
     scan_sub_ = node->create_subscription<sensor_msgs::msg::LaserScan>("base_scan", 1,
                   std::bind(&DiffDriveBaseController::scanCallback, this, _1));
-
   }
 
   initialized_ = true;
@@ -249,7 +257,8 @@ void DiffDriveBaseController::update(const rclcpp::Time& now, const rclcpp::Dura
   {
     std::lock_guard<std::mutex> lock(command_mutex_);
     // Limit linear velocity based on obstacles
-    x = std::max(-max_velocity_x_ * safety_scaling_, std::min(desired_x_, max_velocity_x_ * safety_scaling_));
+    x = std::max(-max_velocity_x_ * safety_scaling_,
+                 std::min(desired_x_, max_velocity_x_ * safety_scaling_));
     // Compute how much we actually scaled the linear velocity
     double actual_scaling = 1.0;
     if (desired_x_ != 0.0)
@@ -291,10 +300,12 @@ void DiffDriveBaseController::update(const rclcpp::Time& now, const rclcpp::Dura
 
   double left_pos = left_->getPosition();
   double right_pos = right_->getPosition();
-  double left_dx = angles::shortest_angular_distance(left_last_position_, left_pos)/radians_per_meter_;
-  double right_dx = angles::shortest_angular_distance(right_last_position_, right_pos)/radians_per_meter_;
-  double left_vel = static_cast<double>(left_->getVelocity())/radians_per_meter_;
-  double right_vel = static_cast<double>(right_->getVelocity())/radians_per_meter_;
+  double left_dx = angles::shortest_angular_distance(left_last_position_, left_pos);
+  left_dx /= radians_per_meter_;
+  double right_dx = angles::shortest_angular_distance(right_last_position_, right_pos);
+  right_dx /= radians_per_meter_;
+  double left_vel = static_cast<double>(left_->getVelocity()) / radians_per_meter_;
+  double right_vel = static_cast<double>(right_->getVelocity()) / radians_per_meter_;
 
   // Threshold the odometry to avoid noise (especially in simulation)
   if (fabs(left_dx) > wheel_rotating_threshold_ ||

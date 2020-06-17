@@ -36,11 +36,15 @@
 
 /* Author: Michael Ferguson */
 
-#include <pluginlib/class_list_macros.hpp>
-#include <robot_controllers/gravity_compensation.h>
-#include <robot_controllers_interface/utils.h>
+#include <string>
+#include <vector>
 
-PLUGINLIB_EXPORT_CLASS(robot_controllers::GravityCompensation, robot_controllers_interface::Controller)
+#include "pluginlib/class_list_macros.hpp"
+#include "robot_controllers/gravity_compensation.h"
+#include "robot_controllers_interface/utils.h"
+
+PLUGINLIB_EXPORT_CLASS(robot_controllers::GravityCompensation,
+                       robot_controllers_interface::Controller)
 
 namespace robot_controllers
 {
@@ -56,7 +60,8 @@ int GravityCompensation::init(const std::string& name,
 
   // Load URDF
   urdf::Model model;
-  std::string robot_description = declare_parameter_once<std::string>("robot_description", "", node);
+  std::string robot_description = declare_parameter_once<std::string>("robot_description",
+                                                                      "", node);
   if (!model.initString(robot_description))
   {
     RCLCPP_ERROR(rclcpp::get_logger(getName()),
@@ -83,7 +88,7 @@ int GravityCompensation::init(const std::string& name,
     return -1;
   }
 
-  kdl_chain_dynamics_.reset(new KDL::ChainDynParam(kdl_chain_, KDL::Vector(0,0,-9.81)));
+  kdl_chain_dynamics_.reset(new KDL::ChainDynParam(kdl_chain_, KDL::Vector(0, 0, -9.81)));
 
   // Init positions
   positions_ = KDL::JntArrayVel(kdl_chain_.getNrOfJoints());
@@ -113,8 +118,11 @@ bool GravityCompensation::start()
   return true;
 }
 
-void GravityCompensation::update(const rclcpp::Time& time, const rclcpp::Duration& dt)
+void GravityCompensation::update(const rclcpp::Time& now, const rclcpp::Duration& dt)
 {
+  (void) now;
+  (void) dt;
+
   // Need to initialize KDL structs
   if (!initialized_)
     return;

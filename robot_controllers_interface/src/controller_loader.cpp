@@ -29,8 +29,11 @@
 
 // Author: Michael Ferguson
 
-#include <rclcpp/logging.hpp>
-#include <robot_controllers_interface/controller_loader.h>
+#include <memory>
+#include <string>
+
+#include "rclcpp/logging.hpp"
+#include "robot_controllers_interface/controller_loader.h"
 
 namespace robot_controllers_interface
 {
@@ -56,7 +59,8 @@ bool ControllerLoader::init(const std::string& name,
     }
     catch (pluginlib::LibraryLoadException& e)
     {
-      RCLCPP_ERROR_STREAM(node->get_logger(), "Plugin error while loading controller: " << e.what());
+      RCLCPP_ERROR_STREAM(node->get_logger(),
+                          "Plugin error while loading controller: " << e.what());
       return false;
     }
     return true;

@@ -23,6 +23,8 @@
   <depend>rclcpp</depend>
   <depend>rclcpp_action</depend>
 
+  <test_depend>ament_cmake_cpplint</test_depend>
+
   <export>
     <build_type>ament_cmake</build_type>
   </export>

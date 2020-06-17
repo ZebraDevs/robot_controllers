@@ -29,19 +29,19 @@
 
 // Author: Michael Ferguson
 
-#ifndef ROBOT_CONTROLLERS_INTERFACE_CONTROLLER_MANAGER_H
-#define ROBOT_CONTROLLERS_INTERFACE_CONTROLLER_MANAGER_H
+#ifndef ROBOT_CONTROLLERS_INTERFACE__CONTROLLER_MANAGER_H_
+#define ROBOT_CONTROLLERS_INTERFACE__CONTROLLER_MANAGER_H_
 
 #include <memory>
 #include <string>
-#include <rclcpp/rclcpp.hpp>
+#include <vector>
 
-#include <robot_controllers_msgs/srv/query_controller_states.hpp>
-
-#include <robot_controllers_interface/joint_handle.h>
-#include <robot_controllers_interface/gyro_handle.h>
-#include <robot_controllers_interface/controller.h>
-#include <robot_controllers_interface/controller_loader.h>
+#include "rclcpp/rclcpp.hpp"
+#include "robot_controllers_msgs/srv/query_controller_states.hpp"
+#include "robot_controllers_interface/joint_handle.h"
+#include "robot_controllers_interface/gyro_handle.h"
+#include "robot_controllers_interface/controller.h"
+#include "robot_controllers_interface/controller_loader.h"
 
 namespace robot_controllers_interface
 {
@@ -134,4 +134,4 @@ using ControllerManagerPtr = std::shared_ptr<ControllerManager>;
 
 }  // namespace robot_controllers_interface
 
-#endif  // ROBOT_CONTROLLERS_INTERFACE_CONTROLLER_MANAGER_H
+#endif  // ROBOT_CONTROLLERS_INTERFACE__CONTROLLER_MANAGER_H_

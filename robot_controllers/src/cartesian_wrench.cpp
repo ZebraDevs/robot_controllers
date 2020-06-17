@@ -39,14 +39,18 @@
  * Author: Michael Ferguson, Wim Meeussen
  */
 
-#include <pluginlib/class_list_macros.hpp>
-#include <robot_controllers/cartesian_wrench.h>
-#include <robot_controllers_interface/utils.h>
+#include <string>
+#include <vector>
 
-#include <urdf/model.h>
-#include <kdl_parser/kdl_parser.hpp>
+#include "pluginlib/class_list_macros.hpp"
+#include "robot_controllers/cartesian_wrench.h"
+#include "robot_controllers_interface/utils.h"
 
-PLUGINLIB_EXPORT_CLASS(robot_controllers::CartesianWrenchController, robot_controllers_interface::Controller)
+#include "urdf/model.h"
+#include "kdl_parser/kdl_parser.hpp"
+
+PLUGINLIB_EXPORT_CLASS(robot_controllers::CartesianWrenchController,
+                       robot_controllers_interface::Controller)
 
 namespace robot_controllers
 {
@@ -81,7 +85,8 @@ int CartesianWrenchController::init(const std::string& name,
 
   // Load URDF
   urdf::Model model;
-  std::string robot_description = declare_parameter_once<std::string>("robot_description", "", node);
+  std::string robot_description = declare_parameter_once<std::string>("robot_description",
+                                                                      "", node);
   if (!model.initString(robot_description))
   {
     RCLCPP_ERROR(rclcpp::get_logger(getName()),
@@ -115,7 +120,8 @@ int CartesianWrenchController::init(const std::string& name,
   joints_.clear();
   for (size_t i = 0; i < kdl_chain_.getNrOfSegments(); ++i)
     if (kdl_chain_.getSegment(i).getJoint().getType() != KDL::Joint::None)
-      joints_.push_back(manager_->getJointHandle(kdl_chain_.getSegment(i).getJoint().getName()));
+      joints_.push_back(manager_->getJointHandle(
+        kdl_chain_.getSegment(i).getJoint().getName()));
 
   // Subscribe to command
   std::string topic_name = get_safe_topic_name(name) + "/command";
@@ -148,6 +154,7 @@ bool CartesianWrenchController::start()
 
 bool CartesianWrenchController::stop(bool force)
 {
+  (void) force;
   return true;
 }
 
@@ -159,6 +166,8 @@ bool CartesianWrenchController::reset()
 
 void CartesianWrenchController::update(const rclcpp::Time& now, const rclcpp::Duration& dt)
 {
+  (void) dt;
+
   // Need to initialize KDL structs
   if (!initialized_)
     return;
@@ -168,7 +177,7 @@ void CartesianWrenchController::update(const rclcpp::Time& now, const rclcpp::Du
     // Command has timed out, shutdown
     manager_->requestStop(getName());
     return;
-  } 
+  }
 
   // This updates jnt_pos_
   updateJoints();
@@ -181,7 +190,7 @@ void CartesianWrenchController::update(const rclcpp::Time& now, const rclcpp::Du
   {
     jnt_eff_(i) = 0;
     for (unsigned int j = 0; j < 6; ++j)
-      jnt_eff_(i) += (jacobian_(j,i) * desired_wrench_(j));
+      jnt_eff_(i) += (jacobian_(j, i) * desired_wrench_(j));
   }
 
   // Actually update joints

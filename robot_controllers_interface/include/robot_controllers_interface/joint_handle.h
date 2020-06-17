@@ -28,10 +28,13 @@
 
 // Author: Michael Ferguson
 
-#ifndef ROBOT_CONTROLLERS_INTERFACE_JOINT_HANDLE_H
-#define ROBOT_CONTROLLERS_INTERFACE_JOINT_HANDLE_H
+#ifndef ROBOT_CONTROLLERS_INTERFACE__JOINT_HANDLE_H_
+#define ROBOT_CONTROLLERS_INTERFACE__JOINT_HANDLE_H_
 
-#include <robot_controllers_interface/handle.h>
+#include <memory>
+#include <string>
+
+#include "robot_controllers_interface/handle.h"
 
 namespace robot_controllers_interface
 {
@@ -105,12 +108,12 @@ public:
 
 private:
   // No copy
-  JointHandle(const JointHandle&);
-  JointHandle& operator=(const JointHandle&);
+  JointHandle(const JointHandle&) = delete;
+  JointHandle& operator=(const JointHandle&) = delete;
 };
 
 using JointHandlePtr = std::shared_ptr<JointHandle>;
 
 }  // namespace robot_controllers_interface
 
-#endif  // ROBOT_CONTROLLERS_INTERFACE_JOINT_HANDLE_H
+#endif  // ROBOT_CONTROLLERS_INTERFACE__JOINT_HANDLE_H_

@@ -39,15 +39,19 @@
  * Author: Michael Ferguson, Wim Meeussen
  */
 
-#include <pluginlib/class_list_macros.hpp>
-#include <robot_controllers/cartesian_pose.h>
-#include <robot_controllers_interface/utils.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <string>
+#include <vector>
 
-#include <urdf/model.h>
-#include <kdl_parser/kdl_parser.hpp>
+#include "pluginlib/class_list_macros.hpp"
+#include "robot_controllers/cartesian_pose.h"
+#include "robot_controllers_interface/utils.h"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 
-PLUGINLIB_EXPORT_CLASS(robot_controllers::CartesianPoseController, robot_controllers_interface::Controller)
+#include "urdf/model.h"
+#include "kdl_parser/kdl_parser.hpp"
+
+PLUGINLIB_EXPORT_CLASS(robot_controllers::CartesianPoseController,
+                       robot_controllers_interface::Controller)
 
 namespace robot_controllers
 {
@@ -83,7 +87,8 @@ int CartesianPoseController::init(const std::string& name,
 
   // Load URDF
   urdf::Model model;
-  std::string robot_description = declare_parameter_once<std::string>("robot_description", "", node);
+  std::string robot_description = declare_parameter_once<std::string>("robot_description",
+                                                                      "", node);
   if (!model.initString(robot_description))
   {
     RCLCPP_ERROR(rclcpp::get_logger(getName()),
@@ -168,6 +173,7 @@ bool CartesianPoseController::start()
 
 bool CartesianPoseController::stop(bool force)
 {
+  (void) force;
   // Always stop
   return true;
 }
@@ -211,7 +217,7 @@ void CartesianPoseController::update(const rclcpp::Time& now, const rclcpp::Dura
   {
     jnt_delta_(i) = 0.0;
     for (unsigned int j = 0; j < 6; ++j)
-      jnt_delta_(i) += (jacobian_(j,i) * twist_error_(j));
+      jnt_delta_(i) += (jacobian_(j, i) * twist_error_(j));
   }
 
   // Actually update joints

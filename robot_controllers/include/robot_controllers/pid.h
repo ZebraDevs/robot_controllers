@@ -34,10 +34,12 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-#ifndef ROBOT_CONTROLLERS_PID_H
-#define ROBOT_CONTROLLERS_PID_H
+#ifndef ROBOT_CONTROLLERS__PID_H_
+#define ROBOT_CONTROLLERS__PID_H_
 
-#include <rclcpp/rclcpp.hpp>
+#include <string>
+
+#include "rclcpp/rclcpp.hpp"
 
 namespace robot_controllers
 {
@@ -85,7 +87,6 @@ public:
   double update(double error, double error_dot, double dt);
 
 protected:
-
   /**
    *  @brief Checks and fixes gain settings
    *  @returns true is gains are ok, false if gains are invalid
@@ -102,7 +103,7 @@ protected:
   double i_max_, i_min_;
 
   /// integral wind-up term
-  double i_term_; 
+  double i_term_;
 
   /// Last error value, used for calculating error_dot when not provided
   double error_last_;
@@ -112,4 +113,4 @@ protected:
 
 }  // namespace robot_controllers
 
-#endif  // ROBOT_CONTROLLERS_PID_H
+#endif  // ROBOT_CONTROLLERS__PID_H_
