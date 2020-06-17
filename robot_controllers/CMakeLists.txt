@@ -42,6 +42,7 @@ add_library(robot_controllers SHARED
   src/pid.cpp
   src/point_head.cpp
   src/scaled_mimic.cpp
+  src/mimic_joint_handle.cpp
 )
 target_link_libraries(robot_controllers
   ${orocos_kdl_LIBRARIES}
