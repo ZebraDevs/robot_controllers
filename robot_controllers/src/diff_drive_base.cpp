@@ -81,18 +81,43 @@ int DiffDriveBaseController::init(const std::string& name,
   manager_ = manager;
 
   // Initialize joints
-  std::string l_name = node->declare_parameter<std::string>(name + ".l_wheel_joint", "l_wheel_joint");
-  std::string r_name = node->declare_parameter<std::string>(name + ".r_wheel_joint", "r_wheel_joint");
-  left_ = manager_->getJointHandle(l_name);
-  right_ = manager_->getJointHandle(r_name);
-  if (left_ == NULL || right_ == NULL)
+  std::vector<std::string> l_names =
+    node->declare_parameter<std::vector<std::string>>(name + ".l_wheel_joints", std::vector<std::string>());
+  std::vector<std::string> r_names =
+    node->declare_parameter<std::vector<std::string>>(name + ".r_wheel_joints", std::vector<std::string>());
+  if (l_names.empty() || r_names.empty())
   {
-    RCLCPP_ERROR(rclcpp::get_logger(getName()), "Cannot get wheel joints.");
+    RCLCPP_ERROR(rclcpp::get_logger(getName()), "Cannot get wheel joint names.");
     initialized_ = false;
     return -1;
   }
-  left_last_position_ = left_->getPosition();
-  right_last_position_ = right_->getPosition();
+
+  left_.clear();
+  right_.clear();
+  for (auto name : l_names)
+  {
+    auto joint = manager_->getJointHandle(name);
+    if (joint == nullptr)
+    {
+      RCLCPP_ERROR(rclcpp::get_logger(getName()), "Cannot get %s", name.c_str());
+      initialized_ = false;
+      return -1;
+    }
+    left_.push_back(joint);
+  }
+  for (auto name : r_names)
+  {
+    auto joint = manager_->getJointHandle(name);
+    if (joint == nullptr)
+    {
+      RCLCPP_ERROR(rclcpp::get_logger(getName()), "Cannot get %s", name.c_str());
+      initialized_ = false;
+      return -1;
+    }
+    right_.push_back(manager_->getJointHandle(name));
+  }
+  left_last_position_ = left_[0]->getPosition();
+  right_last_position_ = right_[0]->getPosition();
   last_update_ = node->now();
   last_command_ = node_->now();
   last_laser_scan_ = node_->now();
@@ -289,12 +314,12 @@ void DiffDriveBaseController::update(const rclcpp::Time& now, const rclcpp::Dura
   double dx = 0.0;
   double dr = 0.0;
 
-  double left_pos = left_->getPosition();
-  double right_pos = right_->getPosition();
+  double left_pos = left_[0]->getPosition();
+  double right_pos = right_[0]->getPosition();
   double left_dx = angles::shortest_angular_distance(left_last_position_, left_pos)/radians_per_meter_;
   double right_dx = angles::shortest_angular_distance(right_last_position_, right_pos)/radians_per_meter_;
-  double left_vel = static_cast<double>(left_->getVelocity())/radians_per_meter_;
-  double right_vel = static_cast<double>(right_->getVelocity())/radians_per_meter_;
+  double left_vel = static_cast<double>(left_[0]->getVelocity())/radians_per_meter_;
+  double right_vel = static_cast<double>(right_[0]->getVelocity())/radians_per_meter_;
 
   // Threshold the odometry to avoid noise (especially in simulation)
   if (fabs(left_dx) > wheel_rotating_threshold_ ||
@@ -351,10 +376,14 @@ void DiffDriveBaseController::update(const rclcpp::Time& now, const rclcpp::Dura
 std::vector<std::string> DiffDriveBaseController::getCommandedNames()
 {
   std::vector<std::string> names;
-  if (left_)
-    names.push_back(left_->getName());
-  if (right_)
-    names.push_back(right_->getName());
+  for (auto j : left_)
+  {
+    names.push_back(j->getName());
+  }
+  for (auto j : right_)
+  {
+    names.push_back(j->getName());
+  }
   return names;
 }
 
@@ -427,8 +456,14 @@ void DiffDriveBaseController::scanCallback(
 void DiffDriveBaseController::setCommand(float left, float right)
 {
   // Convert meters/sec into radians/sec
-  left_->setVelocity(left * radians_per_meter_, 0.0);
-  right_->setVelocity(right * radians_per_meter_, 0.0);
+  for (auto j : left_)
+  {
+    j->setVelocity(left * radians_per_meter_, 0.0);
+  }
+  for (auto j : right_)
+  {
+    j->setVelocity(right * radians_per_meter_, 0.0);
+  }
 }
 
 }  // namespace robot_controllers

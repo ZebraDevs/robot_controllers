@@ -24,6 +24,8 @@ as is the case for Fetch and Freight.
    * All controllers have migrated to using TF2.
    * The CartesianPose controller now takes a a TwistStamped (previously, it used an unstamped
      message).
+   * The diff drive controller now takes a list of joint names for the left/right side, allowing
+     use with 4wd robots.
  * Custom controllers:
    * The Controller class is now in the robot_controllers_interface namespace. This was a bug in
      ROS1 which caused all custom controller packages to need a dependency on robot_controllers,
