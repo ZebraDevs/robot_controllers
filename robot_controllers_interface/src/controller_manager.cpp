@@ -289,6 +289,26 @@ GyroHandlePtr ControllerManager::getGyroHandle(const std::string& name)
   return GyroHandlePtr();
 }
 
+std::vector<std::string> ControllerManager::getJointNames()
+{
+  std::vector<std::string> names;
+  for (auto j = joints_.begin(); j != joints_.end(); ++j)
+  {
+    names.push_back((*j)->getName());
+  }
+  return names;
+}
+
+std::vector<std::string> ControllerManager::getControllerNames()
+{
+  std::vector<std::string> names;
+  for (auto c = controllers_.begin(); c != controllers_.end(); ++c)
+  {
+    names.push_back((*c)->getController()->getName());
+  }
+  return names;
+}
+
 void ControllerManager::callback(
     const std::shared_ptr<robot_controllers_msgs::srv::QueryControllerStates::Request> request,
     std::shared_ptr<robot_controllers_msgs::srv::QueryControllerStates::Response> response)
