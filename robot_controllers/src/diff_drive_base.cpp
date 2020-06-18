@@ -323,6 +323,8 @@ void DiffDriveBaseController::update(const rclcpp::Time& now, const rclcpp::Dura
   double dx = 0.0;
   double dr = 0.0;
 
+  double left_pos = left_[0]->getPosition();
+  double right_pos = right_[0]->getPosition();
   double left_dx = angles::shortest_angular_distance(left_last_position_, left_pos);
   left_dx /= radians_per_meter_;
   double right_dx = angles::shortest_angular_distance(right_last_position_, right_pos);

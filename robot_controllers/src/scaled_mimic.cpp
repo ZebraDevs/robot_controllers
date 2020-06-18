@@ -34,6 +34,7 @@
 
 // Author: Michael Ferguson
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -70,11 +71,13 @@ int ScaledMimicController::init(const std::string& name,
     initialized_ = false;
     return -1;
   }
-  std::string controlled = node->declare_parameter<std::string>(getName() + ".controlled_joint", "bellows_joint");
+  std::string controlled = node->declare_parameter<std::string>(getName() + ".controlled_joint",
+                                                                "bellows_joint");
   joint_to_control_ = manager->getJointHandle(controlled);
   if (joint_to_control_ == nullptr)
   {
-    RCLCPP_WARN(rclcpp::get_logger(getName()), "Could not get %s, automatically creating it", controlled.c_str());
+    RCLCPP_WARN(rclcpp::get_logger(getName()),
+                "Could not get %s, automatically creating it", controlled.c_str());
     robot_controllers_interface::JointHandlePtr joint =
       std::make_shared<MimicJointHandle>(controlled, joint_to_mimic_);
     manager->addJointHandle(joint);
