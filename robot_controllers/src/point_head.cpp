@@ -82,6 +82,13 @@ int PointHeadController::init(const std::string& name,
   // Setup Joints
   head_pan_ = manager_->getJointHandle("head_pan_joint");
   head_tilt_ = manager_->getJointHandle("head_tilt_joint");
+  if (head_pan_ == nullptr || head_tilt_ == nullptr)
+  {
+    RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                 "Could not get joints!");
+    server_.reset();
+    return -1;
+  }
 
   // Parse UDRF/KDL
   urdf::Model model;
@@ -90,6 +97,7 @@ int PointHeadController::init(const std::string& name,
   {
     RCLCPP_ERROR(rclcpp::get_logger(getName()),
       "Failed to parse URDF, is robot_description parameter set?");
+    server_.reset();
     return -1;
   }
 
@@ -97,10 +105,11 @@ int PointHeadController::init(const std::string& name,
   {
     RCLCPP_ERROR(rclcpp::get_logger(getName()),
                  "Failed to construct KDL tree");
+    server_.reset();
     return -1;
   }
 
-  // Find parent of pan joint
+  // Find parents of pan/tilt joint
   KDL::SegmentMap segment_map = kdl_tree_.getSegments();
   for (KDL::SegmentMap::iterator it = segment_map.begin();
        it != segment_map.end();
@@ -108,10 +117,22 @@ int PointHeadController::init(const std::string& name,
   {
 #ifdef KDL_USE_NEW_TREE_INTERFACE
      if (it->second->segment.getJoint().getName() == head_pan_->getName())
-       root_link_ = it->second->parent->first;
+     {
+       pan_parent_link_ = it->second->parent->first;
+     }
+     if (it->second->segment.getJoint().getName() == head_tilt_->getName())
+     {
+       tilt_parent_link_ = it->second->parent->first;
+     }
 #else
     if (it->second.segment.getJoint().getName() == head_pan_->getName())
-      root_link_ = it->second.parent->first;
+    {
+      pan_parent_link_ = it->second.parent->first;
+    }
+    else if (it->second.segment.getJoint().getName() == head_tilt_->getName())
+    {
+      tilt_parent_link_ = it->second.parent->first;
+    }
 #endif
   }
 
@@ -278,8 +299,8 @@ void PointHeadController::handle_accepted(const std::shared_ptr<PointHeadGoal> g
   try
   {
     geometry_msgs::msg::PointStamped target_in_pan, target_in_tilt;
-    tf_buffer_->transform(goal->target, target_in_pan, root_link_);
-    tf_buffer_->transform(goal->target, target_in_tilt, "head_pan_link");
+    tf_buffer_->transform(goal->target, target_in_pan, pan_parent_link_);
+    tf_buffer_->transform(goal->target, target_in_tilt, tilt_parent_link_);
     head_pan_goal_ = atan2(target_in_pan.point.y, target_in_pan.point.x);
     head_tilt_goal_ = -atan2(target_in_tilt.point.z, sqrt(pow(target_in_tilt.point.x, 2) + pow(target_in_tilt.point.y, 2)));
   }

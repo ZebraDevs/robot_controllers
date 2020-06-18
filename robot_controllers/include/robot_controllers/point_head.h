@@ -137,7 +137,8 @@ private:
   robot_controllers_interface::ControllerManagerPtr manager_;
 
   // Parameters
-  std::string root_link_;
+  std::string pan_parent_link_;
+  std::string tilt_parent_link_;
   bool stop_with_action_;  /// should we stop this controller when the
                            /// action has terminated (or hold position)?
 
