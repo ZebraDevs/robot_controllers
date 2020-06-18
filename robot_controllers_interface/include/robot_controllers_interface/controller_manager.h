@@ -110,6 +110,16 @@ public:
    */
   GyroHandlePtr getGyroHandle(const std::string& name);
 
+  /**
+   * @brief Get the names of all joints.
+   */
+  std::vector<std::string> getJointNames();
+
+  /**
+   * @brief Get the names of all controllers.
+   */
+  std::vector<std::string> getControllerNames();
+
 private:
   /** @brief Service callback */
   void callback(

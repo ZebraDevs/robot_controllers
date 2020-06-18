@@ -137,8 +137,8 @@ private:
   // Set base wheel speeds in m/s
   void setCommand(float left, float right);
 
-  robot_controllers_interface::JointHandlePtr left_;
-  robot_controllers_interface::JointHandlePtr right_;
+  std::vector<robot_controllers_interface::JointHandlePtr> left_;
+  std::vector<robot_controllers_interface::JointHandlePtr> right_;
 
   double track_width_;
   double radians_per_meter_;

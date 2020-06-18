@@ -35,6 +35,7 @@
 
 // Author: Michael Ferguson
 
+#include <cmath>
 #include <memory>
 #include <string>
 #include <vector>
@@ -184,7 +185,7 @@ void ParallelGripperController::update(const rclcpp::Time& now, const rclcpp::Du
   if (use_centering_controller_)
   {
     double position = left_->getPosition() + right_->getPosition();
-    double effort = fabs(effort_);
+    double effort = std::fabs(effort_);
     if (goal_ < position)
     {
       effort = -effort;
@@ -208,7 +209,7 @@ void ParallelGripperController::update(const rclcpp::Time& now, const rclcpp::Du
   feedback_->stalled = false;
 
   // Goal detection
-  if (fabs(feedback_->position - active_goal_->get_goal()->command.position) < 0.002)
+  if (std::fabs(feedback_->position - active_goal_->get_goal()->command.position) < 0.002)
   {
     auto result = std::make_shared<GripperCommandAction::Result>();
     result->position = feedback_->position;
@@ -223,7 +224,7 @@ void ParallelGripperController::update(const rclcpp::Time& now, const rclcpp::Du
   }
 
   // Stall detection
-  if (fabs(feedback_->position - last_position_) > 0.005)
+  if (std::fabs(feedback_->position - last_position_) > 0.005)
   {
     last_position_ = feedback_->position;
     last_position_time_ = now;

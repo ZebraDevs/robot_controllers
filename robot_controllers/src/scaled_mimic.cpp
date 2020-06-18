@@ -39,6 +39,7 @@
 
 #include "pluginlib/class_list_macros.hpp"
 #include "robot_controllers/scaled_mimic.h"
+#include "robot_controllers/mimic_joint_handle.h"
 
 PLUGINLIB_EXPORT_CLASS(robot_controllers::ScaledMimicController,
                        robot_controllers_interface::Controller)
@@ -62,10 +63,23 @@ int ScaledMimicController::init(const std::string& name,
   // Setup Joints, Params
   std::string mimic = node->declare_parameter<std::string>(getName() + ".mimic_joint",
                                                            "torso_lift_joint");
-  std::string controlled = node->declare_parameter<std::string>(getName() + ".mimic_joint",
-                                                                "bellows_joint");
   joint_to_mimic_ = manager->getJointHandle(mimic);
+  if (joint_to_mimic_ == nullptr)
+  {
+    RCLCPP_ERROR(rclcpp::get_logger(getName()), "Could not get %s", mimic.c_str());
+    initialized_ = false;
+    return -1;
+  }
+  std::string controlled = node->declare_parameter<std::string>(getName() + ".controlled_joint", "bellows_joint");
   joint_to_control_ = manager->getJointHandle(controlled);
+  if (joint_to_control_ == nullptr)
+  {
+    RCLCPP_WARN(rclcpp::get_logger(getName()), "Could not get %s, automatically creating it", controlled.c_str());
+    robot_controllers_interface::JointHandlePtr joint =
+      std::make_shared<MimicJointHandle>(controlled, joint_to_mimic_);
+    manager->addJointHandle(joint);
+    joint_to_control_ = joint;
+  }
   scale_ = node->declare_parameter<double>(getName() + ".mimic_scale", 1.0);
 
   initialized_ = true;
@@ -110,7 +124,7 @@ void ScaledMimicController::update(const rclcpp::Time& now, const rclcpp::Durati
   if (!initialized_)
     return;
 
-  joint_to_control_->setPosition(scale_*joint_to_mimic_->getPosition(), 0, 0);
+  joint_to_control_->setPosition(scale_ * joint_to_mimic_->getPosition(), 0, 0);
 }
 
 std::vector<std::string> ScaledMimicController::getCommandedNames()
