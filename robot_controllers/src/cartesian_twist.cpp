@@ -39,7 +39,7 @@
  * Author: Michael Ferguson, Wim Meeussen, Hanjun Song
  */
 
-#include <pluginlib/class_list_macros.h>
+#include <pluginlib/class_list_macros.hpp>
 #include <robot_controllers/cartesian_twist.h>
 
 #include <urdf/model.h>

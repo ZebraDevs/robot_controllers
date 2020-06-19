@@ -35,7 +35,7 @@
 
 /* Author: Michael Ferguson */
 
-#include <pluginlib/class_list_macros.h>
+#include <pluginlib/class_list_macros.hpp>
 #include <robot_controllers/gravity_compensation.h>
 
 PLUGINLIB_EXPORT_CLASS(robot_controllers::GravityCompensation, robot_controllers::Controller)

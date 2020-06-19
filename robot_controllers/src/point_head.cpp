@@ -35,7 +35,7 @@
 
 // Author: Michael Ferguson
 
-#include <pluginlib/class_list_macros.h>
+#include <pluginlib/class_list_macros.hpp>
 #include <robot_controllers/point_head.h>
 
 #include <urdf/model.h>

@@ -34,7 +34,7 @@
 
 // Author: Michael Ferguson
 
-#include <pluginlib/class_list_macros.h>
+#include <pluginlib/class_list_macros.hpp>
 #include <robot_controllers/scaled_mimic.h>
 
 PLUGINLIB_EXPORT_CLASS(robot_controllers::ScaledMimicController, robot_controllers::Controller)
