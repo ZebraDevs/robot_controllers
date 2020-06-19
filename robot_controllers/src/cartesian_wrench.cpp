@@ -39,7 +39,7 @@
  * Author: Michael Ferguson, Wim Meeussen
  */
 
-#include <pluginlib/class_list_macros.h>
+#include <pluginlib/class_list_macros.hpp>
 #include <robot_controllers/cartesian_wrench.h>
 
 #include <urdf/model.h>

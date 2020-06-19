@@ -35,7 +35,7 @@
 
 // Author: Michael Ferguson
 
-#include <pluginlib/class_list_macros.h>
+#include <pluginlib/class_list_macros.hpp>
 #include <robot_controllers/parallel_gripper.h>
 
 PLUGINLIB_EXPORT_CLASS(robot_controllers::ParallelGripperController, robot_controllers::Controller)
