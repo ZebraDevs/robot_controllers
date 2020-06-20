@@ -69,7 +69,11 @@ int ParallelGripperController::init(const std::string& name,
   max_effort_ = node_->declare_parameter<double>(name + ".max_effort", 10.0);
   std::string l_name = node_->declare_parameter<std::string>(name + ".l_gripper_joint", "l_gripper_finger_joint");
   std::string r_name = node_->declare_parameter<std::string>(name + ".r_gripper_joint", "r_gripper_finger_joint");
-  use_centering_controller_ = node_->declare_parameter<bool>(name + ".use_centering", false);
+  use_centering_controller_ = node_->declare_parameter<bool>(name + ".use_centering_pid", false);
+  if (use_centering_controller_)
+  {
+    centering_pid_.init(name + ".centering", node_);
+  }
 
   // Setup joints
   left_ = manager_->getJointHandle(l_name);
@@ -177,6 +181,7 @@ void ParallelGripperController::update(const rclcpp::Time& now, const rclcpp::Du
 
   if (use_centering_controller_)
   {
+    // This is generally used only in simulation, it should keep running even when goal is done.
     double position = left_->getPosition() + right_->getPosition();
     double effort = std::fabs(effort_);
     if (goal_ < position)
@@ -191,8 +196,13 @@ void ParallelGripperController::update(const rclcpp::Time& now, const rclcpp::Du
   }
   else
   {
-    left_->setPosition(goal_/2.0, 0, effort_);
-    right_->setPosition(goal_/2.0, 0, effort_);
+    left_->setPosition(goal_ / 2.0, 0, effort_);
+    right_->setPosition(goal_ / 2.0, 0, effort_);
+  }
+
+  if (!active_goal_)
+  {
+    return;
   }
 
   feedback_->position = left_->getPosition() + right_->getPosition();
