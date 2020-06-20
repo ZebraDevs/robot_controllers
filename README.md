@@ -26,6 +26,9 @@ as is the case for Fetch and Freight.
      message).
    * The diff drive controller now takes a list of joint names for the left/right side, allowing
      use with 4wd robots.
+   * ParallelGripper: a new parameter "use_centering_pid" must be set to true to use the centering
+     PID (with all parameters needing to be declared, ROS2 doesn't handle our older style
+     interface).
  * Custom controllers:
    * The Controller class is now in the robot_controllers_interface namespace. This was a bug in
      ROS1 which caused all custom controller packages to need a dependency on robot_controllers,

@@ -148,6 +148,7 @@ private:
   double last_position_;
   rclcpp::Time last_position_time_;
 
+  // Mainly used in simulation to keep fingers from wandering off to one side
   bool use_centering_controller_;
   robot_controllers::PID centering_pid_;
 };
