@@ -36,11 +36,16 @@
 // Author: Michael Ferguson
 
 #include <cmath>
-#include <pluginlib/class_list_macros.hpp>
-#include <robot_controllers/parallel_gripper.h>
-#include <robot_controllers_interface/utils.h>
+#include <memory>
+#include <string>
+#include <vector>
 
-PLUGINLIB_EXPORT_CLASS(robot_controllers::ParallelGripperController, robot_controllers_interface::Controller)
+#include "pluginlib/class_list_macros.hpp"
+#include "robot_controllers/parallel_gripper.h"
+#include "robot_controllers_interface/utils.h"
+
+PLUGINLIB_EXPORT_CLASS(robot_controllers::ParallelGripperController,
+                       robot_controllers_interface::Controller)
 
 namespace robot_controllers
 {
@@ -67,8 +72,10 @@ int ParallelGripperController::init(const std::string& name,
   // Get parameters
   max_position_ = node_->declare_parameter<double>(name + ".max_position", 0.1);
   max_effort_ = node_->declare_parameter<double>(name + ".max_effort", 10.0);
-  std::string l_name = node_->declare_parameter<std::string>(name + ".l_gripper_joint", "l_gripper_finger_joint");
-  std::string r_name = node_->declare_parameter<std::string>(name + ".r_gripper_joint", "r_gripper_finger_joint");
+  std::string l_name = node_->declare_parameter<std::string>(name + ".l_gripper_joint",
+                                                             "l_gripper_finger_joint");
+  std::string r_name = node_->declare_parameter<std::string>(name + ".r_gripper_joint",
+                                                             "r_gripper_finger_joint");
   use_centering_controller_ = node_->declare_parameter<bool>(name + ".use_centering_pid", false);
   if (use_centering_controller_)
   {
@@ -85,16 +92,16 @@ int ParallelGripperController::init(const std::string& name,
     RCLCPP_ERROR(rclcpp::get_logger(getName()),
                  "Unable to retrieve joint (%s), Namespace: %s/l_gripper_joint",
                  l_name.c_str(), name.c_str());
-    return -1;  
+    return -1;
   }
-  
+
   if (!right_)
   {
     RCLCPP_ERROR(rclcpp::get_logger(getName()),
                  "Unable to retrieve joint (%s), Namespace: %s/r_gripper_joint",
                  r_name.c_str(), name.c_str());
     return -1;
-  } 
+  }
 
   // Timer to publish feedback
   publish_timer_ = node->create_wall_timer(std::chrono::milliseconds(20),
@@ -189,7 +196,8 @@ void ParallelGripperController::update(const rclcpp::Time& now, const rclcpp::Du
       effort = -effort;
     }
 
-    double offset = centering_pid_.update(left_->getPosition() - right_->getPosition(), to_sec(dt));
+    double offset = centering_pid_.update(left_->getPosition() - right_->getPosition(),
+                                          to_sec(dt));
 
     left_->setEffort(effort - offset);
     right_->setEffort(effort + offset);
@@ -229,11 +237,11 @@ void ParallelGripperController::update(const rclcpp::Time& now, const rclcpp::Du
   if (std::fabs(feedback_->position - last_position_) > 0.005)
   {
     last_position_ = feedback_->position;
-    last_position_time_ = node_->now();
+    last_position_time_ = now;
   }
   else
   {
-    if (node_->now() - last_position_time_ > rclcpp::Duration(2, 0))
+    if (now - last_position_time_ > rclcpp::Duration(2, 0))
     {
       auto result = std::make_shared<GripperCommandAction::Result>();
       result->position = feedback_->position;
@@ -253,6 +261,9 @@ rclcpp_action::GoalResponse ParallelGripperController::handle_goal(
     const rclcpp_action::GoalUUID & uuid,
     std::shared_ptr<const GripperCommandAction::Goal> goal_handle)
 {
+  (void) uuid;
+  (void) goal_handle;
+
   if (!server_)
   {
     // Can't even log here - we aren't initialized
@@ -276,15 +287,16 @@ rclcpp_action::CancelResponse ParallelGripperController::handle_cancel(
   return rclcpp_action::CancelResponse::ACCEPT;
 }
 
-void ParallelGripperController::handle_accepted(const std::shared_ptr<GripperCommandGoal> goal_handle)
+void ParallelGripperController::handle_accepted(
+  const std::shared_ptr<GripperCommandGoal> goal_handle)
 {
   auto result = std::make_shared<GripperCommandAction::Result>();
   feedback_ = std::make_shared<GripperCommandAction::Feedback>();
 
   if (active_goal_)
   {
-    // TODO: if rclcpp_action ever supports preempted, note it here
-    //       https://github.com/ros2/rclcpp/issues/1104
+    // TODO(anyone): if rclcpp_action ever supports preempted, note it here
+    //               https://github.com/ros2/rclcpp/issues/1104
     active_goal_->abort(result);
     active_goal_.reset();
     RCLCPP_INFO(node_->get_logger(), "ParallelGripper goal preempted.");

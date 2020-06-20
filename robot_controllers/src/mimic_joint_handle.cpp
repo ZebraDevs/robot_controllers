@@ -29,6 +29,7 @@
 
 // Author: Michael Ferguson
 
+#include <string>
 #include "robot_controllers/mimic_joint_handle.h"
 
 namespace robot_controllers

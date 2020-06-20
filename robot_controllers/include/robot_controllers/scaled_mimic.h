@@ -34,16 +34,16 @@
 
 // Author: Michael Ferguson
 
-#ifndef ROBOT_CONTROLLERS_SCALED_MIMIC_H
-#define ROBOT_CONTROLLERS_SCALED_MIMIC_H
+#ifndef ROBOT_CONTROLLERS__SCALED_MIMIC_H_
+#define ROBOT_CONTROLLERS__SCALED_MIMIC_H_
 
 #include <string>
 #include <vector>
 
-#include <rclcpp/rclcpp.hpp>
-#include <robot_controllers_interface/controller.h>
-#include <robot_controllers_interface/joint_handle.h>
-#include <robot_controllers_interface/controller_manager.h>
+#include "rclcpp/rclcpp.hpp"
+#include "robot_controllers_interface/controller.h"
+#include "robot_controllers_interface/joint_handle.h"
+#include "robot_controllers_interface/controller_manager.h"
 
 namespace robot_controllers
 {
@@ -55,7 +55,6 @@ namespace robot_controllers
  */
 class ScaledMimicController : public robot_controllers_interface::Controller
 {
-
 public:
   ScaledMimicController() : initialized_(false) {}
   virtual ~ScaledMimicController() {}
@@ -123,4 +122,4 @@ private:
 
 }  // namespace robot_controllers
 
-#endif  // ROBOT_CONTROLLERS_SCALED_MIMIC_H
+#endif  // ROBOT_CONTROLLERS__SCALED_MIMIC_H_

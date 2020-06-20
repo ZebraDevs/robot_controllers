@@ -28,10 +28,13 @@
 
 // Author: Vincenzo Barbato, Carl Saldanha
 
-#ifndef ROBOT_CONTROLLERS_INTERFACE_GYRO_HANDLE_H
-#define ROBOT_CONTROLLERS_INTERFACE_GYRO_HANDLE_H
+#ifndef ROBOT_CONTROLLERS_INTERFACE__GYRO_HANDLE_H_
+#define ROBOT_CONTROLLERS_INTERFACE__GYRO_HANDLE_H_
 
-#include <robot_controllers_interface/handle.h>
+#include <memory>
+#include <string>
+
+#include "robot_controllers_interface/handle.h"
 
 namespace robot_controllers_interface
 {
@@ -71,14 +74,13 @@ public:
   virtual double getAngularVelocityZ() = 0;
 
 private:
-
   // No copy
-  GyroHandle(const GyroHandle&);
-  GyroHandle& operator=(const GyroHandle&);
+  GyroHandle(const GyroHandle&) = delete;
+  GyroHandle& operator=(const GyroHandle&) = delete;
 };
 
 using GyroHandlePtr = std::shared_ptr<GyroHandle>;
 
 }  // namespace robot_controllers_interface
 
-#endif  // ROBOT_CONTROLLERS_INTERFACE_GYRO_HANDLE_H
+#endif  // ROBOT_CONTROLLERS_INTERFACE__GYRO_HANDLE_H_

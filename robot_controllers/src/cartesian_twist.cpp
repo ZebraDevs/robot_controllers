@@ -39,14 +39,19 @@
  * Author: Michael Ferguson, Wim Meeussen, Hanjun Song
  */
 
-#include <pluginlib/class_list_macros.hpp>
-#include <robot_controllers/cartesian_twist.h>
-#include <robot_controllers_interface/utils.h>
+#include <algorithm>
+#include <string>
+#include <vector>
 
-#include <urdf/model.h>
-#include <kdl_parser/kdl_parser.hpp>
+#include "pluginlib/class_list_macros.hpp"
+#include "robot_controllers/cartesian_twist.h"
+#include "robot_controllers_interface/utils.h"
 
-PLUGINLIB_EXPORT_CLASS(robot_controllers::CartesianTwistController, robot_controllers_interface::Controller)
+#include "urdf/model.h"
+#include "kdl_parser/kdl_parser.hpp"
+
+PLUGINLIB_EXPORT_CLASS(robot_controllers::CartesianTwistController,
+                       robot_controllers_interface::Controller)
 
 namespace robot_controllers
 {
@@ -83,7 +88,8 @@ int CartesianTwistController::init(const std::string& name,
 
   // Load URDF
   urdf::Model model;
-  std::string robot_description = declare_parameter_once<std::string>("robot_description", "", node);
+  std::string robot_description = declare_parameter_once<std::string>("robot_description",
+                                                                      "", node);
   if (!model.initString(robot_description))
   {
     RCLCPP_ERROR(rclcpp::get_logger(getName()),
@@ -124,7 +130,7 @@ int CartesianTwistController::init(const std::string& name,
   if (joints_.size() != num_joints)
   {
     RCLCPP_ERROR(rclcpp::get_logger(getName()),
-                 "Inconsistant joint count %d, %d", num_joints, int(joints_.size()));
+                 "Inconsistant joint count %d, %d", num_joints, static_cast<int>(joints_.size()));
     return -1;
   }
 
@@ -164,6 +170,7 @@ bool CartesianTwistController::start()
 
 bool CartesianTwistController::stop(bool force)
 {
+  (void) force;
   is_active_ = false;
   return true;
 }
@@ -186,7 +193,8 @@ void CartesianTwistController::update(const rclcpp::Time& now, const rclcpp::Dur
   rclcpp::Time last_command_time;
   {
     std::lock_guard<std::mutex> lock(mutex_);
-    // FK is used to transform the twist command seen from end-effector frame to the one seen from body frame.
+    // FK is used to transform the twist command seen from end-effector
+    // frame to the one seen from body frame.
     if (fksolver_->JntToCart(tgt_jnt_pos_, cart_pose) < 0)
     {
       twist.Zero();
@@ -223,7 +231,8 @@ void CartesianTwistController::update(const rclcpp::Time& now, const rclcpp::Dur
     }
   }
 
-  // Limit joint velocities by scaling all target velocities equally so resulting movement is in same direction
+  // Limit joint velocities by scaling all target velocities equally
+  // so resulting movement is in same direction
   double max_vel = 0.0;
   for (unsigned ii = 0; ii < num_joints; ++ii)
   {
@@ -243,7 +252,7 @@ void CartesianTwistController::update(const rclcpp::Time& now, const rclcpp::Dur
                  "Joint velocity limit reached.");
   }
 
-  // Make sure solver didn't generate any NaNs. 
+  // Make sure solver didn't generate any NaNs.
   for (unsigned ii = 0; ii < num_joints; ++ii)
   {
     if (!std::isfinite(tgt_jnt_vel_(ii)))
@@ -302,7 +311,7 @@ void CartesianTwistController::update(const rclcpp::Time& now, const rclcpp::Dur
       else if (tgt_jnt_pos_(ii) < joints_[ii]->getPositionMin())
       {
         tgt_jnt_pos_(ii) = joints_[ii]->getPositionMin();
-      }  
+      }
     }
   }
 
@@ -338,7 +347,7 @@ void CartesianTwistController::command(const geometry_msgs::msg::TwistStamped::S
   twist(4) = goal->twist.angular.y;
   twist(5) = goal->twist.angular.z;
 
-  for (int ii=0; ii<6; ++ii)
+  for (int ii=0; ii < 6; ++ii)
   {
     if (!std::isfinite(twist(ii)))
     {

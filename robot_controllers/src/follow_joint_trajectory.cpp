@@ -36,11 +36,16 @@
 
 /* Author: Michael Ferguson */
 
-#include <pluginlib/class_list_macros.hpp>
-#include <robot_controllers_interface/utils.h>
-#include <robot_controllers/follow_joint_trajectory.h>
+#include <memory>
+#include <string>
+#include <vector>
 
-PLUGINLIB_EXPORT_CLASS(robot_controllers::FollowJointTrajectoryController, robot_controllers_interface::Controller)
+#include "pluginlib/class_list_macros.hpp"
+#include "robot_controllers_interface/utils.h"
+#include "robot_controllers/follow_joint_trajectory.h"
+
+PLUGINLIB_EXPORT_CLASS(robot_controllers::FollowJointTrajectoryController,
+                       robot_controllers_interface::Controller)
 
 namespace robot_controllers
 {
@@ -76,7 +81,8 @@ int FollowJointTrajectoryController::init(
   sampler_.reset();
 
   // Get Joint Names
-  joint_names_ = node->declare_parameter<std::vector<std::string>>(name + ".joints", std::vector<std::string>());
+  joint_names_ = node->declare_parameter<std::vector<std::string>>(name + ".joints",
+                                                                   std::vector<std::string>());
   if (joint_names_.empty())
   {
     RCLCPP_ERROR(rclcpp::get_logger(getName()),
@@ -188,6 +194,8 @@ bool FollowJointTrajectoryController::reset()
 
 void FollowJointTrajectoryController::update(const rclcpp::Time& now, const rclcpp::Duration& dt)
 {
+  (void) dt;
+
   if (!server_)
     return;
 
@@ -358,6 +366,8 @@ rclcpp_action::GoalResponse FollowJointTrajectoryController::handle_goal(
     const rclcpp_action::GoalUUID & uuid,
     std::shared_ptr<const FollowJointTrajectoryAction::Goal> goal_handle)
 {
+  (void) uuid;
+
   if (!server_)
   {
     // Can't even log here - we aren't initialized
@@ -391,7 +401,8 @@ rclcpp_action::CancelResponse FollowJointTrajectoryController::handle_cancel(
   return rclcpp_action::CancelResponse::ACCEPT;
 }
 
-void FollowJointTrajectoryController::handle_accepted(const std::shared_ptr<FollowJointTrajectoryGoal> goal_handle)
+void FollowJointTrajectoryController::handle_accepted(
+  const std::shared_ptr<FollowJointTrajectoryGoal> goal_handle)
 {
   auto result = std::make_shared<FollowJointTrajectoryAction::Result>();
 
@@ -401,8 +412,8 @@ void FollowJointTrajectoryController::handle_accepted(const std::shared_ptr<Foll
   bool preempted = false;
   if (active_goal_)
   {
-    // TODO: if rclcpp_action ever supports preempted, note it here
-    //       https://github.com/ros2/rclcpp/issues/1104
+    // TODO(anyone): if rclcpp_action ever supports preempted, note it here
+    //               https://github.com/ros2/rclcpp/issues/1104
     result->error_code = -6;
     result->error_string = "preempted";
     active_goal_->abort(result);
@@ -413,7 +424,7 @@ void FollowJointTrajectoryController::handle_accepted(const std::shared_ptr<Foll
   }
 
   const auto goal = goal_handle->get_goal();
-  
+
   if (goal->trajectory.points.empty())
   {
     // Stop

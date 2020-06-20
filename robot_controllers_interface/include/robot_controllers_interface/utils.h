@@ -30,12 +30,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-#ifndef ROBOT_CONTROLLERS_INTERFACE_UTILS_H
-#define ROBOT_CONTROLLERS_INTERFACE_UTILS_H
+#ifndef ROBOT_CONTROLLERS_INTERFACE__UTILS_H_
+#define ROBOT_CONTROLLERS_INTERFACE__UTILS_H_
 
 #include <algorithm>
 #include <string>
-#include <rclcpp/rclcpp.hpp>
+
+#include "rclcpp/rclcpp.hpp"
 
 namespace robot_controllers_interface
 {
@@ -43,7 +44,7 @@ namespace robot_controllers_interface
 // Mainly used for robot_description
 template <typename T>
 T declare_parameter_once(const std::string& name, const T& default_value,
-	                     rclcpp::Node::SharedPtr node)
+                         rclcpp::Node::SharedPtr node)
 {
   if (!node->has_parameter(name))
   {
@@ -77,4 +78,4 @@ double msg_to_sec(T timelike)
 
 }  // namespace robot_controllers_interface
 
-#endif  // ROBOT_CONTROLLERS_INTERFACE_UTILS_H
+#endif  // ROBOT_CONTROLLERS_INTERFACE__UTILS_H_

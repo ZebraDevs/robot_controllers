@@ -1,12 +1,18 @@
 cmake_minimum_required(VERSION 3.5)
 project(robot_controllers)
 
+# Default to C99
+if(NOT CMAKE_C_STANDARD)
+  set(CMAKE_C_STANDARD 99)
+endif()
+
+# Default to C++14
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 14)
 endif()
 
-if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -Wno-unused-parameter")
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
 find_package(orocos_kdl REQUIRED)
@@ -71,6 +77,9 @@ if (BUILD_TESTING)
     rclcpp
     robot_controllers_interface
   )
+
+  find_package(ament_cmake_cpplint)
+  ament_cpplint(FILTERS "-whitespace/braces" "-whitespace/newline")
 endif()
 
 install(

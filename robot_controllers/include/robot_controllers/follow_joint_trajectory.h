@@ -36,24 +36,24 @@
 
 // Author: Michael Ferguson
 
-#ifndef ROBOT_CONTROLLERS_FOLLOW_JOINT_TRAJECTORY_H
-#define ROBOT_CONTROLLERS_FOLLOW_JOINT_TRAJECTORY_H
+#ifndef ROBOT_CONTROLLERS__FOLLOW_JOINT_TRAJECTORY_H_
+#define ROBOT_CONTROLLERS__FOLLOW_JOINT_TRAJECTORY_H_
 
 #include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
 
-#include <rclcpp/rclcpp.hpp>
-#include <rclcpp_action/rclcpp_action.hpp>
-#include <robot_controllers_interface/controller.h>
-#include <robot_controllers_interface/joint_handle.h>
-#include <robot_controllers_interface/controller_manager.h>
-#include <control_msgs/action/follow_joint_trajectory.hpp>
+#include "rclcpp/rclcpp.hpp"
+#include "rclcpp_action/rclcpp_action.hpp"
+#include "robot_controllers_interface/controller.h"
+#include "robot_controllers_interface/joint_handle.h"
+#include "robot_controllers_interface/controller_manager.h"
+#include "control_msgs/action/follow_joint_trajectory.hpp"
 
-#include <angles/angles.h>
-#include <robot_controllers/trajectory.h>
-#include <robot_controllers/trajectory_spline_sampler.h>
+#include "angles/angles.h"
+#include "robot_controllers/trajectory.h"
+#include "robot_controllers/trajectory_spline_sampler.h"
 
 namespace robot_controllers
 {
@@ -186,4 +186,4 @@ private:
 
 }  // namespace robot_controllers
 
-#endif  // ROBOT_CONTROLLERS_FOLLOW_JOINT_TRAJECTORY_H_
+#endif  // ROBOT_CONTROLLERS__FOLLOW_JOINT_TRAJECTORY_H_

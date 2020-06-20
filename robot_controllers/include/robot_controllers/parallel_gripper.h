@@ -34,20 +34,20 @@
 
 // Author: Michael Ferguson
 
-#ifndef ROBOT_CONTROLLERS_PARALLEL_GRIPPER_H
-#define ROBOT_CONTROLLERS_PARALLEL_GRIPPER_H
+#ifndef ROBOT_CONTROLLERS__PARALLEL_GRIPPER_H_
+#define ROBOT_CONTROLLERS__PARALLEL_GRIPPER_H_
 
 #include <memory>
 #include <string>
 #include <vector>
 
-#include <rclcpp/rclcpp.hpp>
-#include <rclcpp_action/rclcpp_action.hpp>
-#include <robot_controllers/pid.h>
-#include <robot_controllers_interface/controller.h>
-#include <robot_controllers_interface/joint_handle.h>
-#include <robot_controllers_interface/controller_manager.h>
-#include <control_msgs/action/gripper_command.hpp>
+#include "rclcpp/rclcpp.hpp"
+#include "rclcpp_action/rclcpp_action.hpp"
+#include "robot_controllers/pid.h"
+#include "robot_controllers_interface/controller.h"
+#include "robot_controllers_interface/joint_handle.h"
+#include "robot_controllers_interface/controller_manager.h"
+#include "control_msgs/action/gripper_command.hpp"
 
 namespace robot_controllers
 {
@@ -155,4 +155,4 @@ private:
 
 }  // namespace robot_controllers
 
-#endif  // ROBOT_CONTROLLERS_PARALLEL_GRIPPER_H
+#endif  // ROBOT_CONTROLLERS__PARALLEL_GRIPPER_H_

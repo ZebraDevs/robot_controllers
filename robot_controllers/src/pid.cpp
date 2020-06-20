@@ -40,7 +40,10 @@
 
 #include <cmath>
 #include <limits>
-#include <robot_controllers/pid.h>
+#include <algorithm>
+#include <string>
+
+#include "robot_controllers/pid.h"
 
 namespace robot_controllers
 {
@@ -124,10 +127,11 @@ bool PID::checkGains()
     i_min_ = tmp;
     pass = false;
   }
-  if ((i_min_==0) && (i_max_==0) && (i_gain_ != 0))
+  if ((i_min_ == 0) && (i_max_ == 0) && (i_gain_ != 0))
   {
     // It is easy to forgot to set a wind-up limit
-    RCLCPP_WARN(node_->get_logger(), "Integral gain is non-zero, but integral wind-up limit is zero");
+    RCLCPP_WARN(node_->get_logger(),
+                "Integral gain is non-zero, but integral wind-up limit is zero");
   }
   if ( ((i_min_ != 0) || (i_max_ != 0)) && (i_gain_ == 0) )
   {
@@ -146,7 +150,7 @@ double PID::update(double error, double dt)
 {
   double error_dot;
   if (dt <= 0.0)
-  {    
+  {
     RCLCPP_ERROR(node_->get_logger(), "PID::update : dt value is less than or equal to zero");
     // if dt is zero is not possible to perform division
     // in this case assume error_dot is zero and perform reset of calculation
@@ -175,7 +179,7 @@ double PID::update(double error, double error_dot, double dt)
   }
 
   double p_term = p_gain_*error;
-  
+
   i_term_ += i_gain_ * error * dt;
 
   // apply wind-up limits to i_term

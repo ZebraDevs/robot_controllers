@@ -36,21 +36,23 @@
 
 // Author: Michael Ferguson
 
-#ifndef ROBOT_CONTROLLERS_DIFF_DRIVE_BASE_H
-#define ROBOT_CONTROLLERS_DIFF_DRIVE_BASE_H
+#ifndef ROBOT_CONTROLLERS__DIFF_DRIVE_BASE_H_
+#define ROBOT_CONTROLLERS__DIFF_DRIVE_BASE_H_
 
+#include <memory>
 #include <mutex>
 #include <string>
+#include <vector>
 
-#include <rclcpp/rclcpp.hpp>
-#include <robot_controllers_interface/controller.h>
-#include <robot_controllers_interface/controller_manager.h>
-#include <robot_controllers_interface/joint_handle.h>
-#include <tf2_ros/transform_broadcaster.h>
+#include "rclcpp/rclcpp.hpp"
+#include "robot_controllers_interface/controller.h"
+#include "robot_controllers_interface/controller_manager.h"
+#include "robot_controllers_interface/joint_handle.h"
+#include "tf2_ros/transform_broadcaster.h"
 
-#include <geometry_msgs/msg/twist.hpp>
-#include <nav_msgs/msg/odometry.hpp>
-#include <sensor_msgs/msg/laser_scan.hpp>
+#include "geometry_msgs/msg/twist.hpp"
+#include "nav_msgs/msg/odometry.hpp"
+#include "sensor_msgs/msg/laser_scan.hpp"
 
 namespace robot_controllers
 {
@@ -193,4 +195,4 @@ using DiffDriveBaseControllerPtr = std::shared_ptr<DiffDriveBaseController>;
 
 }  // namespace robot_controllers
 
-#endif  // ROBOT_CONTROLLERS_DIFF_DRIVE_BASE_H
+#endif  // ROBOT_CONTROLLERS__DIFF_DRIVE_BASE_H_

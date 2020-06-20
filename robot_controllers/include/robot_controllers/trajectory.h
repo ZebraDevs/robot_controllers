@@ -35,15 +35,17 @@
 
 // Author: Michael Ferguson
 
-#ifndef ROBOT_CONTROLLERS_TRAJECTORY_H_
-#define ROBOT_CONTROLLERS_TRAJECTORY_H_
+#ifndef ROBOT_CONTROLLERS__TRAJECTORY_H_
+#define ROBOT_CONTROLLERS__TRAJECTORY_H_
 
 #include <iomanip>
+#include <string>
+#include <vector>
 
-#include <rclcpp/rclcpp.hpp>
-#include <angles/angles.h>
-#include <trajectory_msgs/msg/joint_trajectory.hpp>
-#include <robot_controllers_interface/utils.h>
+#include "rclcpp/rclcpp.hpp"
+#include "angles/angles.h"
+#include "trajectory_msgs/msg/joint_trajectory.hpp"
+#include "robot_controllers_interface/utils.h"
 
 namespace robot_controllers
 {
@@ -118,7 +120,8 @@ inline bool trajectoryFromMsg(const trajectory_msgs::msg::JointTrajectory& messa
       if (message.points[p].accelerations.size() == message.points[p].positions.size())
         point.qdd.push_back(message.points[p].accelerations[mapping[j]]);
     }
-    point.time = start_time + robot_controllers_interface::msg_to_sec(message.points[p].time_from_start);
+    point.time = start_time +
+                 robot_controllers_interface::msg_to_sec(message.points[p].time_from_start);
     trajectory->points.push_back(point);
   }
 
@@ -227,23 +230,27 @@ inline void rosPrintTrajectory(rclcpp::Node::SharedPtr node, Trajectory& t)
   RCLCPP_INFO_STREAM(node->get_logger(), "Trajectory with " << t.size() << " points:");
   for (size_t p = 0; p < t.size(); ++p)
   {
-    RCLCPP_INFO_STREAM(node->get_logger(), "  Point " << p << " at " << std::setprecision (15) << t.points[p].time);
+    RCLCPP_INFO_STREAM(node->get_logger(), "  Point " << p <<
+                       " at " << std::setprecision (15) << t.points[p].time);
     for (size_t j = 0; j < t.points[p].q.size(); ++j)
     {
       if (t.points[p].qdd.size() == t.points[p].q.size())
       {
-        RCLCPP_INFO_STREAM(node->get_logger(), "    " << std::setprecision (5) << t.points[p].q[j] <<
-                          ", " << std::setprecision (5) << t.points[p].qd[j] <<
-                          ", " << std::setprecision (5) << t.points[p].qdd[j]);
+        RCLCPP_INFO_STREAM(node->get_logger(), "    " << std::setprecision (5) <<
+                           t.points[p].q[j] << ", " << std::setprecision (5) <<
+                           t.points[p].qd[j] << ", " << std::setprecision (5) <<
+                           t.points[p].qdd[j]);
       }
       else if(t.points[p].q.size() == t.points[p].q.size())
       {
-        RCLCPP_INFO_STREAM(node->get_logger(), "    " << std::setprecision (5) << t.points[p].q[j] <<
-                          ", " << std::setprecision (5) << t.points[p].qd[j]);
+        RCLCPP_INFO_STREAM(node->get_logger(), "    " << std::setprecision (5) <<
+                           t.points[p].q[j] << ", " << std::setprecision (5) <<
+                           t.points[p].qd[j]);
       }
       else
       {
-        RCLCPP_INFO_STREAM(node->get_logger(), "    " << std::setprecision (5) << t.points[p].q[j]);
+        RCLCPP_INFO_STREAM(node->get_logger(), "    " << std::setprecision (5) <<
+                           t.points[p].q[j]);
       }
     }
   }
@@ -272,7 +279,8 @@ inline bool windupTrajectory(std::vector<bool> continuous,
         if (p > 0)
         {
           // Unwind by taking shortest path from previous point
-          double shortest = angles::shortest_angular_distance(trajectory.points[p-1].q[j], trajectory.points[p].q[j]);
+          double shortest = angles::shortest_angular_distance(trajectory.points[p-1].q[j],
+                                                              trajectory.points[p].q[j]);
           trajectory.points[p].q[j]  =  trajectory.points[p-1].q[j] + shortest;
         }
         else
@@ -332,4 +340,4 @@ private:
 
 }  // namespace robot_controllers
 
-#endif // ROBOT_CONTROLLERS_TRAJECTORY_H_
+#endif  // ROBOT_CONTROLLERS__TRAJECTORY_H_

@@ -36,26 +36,26 @@
 
 // Author: Michael Ferguson
 
-#ifndef ROBOT_CONTROLLERS_GRAVITY_COMPENSATION_H_
-#define ROBOT_CONTROLLERS_GRAVITY_COMPENSATION_H_
+#ifndef ROBOT_CONTROLLERS__GRAVITY_COMPENSATION_H_
+#define ROBOT_CONTROLLERS__GRAVITY_COMPENSATION_H_
 
 #include <memory>
 #include <string>
 #include <vector>
 
-#include <rclcpp/rclcpp.hpp>
-#include <robot_controllers_interface/controller.h>
-#include <robot_controllers_interface/controller_manager.h>
-#include <robot_controllers_interface/joint_handle.h>
+#include "rclcpp/rclcpp.hpp"
+#include "robot_controllers_interface/controller.h"
+#include "robot_controllers_interface/controller_manager.h"
+#include "robot_controllers_interface/joint_handle.h"
 
-#include <urdf/model.h>
-#include <kdl_parser/kdl_parser.hpp>
+#include "urdf/model.h"
+#include "kdl_parser/kdl_parser.hpp"
 
-#include <kdl/tree.hpp>
-#include <kdl/chain.hpp>
-#include <kdl/jntarray.hpp>
-#include <kdl/jntarrayvel.hpp>
-#include <kdl/chaindynparam.hpp>
+#include "kdl/tree.hpp"
+#include "kdl/chain.hpp"
+#include "kdl/jntarray.hpp"
+#include "kdl/jntarrayvel.hpp"
+#include "kdl/chaindynparam.hpp"
 
 namespace robot_controllers
 {
@@ -97,6 +97,7 @@ public:
    */
   virtual bool stop(bool force)
   {
+    (void) force;
     // always allow preemption
     return true;
   }
@@ -115,10 +116,10 @@ public:
 
   /**
    * @brief This is the update loop for the controller.
-   * @param time The system time.
+   * @param now The system time.
    * @param dt The timestep since last call to update.
    */
-  virtual void update(const rclcpp::Time& time, const rclcpp::Duration& dt);
+  virtual void update(const rclcpp::Time& now, const rclcpp::Duration& dt);
 
   /** @brief Get the type of this controller. */
   virtual std::string getType()
@@ -145,4 +146,4 @@ private:
 
 }  // namespace robot_controllers
 
-#endif  // ROBOT_CONTROLLERS_GRAVITY_COMPENSATION_H_
+#endif  // ROBOT_CONTROLLERS__GRAVITY_COMPENSATION_H_

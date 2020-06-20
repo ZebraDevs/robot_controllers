@@ -36,16 +36,21 @@
 
 // Author: Michael Ferguson
 
-#include <pluginlib/class_list_macros.hpp>
-#include <robot_controllers_interface/utils.h>
-#include <robot_controllers/point_head.h>
-#include <geometry_msgs/msg/point_stamped.hpp>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <memory>
+#include <string>
+#include <vector>
 
-#include <urdf/model.h>
-#include <kdl_parser/kdl_parser.hpp>
+#include "pluginlib/class_list_macros.hpp"
+#include "robot_controllers_interface/utils.h"
+#include "robot_controllers/point_head.h"
+#include "geometry_msgs/msg/point_stamped.hpp"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 
-PLUGINLIB_EXPORT_CLASS(robot_controllers::PointHeadController, robot_controllers_interface::Controller)
+#include "urdf/model.h"
+#include "kdl_parser/kdl_parser.hpp"
+
+PLUGINLIB_EXPORT_CLASS(robot_controllers::PointHeadController,
+                       robot_controllers_interface::Controller)
 
 namespace robot_controllers
 {
@@ -92,7 +97,8 @@ int PointHeadController::init(const std::string& name,
 
   // Parse UDRF/KDL
   urdf::Model model;
-  std::string robot_description = declare_parameter_once<std::string>("robot_description", "", node);
+  std::string robot_description = declare_parameter_once<std::string>("robot_description",
+                                                                      "", node);
   if (!model.initString(robot_description))
   {
     RCLCPP_ERROR(rclcpp::get_logger(getName()),
@@ -205,6 +211,8 @@ bool PointHeadController::reset()
 
 void PointHeadController::update(const rclcpp::Time& now, const rclcpp::Duration& dt)
 {
+  (void) dt;
+
   if (!server_)
     return;
 
@@ -250,6 +258,9 @@ rclcpp_action::GoalResponse PointHeadController::handle_goal(
     const rclcpp_action::GoalUUID & uuid,
     std::shared_ptr<const PointHeadAction::Goal> goal_handle)
 {
+  (void) uuid;
+  (void) goal_handle;
+
   if (!server_)
   {
     RCLCPP_ERROR(rclcpp::get_logger(getName()),
@@ -283,8 +294,8 @@ void PointHeadController::handle_accepted(const std::shared_ptr<PointHeadGoal> g
   bool preempted = false;
   if (active_goal_)
   {
-    // TODO: if rclcpp_action ever supports preempted, note it here
-    //       https://github.com/ros2/rclcpp/issues/1104
+    // TODO(anyone): if rclcpp_action ever supports preempted, note it here
+    //               https://github.com/ros2/rclcpp/issues/1104
     active_goal_->abort(result);
     active_goal_.reset();
     RCLCPP_DEBUG(rclcpp::get_logger(getName()),
@@ -302,7 +313,8 @@ void PointHeadController::handle_accepted(const std::shared_ptr<PointHeadGoal> g
     tf_buffer_->transform(goal->target, target_in_pan, pan_parent_link_);
     tf_buffer_->transform(goal->target, target_in_tilt, tilt_parent_link_);
     head_pan_goal_ = atan2(target_in_pan.point.y, target_in_pan.point.x);
-    head_tilt_goal_ = -atan2(target_in_tilt.point.z, sqrt(pow(target_in_tilt.point.x, 2) + pow(target_in_tilt.point.y, 2)));
+    head_tilt_goal_ = -atan2(target_in_tilt.point.z,
+      sqrt(pow(target_in_tilt.point.x, 2) + pow(target_in_tilt.point.y, 2)));
   }
   catch (const tf2::TransformException& ex)
   {
@@ -350,7 +362,8 @@ void PointHeadController::handle_accepted(const std::shared_ptr<PointHeadGoal> g
   }
   double pan_transit = fabs((t.points[1].q[0] - t.points[0].q[0]) / max_pan_vel);
   double tilt_transit = fabs((t.points[1].q[1] - t.points[0].q[1]) / max_tilt_vel);
-  t.points[1].time = t.points[0].time + fmax(fmax(pan_transit, tilt_transit), msg_to_sec(goal->min_duration));
+  t.points[1].time = t.points[0].time + fmax(fmax(pan_transit, tilt_transit),
+                                             msg_to_sec(goal->min_duration));
 
   {
     std::lock_guard<std::mutex> lock(sampler_mutex_);

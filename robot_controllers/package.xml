@@ -34,6 +34,7 @@
   <depend>trajectory_msgs</depend>
   <depend>urdf</depend>
 
+  <test_depend>ament_cmake_cpplint</test_depend>
   <test_depend>ament_cmake_gtest</test_depend>
 
   <export>

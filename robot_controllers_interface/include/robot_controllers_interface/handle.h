@@ -28,8 +28,8 @@
 
 // Author: Michael Ferguson
 
-#ifndef ROBOT_CONTROLLERS_INTERFACE_HANDLE_H
-#define ROBOT_CONTROLLERS_INTERFACE_HANDLE_H
+#ifndef ROBOT_CONTROLLERS_INTERFACE__HANDLE_H_
+#define ROBOT_CONTROLLERS_INTERFACE__HANDLE_H_
 
 #include <string>
 #include <memory>
@@ -57,12 +57,12 @@ public:
 
 private:
   // No copy
-  Handle(const Handle&);
-  Handle& operator=(const Handle&);
+  Handle(const Handle&) = delete;
+  Handle& operator=(const Handle&) = delete;
 };
 
 using HandlePtr = std::shared_ptr<Handle>;
 
 }  // namespace robot_controllers_interface
 
-#endif  // ROBOT_CONTROLLERS_INTERFACE_HANDLE_H
+#endif  // ROBOT_CONTROLLERS_INTERFACE__HANDLE_H_
