@@ -17,7 +17,6 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <depend>actionlib</depend>
   <depend>pluginlib</depend>
   <depend>robot_controllers_msgs</depend>
   <depend>rclcpp</depend>
