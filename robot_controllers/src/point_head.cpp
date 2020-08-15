@@ -310,8 +310,18 @@ void PointHeadController::handle_accepted(const std::shared_ptr<PointHeadGoal> g
   try
   {
     geometry_msgs::msg::PointStamped target_in_pan, target_in_tilt;
-    tf_buffer_->transform(goal->target, target_in_pan, pan_parent_link_);
-    tf_buffer_->transform(goal->target, target_in_tilt, tilt_parent_link_);
+
+    geometry_msgs::msg::TransformStamped transform =
+      tf_buffer_->lookupTransform(pan_parent_link_,
+                                  goal->target.header.frame_id,
+                                  tf2::TimePointZero);
+    tf2::doTransform(goal->target, target_in_pan, transform);
+
+    transform = tf_buffer_->lookupTransform(tilt_parent_link_,
+                                            goal->target.header.frame_id,
+                                            tf2::TimePointZero);
+    tf2::doTransform(goal->target, target_in_tilt, transform);
+
     head_pan_goal_ = atan2(target_in_pan.point.y, target_in_pan.point.x);
     head_tilt_goal_ = -atan2(target_in_tilt.point.z,
       sqrt(pow(target_in_tilt.point.x, 2) + pow(target_in_tilt.point.y, 2)));
