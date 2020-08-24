@@ -132,6 +132,9 @@ private:
     const std::shared_ptr<PointHeadGoal> goal_handle);
   void handle_accepted(const std::shared_ptr<PointHeadGoal> goal_handle);
 
+  // Execute the goal
+  void execute(const std::shared_ptr<PointHeadGoal> goal_handle);
+
   // Handles to node, manager
   rclcpp::Node::SharedPtr node_;
   robot_controllers_interface::ControllerManagerPtr manager_;
@@ -148,7 +151,6 @@ private:
 
   // Trajectory generation
   std::shared_ptr<TrajectorySampler> sampler_;
-  std::mutex sampler_mutex_;
 
   /*
    * In certain cases, we want to start a trajectory at our last sample,
@@ -161,6 +163,9 @@ private:
   // RCLCPP action server
   rclcpp_action::Server<PointHeadAction>::SharedPtr server_;
   std::shared_ptr<PointHeadGoal> active_goal_;
+  // This guards both the active_goal_ and the sampler_
+  // Is recursive so we can call stop whenever we want
+  std::recursive_mutex active_goal_mutex_;
 
   KDL::Tree kdl_tree_;
   std::shared_ptr<tf2_ros::Buffer> tf_buffer_;

@@ -73,12 +73,14 @@ int PointHeadController::init(const std::string& name,
     return -1;
   }
 
+  // Lock before resetting things
+  std::lock_guard<std::recursive_mutex> lock(active_goal_mutex_);
+
   Controller::init(name, node, manager);
   node_ = node;
   manager_ = manager;
 
   // No initial sampler
-  std::lock_guard<std::mutex> lock(sampler_mutex_);
   sampler_.reset();
 
   // Get parameters
@@ -185,6 +187,7 @@ bool PointHeadController::stop(bool force)
   if (!server_)
     return true;
 
+  std::lock_guard<std::recursive_mutex> lock(active_goal_mutex_);
   if (active_goal_)
   {
     if (force)
@@ -216,11 +219,12 @@ void PointHeadController::update(const rclcpp::Time& now, const rclcpp::Duration
   if (!server_)
     return;
 
+  // Prevent our goal/sampler from changing
+  std::lock_guard<std::recursive_mutex> lock(active_goal_mutex_);
+
   // We have a trajectory to execute?
   if (active_goal_ && sampler_)
   {
-    std::lock_guard<std::mutex> lock(sampler_mutex_);
-
     // Interpolate trajectory
     TrajectoryPoint p = sampler_->sample(to_sec(now));
     last_sample_ = p;
@@ -228,13 +232,17 @@ void PointHeadController::update(const rclcpp::Time& now, const rclcpp::Duration
     // Are we done?
     if (to_sec(now) > sampler_->end_time())
     {
-      // Stop this controller if desired (and not preempted)
-      if (stop_with_action_)
-        manager_->requestStop(getName());
-
+      // Mark succeeded first (so we don't abort in requestStop)
       auto result = std::make_shared<PointHeadAction::Result>();
       active_goal_->succeed(result);
       active_goal_.reset();
+
+      // Stop this controller if desired
+      if (stop_with_action_)
+      {
+        manager_->requestStop(getName());
+      }
+
       RCLCPP_DEBUG(rclcpp::get_logger(getName()),
                    "PointHead goal succeeded");
     }
@@ -275,6 +283,7 @@ rclcpp_action::CancelResponse PointHeadController::handle_cancel(
     const std::shared_ptr<PointHeadGoal> goal_handle)
 {
   // Always accept
+  std::lock_guard<std::recursive_mutex> lock(active_goal_mutex_);
   if (active_goal_ && active_goal_->get_goal_id() == goal_handle->get_goal_id())
   {
     RCLCPP_INFO(rclcpp::get_logger(getName()),
@@ -289,6 +298,13 @@ rclcpp_action::CancelResponse PointHeadController::handle_cancel(
 
 void PointHeadController::handle_accepted(const std::shared_ptr<PointHeadGoal> goal_handle)
 {
+  // This needs to return ASAP, so detach the actual work
+  std::thread{std::bind(&PointHeadController::execute, this, _1), goal_handle}.detach();
+}
+
+void PointHeadController::execute(const std::shared_ptr<PointHeadGoal> goal_handle)
+{
+  std::lock_guard<std::recursive_mutex> lock(active_goal_mutex_);
   auto result = std::make_shared<PointHeadAction::Result>();
 
   bool preempted = false;
@@ -375,11 +391,8 @@ void PointHeadController::handle_accepted(const std::shared_ptr<PointHeadGoal> g
   t.points[1].time = t.points[0].time + fmax(fmax(pan_transit, tilt_transit),
                                              msg_to_sec(goal->min_duration));
 
-  {
-    std::lock_guard<std::mutex> lock(sampler_mutex_);
-    sampler_.reset(new SplineTrajectorySampler(t));
-    active_goal_ = goal_handle;
-  }
+  sampler_.reset(new SplineTrajectorySampler(t));
+  active_goal_ = goal_handle;
 
   if (manager_->requestStart(getName()) != 0)
   {
