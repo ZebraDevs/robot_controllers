@@ -2,6 +2,20 @@
 Changelog for package robot_controllers_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Add initial support for ROS2
+* implement getJointNames/getControllerNames (`#51 <https://github.com/fetchrobotics/robot_controllers/issues/51>`_)
+  this was discussed in `#39 <https://github.com/fetchrobotics/robot_controllers/issues/39>`_
+* Merge pull request `#47 <https://github.com/fetchrobotics/robot_controllers/issues/47>`_ from mikeferguson/ros2
+* improve logging
+* switch to service interface
+* gravity compensation controller working in ros2
+* Various bug and API fixes
+* Added gyro interface to robot controllers (`#43 <https://github.com/fetchrobotics/robot_controllers/issues/43>`_)
+* Updates maintainers
+* Contributors: Alex Moriarty, Carl Saldanha, Michael Ferguson, Russell Toris
+
 0.6.0 (2018-07-11)
 ------------------
 * updates ownership

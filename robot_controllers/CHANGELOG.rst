@@ -2,6 +2,31 @@
 Changelog for package robot_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Add initial support for ROS2
+* fix threading bug in point head controller (`#62 <https://github.com/fetchrobotics/robot_controllers/issues/62>`_)
+* get latest transform (`#60 <https://github.com/fetchrobotics/robot_controllers/issues/60>`_)
+* add linter, fix errors (`#48 <https://github.com/fetchrobotics/robot_controllers/issues/48>`_)
+* parallel gripper tested (`#56 <https://github.com/fetchrobotics/robot_controllers/issues/56>`_)
+* remove hard coded frame in point_head (`#55 <https://github.com/fetchrobotics/robot_controllers/issues/55>`_)
+* build fixes on eloquent (`#54 <https://github.com/fetchrobotics/robot_controllers/issues/54>`_)
+* add support for 4wd bases (`#53 <https://github.com/fetchrobotics/robot_controllers/issues/53>`_)
+* test, fix and improve scaled_mimic (`#52 <https://github.com/fetchrobotics/robot_controllers/issues/52>`_)
+* fix bug in laser checking: robot would always go slow if laser safety was on.
+* Uses C++14
+* make preemption work
+* fix uninitialized time that would occasionally cause std::runtime_error* improve logging
+* switch to service interface
+* port all controllers and tested
+* add util/declare_parameter_once
+* Add time_from_start information to feedback topic (`#38 <https://github.com/fetchrobotics/robot_controllers/issues/38>`_)
+* [GCC][Warnings] SYSTEM includes and catch ref (`#36 <https://github.com/fetchrobotics/robot_controllers/issues/36>`_)
+  This is an attempt to fix (silence) the buildbot failures from -Werror
+* Updates maintainers
+* Add init trajectory for future start time (`#40 <https://github.com/fetchrobotics/robot_controllers/issues/40>`_)
+* Contributors: Alex Moriarty, Michael Ferguson, Naoya Yamaguchi, Russell Toris, Shingo Kitagawa
+
 0.6.0 (2018-07-11)
 ------------------
 * updates ownership

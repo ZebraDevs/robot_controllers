@@ -2,6 +2,14 @@
 Changelog for package robot_controllers_msgs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Add initial support for ROS2
+* Port messages to ros2
+* Switch to service interface
+* Updates maintainers
+* Contributors: Alex Moriarty, Michael Ferguson, Russell Toris
+
 0.6.0 (2018-07-11)
 ------------------
 * updates ownership
