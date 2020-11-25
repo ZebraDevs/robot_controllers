@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="3">
   <name>robot_controllers_interface</name>
-  <version>0.6.0</version>
+  <version>0.8.0</version>
   <description>
     Generic framework for robot controls.
   </description>

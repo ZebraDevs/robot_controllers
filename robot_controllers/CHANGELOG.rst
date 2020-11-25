@@ -2,8 +2,8 @@
 Changelog for package robot_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.8.0 (2020-11-25)
+------------------
 * Add initial support for ROS2
 * fix threading bug in point head controller (`#62 <https://github.com/fetchrobotics/robot_controllers/issues/62>`_)
 * get latest transform (`#60 <https://github.com/fetchrobotics/robot_controllers/issues/60>`_)

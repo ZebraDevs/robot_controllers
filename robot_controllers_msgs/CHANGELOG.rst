@@ -2,8 +2,8 @@
 Changelog for package robot_controllers_msgs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.8.0 (2020-11-25)
+------------------
 * Add initial support for ROS2
 * Port messages to ros2
 * Switch to service interface

@@ -2,8 +2,8 @@
 Changelog for package robot_controllers_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.8.0 (2020-11-25)
+------------------
 * Add initial support for ROS2
 * implement getJointNames/getControllerNames (`#51 <https://github.com/fetchrobotics/robot_controllers/issues/51>`_)
   this was discussed in `#39 <https://github.com/fetchrobotics/robot_controllers/issues/39>`_
