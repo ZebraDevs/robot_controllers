@@ -68,6 +68,7 @@ ament_target_dependencies(robot_controllers
   trajectory_msgs
   urdf
 )
+target_compile_definitions(robot_controllers PUBLIC "PLUGINLIB__DISABLE_BOOST_FUNCTIONS")
 
 if (BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
