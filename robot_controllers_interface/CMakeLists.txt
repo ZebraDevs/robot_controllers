@@ -33,6 +33,7 @@ ament_target_dependencies(robot_controllers_interface
   rclcpp
   robot_controllers_msgs
 )
+target_compile_definitions(robot_controllers_interface PUBLIC "PLUGINLIB__DISABLE_BOOST_FUNCTIONS")
 
 install(
   DIRECTORY include/
