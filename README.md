@@ -9,9 +9,9 @@ as is the case for Fetch and Freight.
 
  * Devel Job Status: [![Build Status](https://build.ros2.org/buildStatus/icon?job=Fdev__robot_controllers__ubuntu_focal_amd64)](https://build.ros2.org/job/Fdev__robot_controllers__ubuntu_focal_amd64/)
  * AMD64 Debian Job Status:
-   * [![robot_controllers_msgs](https://build.ros2.org/buildStatus/icon?job=Fbin_uF64__robot_controllers_msgs__ubuntu_focal_amd64__binary)](https://build.ros2.org/job/Fbin_uF64__robot_controllers_msgs__ubuntu_focal_amd64__binary/)
-   * [![robot_controllers_interface](https://build.ros2.org/buildStatus/icon?job=Fbin_uF64__robot_controllers_interface__ubuntu_focal_amd64__binary)](https://build.ros2.org/job/Fbin_uF64__robot_controllers_interface__ubuntu_focal_amd64__binary/)
-   * [![robot_rontrollers](https://build.ros2.org/buildStatus/icon?job=Fbin_uF64__robot_controllers__ubuntu_focal_amd64__binary)](https://build.ros2.org/job/Fbin_uF64__robot_controllers__ubuntu_focal_amd64__binary/)
+   * robot_controllers_msgs: [![Build Status](https://build.ros2.org/buildStatus/icon?job=Fbin_uF64__robot_controllers_msgs__ubuntu_focal_amd64__binary)](https://build.ros2.org/job/Fbin_uF64__robot_controllers_msgs__ubuntu_focal_amd64__binary/)
+   * robot_controllers_interface: [![Build Status](https://build.ros2.org/buildStatus/icon?job=Fbin_uF64__robot_controllers_interface__ubuntu_focal_amd64__binary)](https://build.ros2.org/job/Fbin_uF64__robot_controllers_interface__ubuntu_focal_amd64__binary/)
+   * robot_controllers: [![Build Status](https://build.ros2.org/buildStatus/icon?job=Fbin_uF64__robot_controllers__ubuntu_focal_amd64__binary)](https://build.ros2.org/job/Fbin_uF64__robot_controllers__ubuntu_focal_amd64__binary/)
 
 ## ROS1 -> ROS2 Migration
 
