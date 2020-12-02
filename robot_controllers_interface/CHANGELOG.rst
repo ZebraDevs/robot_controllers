@@ -2,8 +2,8 @@
 Changelog for package robot_controllers_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.8.1 (2020-12-02)
+------------------
 * add Fergs as maintainer (`#65 <https://github.com/fetchrobotics/robot_controllers/issues/65>`_)
 * additional boost disabling (`#64 <https://github.com/fetchrobotics/robot_controllers/issues/64>`_)
 * Contributors: Michael Ferguson
