@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020, Fetch Robotics Inc.
+ * Copyright (c) 2014-2016, Fetch Robotics Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,6 @@
 #include <robot_controllers_msgs/QueryControllerStatesAction.h>
 
 #include <robot_controllers_interface/joint_handle.h>
-#include <robot_controllers_interface/gyro_handle.h>
 #include <robot_controllers_interface/controller.h>
 #include <robot_controllers_interface/controller_loader.h>
 
@@ -48,11 +47,10 @@ namespace robot_controllers
 /** @brief Base class for a controller manager. */
 class ControllerManager
 {
-  using ServerT = actionlib::SimpleActionServer<robot_controllers_msgs::QueryControllerStatesAction>;
+  typedef actionlib::SimpleActionServer<robot_controllers_msgs::QueryControllerStatesAction> server_t;
 
-  using ControllerList = std::vector<ControllerLoaderPtr>;
-  using JointHandleList = std::vector<JointHandlePtr> ;
-  using GyroHandleList = std::vector<GyroHandlePtr>;
+  typedef std::vector<ControllerLoaderPtr> ControllerList;
+  typedef std::vector<JointHandlePtr> JointHandleList;
 
 public:
   ControllerManager();
@@ -84,10 +82,7 @@ public:
   virtual void reset();
 
   /** @brief Add a joint handle. */
-  bool addJointHandle(JointHandlePtr& joint_handle_ptr);
-
-  /** @brief Add a gyro handle. */
-  bool addGyroHandle(GyroHandlePtr gyro_hanle_ptr);
+  bool addJointHandle(JointHandlePtr& j);
 
   /**
    * @brief Get the handle associated with a particular joint/controller name.
@@ -103,14 +98,6 @@ public:
    */
   JointHandlePtr getJointHandle(const std::string& name);
 
-  /**
-   * @brief Get the gyro handle associated with a particular gyro name.
-   * @param name The name of the gyro.
-   *
-   * This is mainly a convienence function.
-   */
-  GyroHandlePtr getGyroHandle(const std::string& name);
-
 private:
   /** @brief Action callback. */
   void execute(const robot_controllers_msgs::QueryControllerStatesGoalConstPtr& goal);
@@ -123,9 +110,8 @@ private:
 
   ControllerList controllers_;
   JointHandleList joints_;
-  GyroHandleList gyros_;
 
-  boost::shared_ptr<ServerT> server_;
+  boost::shared_ptr<server_t> server_;
 };
 
 }  // namespace robot_controllers
