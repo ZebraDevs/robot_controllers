@@ -39,6 +39,7 @@
 #define ROBOT_CONTROLLERS_DIFF_DRIVE_BASE_H
 
 #include <string>
+#include <vector>
 #include <boost/shared_ptr.hpp>
 #include <boost/thread/mutex.hpp>
 
@@ -131,8 +132,11 @@ private:
   // Set base wheel speeds in m/s
   void setCommand(float left, float right);
 
-  JointHandlePtr left_;
-  JointHandlePtr right_;
+  // Helper for filling in joints
+  bool getJoints(ros::NodeHandle& nh, std::string param_name, std::vector<JointHandlePtr>& joints);
+
+  std::vector<JointHandlePtr> left_;
+  std::vector<JointHandlePtr> right_;
 
   double track_width_;
   double radians_per_meter_;
