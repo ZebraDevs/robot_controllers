@@ -151,7 +151,7 @@ int DiffDriveBaseController::init(const std::string& name,
   moving_threshold_ = node->declare_parameter<double>(name + ".moving_threshold", 0.05);
 
   double t = node->declare_parameter<double>(name + ".timeout", 0.25);
-  timeout_ = rclcpp::Duration(t * 1e9);
+  timeout_ = rclcpp::Duration::from_seconds(t);
 
   // Get limits of base controller
   max_velocity_x_ = node->declare_parameter<double>(name + ".max_velocity_x", 1.0);
@@ -270,7 +270,7 @@ void DiffDriveBaseController::update(const rclcpp::Time& now, const rclcpp::Dura
 
   // Make sure laser has not timed out (0.5 seconds)
   if ((safety_scaling_distance_ > 0.0) &&
-      (now - last_laser_scan_ > rclcpp::Duration(0, 5e8)))
+      (now - last_laser_scan_ > rclcpp::Duration::from_seconds(0.5)))
   {
     RCLCPP_ERROR(rclcpp::get_logger(getName()),
                  "Laser has timed out.");
