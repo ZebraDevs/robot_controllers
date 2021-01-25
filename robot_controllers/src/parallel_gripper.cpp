@@ -241,7 +241,7 @@ void ParallelGripperController::update(const rclcpp::Time& now, const rclcpp::Du
   }
   else
   {
-    if (now - last_position_time_ > rclcpp::Duration(2, 0))
+    if (now - last_position_time_ > rclcpp::Duration::from_seconds(2.0))
     {
       auto result = std::make_shared<GripperCommandAction::Result>();
       result->position = feedback_->position;

@@ -217,7 +217,7 @@ void CartesianTwistController::update(const rclcpp::Time& now, const rclcpp::Dur
 
   unsigned num_joints = joints_.size();
 
-  if ((now - last_command_time) > rclcpp::Duration(0, 5e8))
+  if ((now - last_command_time) > rclcpp::Duration::from_seconds(0.5))
   {
     manager_->requestStop(getName());
   }

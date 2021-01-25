@@ -142,7 +142,7 @@ bool CartesianWrenchController::start()
     return false;
   }
 
-  if (node_->now() - last_command_ > rclcpp::Duration(3, 0))
+  if (node_->now() - last_command_ > rclcpp::Duration::from_seconds(3.0))
   {
     RCLCPP_ERROR(rclcpp::get_logger(getName()),
                  "Unable to start, no goal.");
@@ -172,7 +172,7 @@ void CartesianWrenchController::update(const rclcpp::Time& now, const rclcpp::Du
   if (!initialized_)
     return;
 
-  if (now - last_command_ > rclcpp::Duration(0, 1e8))
+  if (now - last_command_ > rclcpp::Duration::from_seconds(0.1))
   {
     // Command has timed out, shutdown
     manager_->requestStop(getName());

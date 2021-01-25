@@ -161,7 +161,7 @@ bool CartesianPoseController::start()
     return false;
   }
 
-  if (node_->now() - last_command_ > rclcpp::Duration(3, 0))
+  if (node_->now() - last_command_ > rclcpp::Duration::from_seconds(3.0))
   {
     RCLCPP_ERROR(rclcpp::get_logger(getName()),
                  "Unable to start, no goal.");
