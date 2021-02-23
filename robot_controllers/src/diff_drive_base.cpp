@@ -74,19 +74,15 @@ int DiffDriveBaseController::init(ros::NodeHandle& nh, ControllerManager* manage
   manager_ = manager;
 
   // Initialize joints
-  std::string l_name, r_name;
-  nh.param<std::string>("l_wheel_joint", l_name, "l_wheel_joint");
-  nh.param<std::string>("r_wheel_joint", r_name, "r_wheel_joint");
-  left_ = manager_->getJointHandle(l_name);
-  right_ = manager_->getJointHandle(r_name);
-  if (left_ == NULL || right_ == NULL)
+  if (!getJoints(nh, "l_wheel_joints", left_) || !getJoints(nh, "r_wheel_joints", right_))
   {
-    ROS_ERROR_NAMED("BaseController", "Cannot get wheel joints.");
+    // Error will be printed in getJoints
     initialized_ = false;
     return -1;
   }
-  left_last_position_ = left_->getPosition();
-  right_last_position_ = right_->getPosition();
+  
+  left_last_position_ = left_[0]->getPosition();
+  right_last_position_ = right_[0]->getPosition();
   last_update_ = ros::Time::now();
 
   // Get base parameters
@@ -276,12 +272,12 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   double dx = 0.0;
   double dr = 0.0;
 
-  double left_pos = left_->getPosition();
-  double right_pos = right_->getPosition();
+  double left_pos = left_[0]->getPosition();
+  double right_pos = right_[0]->getPosition();
   double left_dx = angles::shortest_angular_distance(left_last_position_, left_pos)/radians_per_meter_;
   double right_dx = angles::shortest_angular_distance(right_last_position_, right_pos)/radians_per_meter_;
-  double left_vel = static_cast<double>(left_->getVelocity())/radians_per_meter_;
-  double right_vel = static_cast<double>(right_->getVelocity())/radians_per_meter_;
+  double left_vel = static_cast<double>(left_[0]->getVelocity())/radians_per_meter_;
+  double right_vel = static_cast<double>(right_[0]->getVelocity())/radians_per_meter_;
 
   // Threshold the odometry to avoid noise (especially in simulation)
   if (fabs(left_dx) > wheel_rotating_threshold_ ||
@@ -338,10 +334,14 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
 std::vector<std::string> DiffDriveBaseController::getCommandedNames()
 {
   std::vector<std::string> names;
-  if (left_)
-    names.push_back(left_->getName());
-  if (right_)
-    names.push_back(right_->getName());
+  for (size_t i = 0; i < left_.size(); ++i)
+  {
+    names.push_back(left_[i]->getName());
+  }
+  for (size_t i = 0; i < right_.size(); ++i)
+  {
+    names.push_back(right_[i]->getName());
+  }
   return names;
 }
 
@@ -411,8 +411,67 @@ void DiffDriveBaseController::scanCallback(
 void DiffDriveBaseController::setCommand(float left, float right)
 {
   // Convert meters/sec into radians/sec
-  left_->setVelocity(left * radians_per_meter_, 0.0);
-  right_->setVelocity(right * radians_per_meter_, 0.0);
+  for (size_t i = 0; i < left_.size(); ++i)
+  {
+    left_[i]->setVelocity(left * radians_per_meter_, 0.0);
+  }
+  for (size_t i = 0; i < right_.size(); ++i)
+  {
+    right_[i]->setVelocity(right * radians_per_meter_, 0.0);
+  }
+}
+
+bool DiffDriveBaseController::getJoints(
+  ros::NodeHandle& nh,
+  std::string param_name,
+  std::vector<JointHandlePtr>& joints)
+{
+  std::vector<std::string> joint_names;
+
+  XmlRpc::XmlRpcValue raw_names;
+  if (nh.getParam(param_name, raw_names))
+  {
+    if (raw_names.getType() != XmlRpc::XmlRpcValue::TypeArray)
+    {
+      ROS_WARN_NAMED("BaseController", "%s should be a list.", param_name.c_str());
+      return false;
+    }
+    else
+    {
+      // Load each wheel
+      for (int i = 0; i < raw_names.size(); ++i)
+      {
+        // Make sure name is valid
+        XmlRpc::XmlRpcValue &name = raw_names[i];
+        if (name.getType() != XmlRpc::XmlRpcValue::TypeString)
+        {
+          ROS_WARN_NAMED("BaseController", "Joint name is not a string.");
+          continue;
+        }
+        joint_names.push_back(static_cast<std::string>(name));
+      }
+    }
+  }
+  else
+  {
+    std::string single_param_name = param_name.substr(0, param_name.size() - 1);
+    std::string name;
+    nh.param<std::string>(single_param_name, name, single_param_name);
+    joint_names.push_back(name);
+  }
+
+  for (size_t i = 0; i < joint_names.size(); ++i)
+  {
+    JointHandlePtr joint = manager_->getJointHandle(joint_names[i]);
+    if (joint == NULL)
+     {
+       ROS_ERROR_NAMED("BaseController", "Cannot get %s", joint_names[i].c_str());
+       return false;
+     }
+     joints.push_back(joint);
+  }
+
+  return true;
 }
 
 }  // namespace robot_controllers
