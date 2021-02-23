@@ -2,6 +2,16 @@
 Changelog for package robot_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Add support for 4wd bases (`#69 <https://github.com/fetchrobotics/robot_controllers/issues/69>`_)
+* Build fixes for noetic
+* Add time_from_start information to feedback topic (`#38 <https://github.com/fetchrobotics/robot_controllers/issues/38>`_)
+* [GCC][Warnings] SYSTEM includes and catch ref (`#36 <https://github.com/fetchrobotics/robot_controllers/issues/36>`_)
+* Updates maintainers
+* Add init trajectory for future start time (`#40 <https://github.com/fetchrobotics/robot_controllers/issues/40>`_)
+* Contributors: Alex Moriarty, Michael Ferguson, Naoya Yamaguchi, Russell Toris, Shingo Kitagawa, root
+
 0.6.0 (2018-07-11)
 ------------------
 * updates ownership

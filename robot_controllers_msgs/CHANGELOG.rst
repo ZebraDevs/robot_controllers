@@ -2,6 +2,11 @@
 Changelog for package robot_controllers_msgs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Updates maintainers
+* Contributors: Alex Moriarty, Russell Toris
+
 0.6.0 (2018-07-11)
 ------------------
 * updates ownership
