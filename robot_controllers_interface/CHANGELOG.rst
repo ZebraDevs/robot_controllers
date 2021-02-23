@@ -2,8 +2,8 @@
 Changelog for package robot_controllers_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.7.0 (2021-02-22)
+------------------
 * Added gyro interface to robot controllers (`#43 <https://github.com/fetchrobotics/robot_controllers/issues/43>`_)
 * [GCC][Warnings] SYSTEM includes and catch ref (`#36 <https://github.com/fetchrobotics/robot_controllers/issues/36>`_)
 * Updates maintainers

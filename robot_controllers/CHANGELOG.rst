@@ -2,8 +2,8 @@
 Changelog for package robot_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.7.0 (2021-02-22)
+------------------
 * Add support for 4wd bases (`#69 <https://github.com/fetchrobotics/robot_controllers/issues/69>`_)
 * Build fixes for noetic
 * Add time_from_start information to feedback topic (`#38 <https://github.com/fetchrobotics/robot_controllers/issues/38>`_)
