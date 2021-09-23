@@ -121,6 +121,9 @@ private:
   /** @brief Load a controller. */
   bool load(const std::string& name);
 
+  /** @brief Load a controller from a class directly */
+  bool load(const std::string& name, ControllerPtr& controller);
+
   ControllerList controllers_;
   JointHandleList joints_;
   GyroHandleList gyros_;

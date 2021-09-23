@@ -52,6 +52,9 @@ public:
   /** @brief Load the controller. */
   bool init(const std::string& name, ControllerManager* manager);
 
+  /** @brief Set the controller manually internally. */
+  bool init(ControllerPtr& controller, const std::string& name, ControllerManager* manager);
+
   /** @brief This calls through to controller, saves state locally. */
   bool start();
 

@@ -63,6 +63,13 @@ bool ControllerLoader::init(const std::string& name, ControllerManager* manager)
   return false;
 }
 
+bool ControllerLoader::init(ControllerPtr& controller, const std::string& name, ControllerManager* manager)
+{
+  ros::NodeHandle nh(name);
+  controller_ = controller;
+  controller_->init(nh, manager);
+}
+
 bool ControllerLoader::start()
 {
   active_ = controller_->start();
