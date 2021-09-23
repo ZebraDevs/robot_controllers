@@ -111,6 +111,10 @@ public:
    */
   GyroHandlePtr getGyroHandle(const std::string& name);
 
+  /** @brief Load a controller from a class directly */
+  bool load(const std::string& name, ControllerPtr& controller);
+
+
 private:
   /** @brief Action callback. */
   void execute(const robot_controllers_msgs::QueryControllerStatesGoalConstPtr& goal);
@@ -120,9 +124,6 @@ private:
 
   /** @brief Load a controller. */
   bool load(const std::string& name);
-
-  /** @brief Load a controller from a class directly */
-  bool load(const std::string& name, ControllerPtr& controller);
 
   ControllerList controllers_;
   JointHandleList joints_;
