@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015, Fetch Robotics Inc.
+ * Copyright (c) 2014-2021, Fetch Robotics Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -420,6 +420,22 @@ void ControllerManager::getState(
     }
     result.state.push_back(state);
   }
+}
+
+bool ControllerManager::load(const std::string& name, ControllerPtr& controller)
+{
+  // Create controller (in a loader)
+  ControllerLoaderPtr controller_loader(new ControllerLoader());
+  // Push back controller (so that autostart will work)
+  controllers_.push_back(controller_loader);
+  // Now initialize controller
+  if (!controller_loader->init(controller, name, this))
+  {
+    // Remove if init fails
+    controllers_.pop_back();
+    return false;
+  }
+  return true;
 }
 
 // NOTE: this function should be called only by one thread

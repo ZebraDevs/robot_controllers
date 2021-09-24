@@ -111,6 +111,15 @@ public:
    */
   GyroHandlePtr getGyroHandle(const std::string& name);
 
+  /** @brief Load a controller from a class directly.
+   *         This is to extend the list loaded by the params in `init`.
+   *  @param name The name of of the controller. This represents the namespace that
+   *              the controller will grab its parameters from
+   *  @param controller Pointer to a Controller that is constructed but not initialized
+   */
+  bool load(const std::string& name, ControllerPtr& controller);
+
+
 private:
   /** @brief Action callback. */
   void execute(const robot_controllers_msgs::QueryControllerStatesGoalConstPtr& goal);

@@ -52,6 +52,14 @@ public:
   /** @brief Load the controller. */
   bool init(const std::string& name, ControllerManager* manager);
 
+  /** @brief Set the controller manually internally.
+   *  @param controller The pointer to the uninitialized controller
+   *  @param name The name of the controller. This will be the ROS namespace that the params will
+   *              be pulled from
+   *  @param manager The ControllerManager that is controlling all the controllers.
+   */
+  bool init(ControllerPtr& controller, const std::string& name, ControllerManager* manager);
+
   /** @brief This calls through to controller, saves state locally. */
   bool start();
 
