@@ -7,5 +7,5 @@ robot_controllers has not be designed with real-time constraints in mind, and is
 primarily for robots where the real-time joint-level controllers are run in hardware,
 as is the case for Fetch and Freight.
 
- * Devel Job Status: [![Build Status](http://build.ros.org/buildStatus/icon?job=Mdev__robot_controllers__ubuntu_bionic_amd64)](http://build.ros.org/job/Mdev__robot_controllers__ubuntu_bionic_amd64/)
- * AMD64 Debian Job Status: [![Build Status](http://build.ros.org/buildStatus/icon?job=Mbin_uB64__robot_controllers__ubuntu_bionic_amd64__binary)](http://build.ros.org/view/Mbin_uB64/job/Mbin_uB64__robot_controllers__ubuntu_bionic_amd64__binary/)
+ * Noetic Devel Job Status: [![Build Status](http://build.ros.org/buildStatus/icon?job=Ndev__robot_controllers__ubuntu_focal_amd64)](http://build.ros.org/job/Ndev__robot_controllers__ubuntu_focal_amd64/)
+ * Noetic AMD64 Debian Job Status: [![Build Status](http://build.ros.org/buildStatus/icon?job=Nbin_uF64__robot_controllers__ubuntu_focal_amd64__binary)](http://build.ros.org/view/Nbin_uF64/job/Nbin_uF64__robot_controllers__ubuntu_focal_amd64__binary/)
