@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Michael Ferguson
+ * Copyright (c) 2020-2022, Michael Ferguson
  * Copyright (c) 2014-2015, Fetch Robotics Inc.
  * All rights reserved.
  *
@@ -341,9 +341,9 @@ void ControllerManager::callback(
           else
           {
             RCLCPP_ERROR(node_->get_logger(), "Controller %s is of type %s not %s",
-                                              state.name,
-                                              c->getController()->getType(),
-                                              state.type);
+                                              state.name.c_str(),
+                                              c->getController()->getType().c_str(),
+                                              state.type.c_str());
             return;
           }
         }
@@ -381,7 +381,7 @@ void ControllerManager::callback(
     else
     {
       RCLCPP_ERROR(node_->get_logger(), "Invalid state for controller %s: %d",
-                                        state.name,
+                                        state.name.c_str(),
                                         static_cast<int>(state.state));
       return;
     }

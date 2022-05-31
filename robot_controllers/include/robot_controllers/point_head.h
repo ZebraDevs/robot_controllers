@@ -49,6 +49,7 @@
 #include "robot_controllers_interface/controller.h"
 #include "robot_controllers_interface/joint_handle.h"
 #include "robot_controllers_interface/controller_manager.h"
+#include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_listener.h"
 #include "control_msgs/action/point_head.hpp"
 

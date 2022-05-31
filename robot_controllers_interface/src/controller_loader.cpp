@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Michael Ferguson
+ * Copyright (c) 2020-2022, Michael Ferguson
  * Copyright (c) 2014-2017, Fetch Robotics Inc.
  * All rights reserved.
  *
@@ -66,7 +66,7 @@ bool ControllerLoader::init(const std::string& name,
     return true;
   }
 
-  RCLCPP_ERROR(node->get_logger(), "Unable to load controller ", name.c_str());
+  RCLCPP_ERROR(node->get_logger(), "Unable to load controller %s", name.c_str());
   return false;
 }
 

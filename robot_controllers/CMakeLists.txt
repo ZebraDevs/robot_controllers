@@ -54,6 +54,7 @@ target_link_libraries(robot_controllers
   ${orocos_kdl_LIBRARIES}
 )
 ament_target_dependencies(robot_controllers
+  angles
   control_msgs
   geometry_msgs
   kdl_parser
@@ -77,6 +78,7 @@ if (BUILD_TESTING)
     angles
     rclcpp
     robot_controllers_interface
+    trajectory_msgs
   )
   target_compile_definitions(${PROJECT_NAME}-trajectory-tests PUBLIC "PLUGINLIB__DISABLE_BOOST_FUNCTIONS")
 
