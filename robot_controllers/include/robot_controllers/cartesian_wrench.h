@@ -56,6 +56,7 @@
 #include "kdl/chainjnttojacsolver.hpp"
 #include "kdl/frames.hpp"
 
+#include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_listener.h"
 
 namespace robot_controllers
