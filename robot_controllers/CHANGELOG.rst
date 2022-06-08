@@ -2,6 +2,14 @@
 Changelog for package robot_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* update logging messages for galactic and later (`#75 <https://github.com/fetchrobotics/robot_controllers/issues/75>`_)
+  https://docs.ros.org/en/humble/Releases/Release-Galactic-Geochelone.html#change-in-rclcpp-s-logging-macros
+  also add a few build cleanups, fails on humble otherwise
+* use from_seconds for readability (`#70 <https://github.com/fetchrobotics/robot_controllers/issues/70>`_)
+* Contributors: Michael Ferguson
+
 0.8.1 (2020-12-02)
 ------------------
 * add Fergs as maintainer (`#65 <https://github.com/fetchrobotics/robot_controllers/issues/65>`_)
