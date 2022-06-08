@@ -2,8 +2,8 @@
 Changelog for package robot_controllers_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.9.0 (2022-06-08)
+------------------
 * update logging messages for galactic and later (`#75 <https://github.com/fetchrobotics/robot_controllers/issues/75>`_)
   https://docs.ros.org/en/humble/Releases/Release-Galactic-Geochelone.html#change-in-rclcpp-s-logging-macros
   also add a few build cleanups, fails on humble otherwise
