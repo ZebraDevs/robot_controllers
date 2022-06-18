@@ -42,6 +42,8 @@
 #include "robot_controllers_interface/gyro_handle.h"
 #include "robot_controllers_interface/controller.h"
 #include "robot_controllers_interface/controller_loader.h"
+#include "tf2_ros/buffer.h"
+#include "tf2_ros/transform_listener.h"
 
 namespace robot_controllers_interface
 {
@@ -67,6 +69,12 @@ public:
    * @returns 0 if success, negative values are error codes.
    *
    * Note: JointHandles should be added before this is called.
+   */
+  virtual int init(std::shared_ptr<rclcpp::Node> node,
+                   std::shared_ptr<tf2_ros::Buffer> buffer);
+
+  /**
+   * @brief Older interface that does not allow for passing in a buffer.
    */
   virtual int init(std::shared_ptr<rclcpp::Node> node);
 
@@ -120,6 +128,12 @@ public:
    */
   std::vector<std::string> getControllerNames();
 
+  /**
+   * @brief In ROS2, each transform listener incurs an extra node, limit this
+   *        reusing the same transform listener where possible.
+   */
+  std::shared_ptr<tf2_ros::Buffer> getTransformBuffer();
+
 private:
   /** @brief Service callback */
   void callback(
@@ -138,6 +152,9 @@ private:
 
   rclcpp::Node::SharedPtr node_;
   rclcpp::Service<robot_controllers_msgs::srv::QueryControllerStates>::SharedPtr server_;
+
+  std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
+  std::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
 };
 
 using ControllerManagerPtr = std::shared_ptr<ControllerManager>;

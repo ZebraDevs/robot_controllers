@@ -23,6 +23,8 @@ as is the case for Fetch and Freight.
    * The action query interface has been converted to a service interface. ROS2 allows asynchronous
      services and so the overhead of an action interface is no longer warranted. See the scripts
      in robot_controllers_interface package for examples of using this interface.
+   * The ControllerManager has a constructor that takes a tf2_ros::Buffer input, when this is
+     used no additional TransformListeners will be create.
  * Controllers:
    * All controllers have migrated to using TF2.
    * The CartesianPose controller now takes a a TwistStamped (previously, it used an unstamped

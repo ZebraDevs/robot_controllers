@@ -61,7 +61,6 @@
 #include "kdl/frames.hpp"
 
 #include "tf2_ros/buffer.h"
-#include "tf2_ros/transform_listener.h"
 
 namespace robot_controllers
 {
@@ -156,7 +155,6 @@ private:
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr command_sub_;
 
   std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
-  std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
   std::vector<robot_controllers_interface::JointHandlePtr> joints_;
   std::vector<robot_controllers::PID> pid_;
 };

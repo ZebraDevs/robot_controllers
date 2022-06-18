@@ -19,6 +19,7 @@ find_package(ament_cmake REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(robot_controllers_msgs REQUIRED)
+find_package(tf2_ros)
 
 include_directories(
   include
@@ -32,6 +33,7 @@ ament_target_dependencies(robot_controllers_interface
   pluginlib
   rclcpp
   robot_controllers_msgs
+  tf2_ros
 )
 target_compile_definitions(robot_controllers_interface PUBLIC "PLUGINLIB__DISABLE_BOOST_FUNCTIONS")
 
@@ -67,5 +69,6 @@ ament_export_dependencies(
   pluginlib
   rclcpp
   robot_controllers_msgs
+  tf2_ros
 )
 ament_package()

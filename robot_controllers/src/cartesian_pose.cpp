@@ -134,9 +134,8 @@ int CartesianPoseController::init(const std::string& name,
     if (kdl_chain_.getSegment(i).getJoint().getType() != KDL::Joint::None)
       joints_.push_back(manager_->getJointHandle(kdl_chain_.getSegment(i).getJoint().getName()));
 
-  // Setup transform listener
-  tf_buffer_.reset(new tf2_ros::Buffer(node_->get_clock()));
-  tf_listener_.reset(new tf2_ros::TransformListener(*tf_buffer_));
+  // Setup transform buffer
+  tf_buffer_ = manager_->getTransformBuffer();
 
   // Subscribe to command
   std::string topic_name = get_safe_topic_name(name) + "/command";
