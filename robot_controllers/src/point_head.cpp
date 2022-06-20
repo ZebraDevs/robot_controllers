@@ -144,9 +144,8 @@ int PointHeadController::init(const std::string& name,
 #endif
   }
 
-  // Setup transform listener
-  tf_buffer_.reset(new tf2_ros::Buffer(node_->get_clock()));
-  tf_listener_.reset(new tf2_ros::TransformListener(*tf_buffer_));
+  // Setup transform buffer
+  tf_buffer_ = manager_->getTransformBuffer();
 
   // Start action server
   active_goal_.reset();

@@ -22,6 +22,7 @@
   <depend>robot_controllers_msgs</depend>
   <depend>rclcpp</depend>
   <depend>rclcpp_action</depend>
+  <depend>tf2_ros</depend>
 
   <test_depend>ament_cmake_cpplint</test_depend>
 

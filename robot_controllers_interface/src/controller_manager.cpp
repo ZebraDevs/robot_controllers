@@ -47,7 +47,19 @@ ControllerManager::ControllerManager()
 
 int ControllerManager::init(std::shared_ptr<rclcpp::Node> node)
 {
+  // Create shared buffer and listener
+  std::shared_ptr<tf2_ros::Buffer> buffer =
+    std::make_shared<tf2_ros::Buffer>(node_->get_clock());
+  tf2_listener_ = std::make_shared<tf2_ros::TransformListener>(*buffer);
+
+  return init(node, buffer);
+}
+
+int ControllerManager::init(std::shared_ptr<rclcpp::Node> node,
+                            std::shared_ptr<tf2_ros::Buffer> buffer)
+{
   node_ = node;
+  tf2_buffer_ = buffer;
 
   // Find and load default controllers
   std::vector<std::string> controller_names =
@@ -317,6 +329,11 @@ std::vector<std::string> ControllerManager::getControllerNames()
     names.push_back((*c)->getController()->getName());
   }
   return names;
+}
+
+std::shared_ptr<tf2_ros::Buffer> ControllerManager::getTransformBuffer()
+{
+  return tf2_buffer_;
 }
 
 void ControllerManager::callback(
