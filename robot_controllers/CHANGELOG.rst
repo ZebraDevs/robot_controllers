@@ -2,6 +2,16 @@
 Changelog for package robot_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* move transform listener to manager (`#77 <https://github.com/fetchrobotics/robot_controllers/issues/77>`_)
+  each transform listener incurs an extra DDS node, which can
+  have a significant effect in a large system. this change
+  allows our robot driverrs to have a single shared transform
+  listener across all controllers (and even the whole node,
+  since the buffer can be passed in with the new constructor)
+* Contributors: Michael Ferguson
+
 0.9.0 (2022-06-08)
 ------------------
 * update logging messages for galactic and later (`#75 <https://github.com/fetchrobotics/robot_controllers/issues/75>`_)
