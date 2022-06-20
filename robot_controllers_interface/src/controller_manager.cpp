@@ -49,7 +49,7 @@ int ControllerManager::init(std::shared_ptr<rclcpp::Node> node)
 {
   // Create shared buffer and listener
   std::shared_ptr<tf2_ros::Buffer> buffer =
-    std::make_shared<tf2_ros::Buffer>(node_->get_clock());
+    std::make_shared<tf2_ros::Buffer>(node->get_clock());
   tf2_listener_ = std::make_shared<tf2_ros::TransformListener>(*buffer);
 
   return init(node, buffer);
