@@ -2,8 +2,8 @@
 Changelog for package robot_controllers_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.9.1 (2022-06-20)
+------------------
 * move transform listener to manager (`#77 <https://github.com/fetchrobotics/robot_controllers/issues/77>`_)
   each transform listener incurs an extra DDS node, which can
   have a significant effect in a large system. this change
