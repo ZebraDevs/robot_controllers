@@ -2,6 +2,11 @@
 Changelog for package robot_controllers_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* fix a bug in the older constructor (`#78 <https://github.com/mikeferguson/robot_controllers/issues/78>`_)
+* Contributors: Michael Ferguson
+
 0.9.1 (2022-06-20)
 ------------------
 * move transform listener to manager (`#77 <https://github.com/fetchrobotics/robot_controllers/issues/77>`_)
