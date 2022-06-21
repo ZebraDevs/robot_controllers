@@ -2,8 +2,8 @@
 Changelog for package robot_controllers_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.9.2 (2022-06-21)
+------------------
 * fix a bug in the older constructor (`#78 <https://github.com/mikeferguson/robot_controllers/issues/78>`_)
 * Contributors: Michael Ferguson
 
