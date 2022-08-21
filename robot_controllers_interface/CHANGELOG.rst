@@ -2,8 +2,8 @@
 Changelog for package robot_controllers_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.9.3 (2022-08-21)
+------------------
 * Fix tf node spam (`#80 <https://github.com/mikeferguson/robot_controllers/issues/80>`_)
   Stop the tf listener from creating its own node by passing a reference to the parent node.
   The parallelism is untouched as tf uses a callback group for the tf topics that is spon its own executor instance.

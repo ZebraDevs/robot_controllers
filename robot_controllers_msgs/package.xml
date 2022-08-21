@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="3">
   <name>robot_controllers_msgs</name>
-  <version>0.9.2</version>
+  <version>0.9.3</version>
   <description>
     Messages for use with robot_controllers framework.
   </description>
