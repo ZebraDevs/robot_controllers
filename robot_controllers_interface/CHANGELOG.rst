@@ -2,6 +2,14 @@
 Changelog for package robot_controllers_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Fix tf node spam (`#80 <https://github.com/mikeferguson/robot_controllers/issues/80>`_)
+  Stop the tf listener from creating its own node by passing a reference to the parent node.
+  The parallelism is untouched as tf uses a callback group for the tf topics that is spon its own executor instance.
+  This lowers the overhead from too many nodes and reduces spam in visualizations such as the rqt node graph.
+* Contributors: Florian Vahl
+
 0.9.2 (2022-06-21)
 ------------------
 * fix a bug in the older constructor (`#78 <https://github.com/mikeferguson/robot_controllers/issues/78>`_)
