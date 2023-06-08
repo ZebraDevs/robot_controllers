@@ -45,7 +45,7 @@
 #include "pluginlib/class_list_macros.hpp"
 #include "robot_controllers/cartesian_pose.h"
 #include "robot_controllers_interface/utils.h"
-#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 
 #include "urdf/model.h"
 #include "kdl_parser/kdl_parser.hpp"
