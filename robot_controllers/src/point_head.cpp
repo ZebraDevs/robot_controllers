@@ -44,7 +44,7 @@
 #include "robot_controllers_interface/utils.h"
 #include "robot_controllers/point_head.h"
 #include "geometry_msgs/msg/point_stamped.hpp"
-#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 
 #include "urdf/model.h"
 #include "kdl_parser/kdl_parser.hpp"
