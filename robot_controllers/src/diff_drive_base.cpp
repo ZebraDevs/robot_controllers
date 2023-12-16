@@ -1,7 +1,7 @@
 /*********************************************************************
  *  Software License Agreement (BSD License)
  *
- *  Copyright (c) 2020, Michael Ferguson
+ *  Copyright (c) 2020-2023, Michael Ferguson
  *  Copyright (c) 2014-2017, Fetch Robotics Inc.
  *  Copyright (c) 2013, Unbounded Robotics Inc.
  *  All rights reserved.
@@ -158,6 +158,15 @@ int DiffDriveBaseController::init(const std::string& name,
   max_velocity_r_ = node->declare_parameter<double>(name + ".max_velocity_r", 4.5);
   max_acceleration_x_ = node->declare_parameter<double>(name + ".max_acceleration_x", 0.75);
   max_acceleration_r_ = node->declare_parameter<double>(name + ".max_acceleration_r", 3.0);
+
+  // Get odometry covariances
+  odom_.pose.covariance[0] = node->declare_parameter<double>(name + ".pose_covariance_x", 0.1);
+  odom_.pose.covariance[7] = node->declare_parameter<double>(name + ".pose_covariance_y", 0.1);
+  odom_.pose.covariance[35] = node->declare_parameter<double>(name + ".pose_covariance_r", 0.4);
+
+  odom_.twist.covariance[0] = node->declare_parameter<double>(name + ".twist_covariance_x", 0.1);
+  odom_.twist.covariance[7] = node->declare_parameter<double>(name + ".twist_covariance_y", 0.1);
+  odom_.twist.covariance[35] = node->declare_parameter<double>(name + ".twist_covariance_r", 0.4);
 
   // Subscribe to base commands
   cmd_sub_ = node->create_subscription<geometry_msgs::msg::Twist>(name + "/command", 1,
