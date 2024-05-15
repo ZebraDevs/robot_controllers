@@ -230,6 +230,17 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
     safety_scaling_ = 0.1;
   }
 
+  // Make sure "dt" is never negative, and warn if it is 0.0 (since it really shouldn't be)
+  double last_update_dt = (now-last_update_).toSec();
+  if (last_update_dt <= 0.0)
+  {
+    ROS_WARN_NAMED("BaseController", "bad dt=%f", last_update_dt);
+    // use dt = 0.0 as special value, with current code it won't cause
+    // issues if it shows up once in a while.
+    // however velocities can't change if dt is always zero
+    last_update_dt = 0.0;
+  }
+
   // Do velocity acceleration/limiting
   double x, r;
   {
@@ -246,25 +257,25 @@ void DiffDriveBaseController::update(const ros::Time& now, const ros::Duration& 
   }
   if (x > last_sent_x_)
   {
-    last_sent_x_ += max_acceleration_x_ * (now - last_update_).toSec();
+    last_sent_x_ += max_acceleration_x_ * last_update_dt;
     if (last_sent_x_ > x)
       last_sent_x_ = x;
   }
   else
   {
-    last_sent_x_ -= max_acceleration_x_ * (now - last_update_).toSec();
+    last_sent_x_ -= max_acceleration_x_ * last_update_dt;
     if (last_sent_x_ < x)
       last_sent_x_ = x;
   }
   if (r > last_sent_r_)
   {
-    last_sent_r_ += max_acceleration_r_ * (now - last_update_).toSec();
+    last_sent_r_ += max_acceleration_r_ * last_update_dt;
     if (last_sent_r_ > r)
       last_sent_r_ = r;
   }
   else
   {
-    last_sent_r_ -= max_acceleration_r_ * (now - last_update_).toSec();
+    last_sent_r_ -= max_acceleration_r_ * last_update_dt;
     if (last_sent_r_ < r)
       last_sent_r_ = r;
   }
