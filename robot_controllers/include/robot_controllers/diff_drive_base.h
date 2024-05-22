@@ -183,6 +183,8 @@ private:
 
   boost::shared_ptr<tf::TransformBroadcaster> broadcaster_;
   bool publish_tf_;
+  // The time of the most recent published state
+  ros::Time last_published_tf_stamp_;
 
   bool enabled_;
   bool ready_;

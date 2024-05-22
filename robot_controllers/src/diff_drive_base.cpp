@@ -375,7 +375,8 @@ void DiffDriveBaseController::publishCallback(const ros::TimerEvent& event)
   msg.header.stamp = ros::Time::now();
   odom_pub_.publish(msg);
 
-  if (publish_tf_)
+  // As of ROS Noetic, TF2 will issue warnings whenever we try to publish with the same time stamp.
+  if (publish_tf_ && msg.header.stamp > last_published_tf_stamp_)
   {
     tf::Transform transform;
     transform.setOrigin(tf::Vector3(msg.pose.pose.position.x, msg.pose.pose.position.y, 0.0));
@@ -389,6 +390,9 @@ void DiffDriveBaseController::publishCallback(const ros::TimerEvent& event)
      */
     broadcaster_->sendTransform(tf::StampedTransform(transform, msg.header.stamp, msg.header.frame_id, msg.child_frame_id));
   }
+
+  // Retain the last published stamp for detecting repeatedtransforms in future cycles
+  last_published_tf_stamp_ = msg.header.stamp;
 }
 
 void DiffDriveBaseController::scanCallback(
