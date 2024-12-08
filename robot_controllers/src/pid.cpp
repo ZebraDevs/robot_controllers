@@ -71,6 +71,7 @@ PID::PID() :
 
 bool PID::init(const std::string& name, rclcpp::Node::SharedPtr node)
 {
+  name_ = name;
   node_ = node;
 
   p_gain_ = node_->declare_parameter<double>(name + ".p", std::numeric_limits<double>::quiet_NaN());
@@ -84,9 +85,12 @@ bool PID::init(const std::string& name, rclcpp::Node::SharedPtr node)
   if (std::isnan(p_gain_))
   {
     // If P-gain is not specified, this often indicates wrong namespace was used
-    RCLCPP_ERROR(node_->get_logger(), "No P gain sepcified. Parameter namespace %s", name.c_str());
+    RCLCPP_ERROR(node_->get_logger(), "No P gain specified. Parameter namespace %s", name.c_str());
     return false;
   }
+
+  param_cb_ = node_->add_on_set_parameters_callback(
+    std::bind(&PID::paramCallback, this, std::placeholders::_1));
 
   return checkGains();
 }
@@ -138,6 +142,78 @@ bool PID::checkGains()
     RCLCPP_WARN(node_->get_logger(), "Integral gain is zero, but wind-yup limit is zero");
   }
   return pass;
+}
+
+rcl_interfaces::msg::SetParametersResult
+PID::paramCallback(const std::vector<rclcpp::Parameter>& parameters)
+{
+  rcl_interfaces::msg::SetParametersResult result;
+  result.successful = true;
+
+  // Cache current/default values
+  double p = p_gain_;
+  double i = i_gain_;
+  double d = d_gain_;
+  double c = i_max_;
+
+  bool gains_changed = false;
+  for (const rclcpp::Parameter & param : parameters)
+  {
+    if (param.get_name() == name_ + ".p" ||
+        param.get_name() == name_ + ".i" ||
+        param.get_name() == name_ + ".d" ||
+        param.get_name() == name_ + ".i_clamp")
+    {
+      if (param.get_type() != rclcpp::ParameterType::PARAMETER_DOUBLE)
+      {
+        result.successful = false;
+        result.reason = param.get_name() + ": must be type double";
+        break;
+      }
+      else if (!std::isfinite(param.as_double()))
+      {
+        result.successful = false;
+        result.reason = param.get_name() + ": must be finite";
+        break;
+      }
+      else
+      {
+        if (param.get_name() == name_ + ".p")
+        {
+          p = param.as_double();
+        }
+        else if (param.get_name() == name_ + ".i")
+        {
+          i = param.as_double();
+        }
+        else if (param.get_name() == name_ + ".d")
+        {
+          d = param.as_double();
+        }
+        else if (param.get_name() == name_ + ".i_clamp")
+        {
+          c = param.as_double();
+        }
+        gains_changed = true;
+      }
+    }
+    else
+    {
+      RCLCPP_WARN(node_->get_logger(), "PID: unknown parameter: %s", param.get_name().c_str());
+    }
+  }
+
+  if (gains_changed && result.successful)
+  {
+    p_gain_ = p;
+    i_gain_ = i;
+    d_gain_ = d;
+    i_max_ = std::abs(c);
+    i_min_ = -std::abs(c);
+    reset();
+  }
+
+  return result;
 }
 
 void PID::reset()

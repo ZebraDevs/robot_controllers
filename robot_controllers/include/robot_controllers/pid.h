@@ -93,6 +93,15 @@ protected:
    */
   bool checkGains();
 
+  /**
+   *  @brief Set ROS 2 parameters dynamically at runtime.
+   */
+  rcl_interfaces::msg::SetParametersResult paramCallback(
+    const std::vector<rclcpp::Parameter>& parameters);
+
+  /// Namespace
+  std::string name_;
+
   /// proportial gain
   double p_gain_;
   /// integral gain
@@ -108,6 +117,7 @@ protected:
   /// Last error value, used for calculating error_dot when not provided
   double error_last_;
 
+  rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_cb_;
   rclcpp::Node::SharedPtr node_;
 };
 
