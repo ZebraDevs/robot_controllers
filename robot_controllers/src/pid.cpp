@@ -69,6 +69,24 @@ PID::PID() :
   reset();
 }
 
+PID::PID(const PID& pid)
+{
+  this->p_gain_ = pid.p_gain_;
+  this->i_gain_ = pid.i_gain_;
+  this->d_gain_ = pid.d_gain_;
+  this->i_max_ = pid.i_max_;
+  this->i_min_ = pid.i_min_;
+  reset();
+
+  if (pid.node_)
+  {
+    this->name_ = pid.name_;
+    this->node_ = pid.node_;
+    param_cb_ = node_->add_on_set_parameters_callback(
+      std::bind(&PID::paramCallback, this, std::placeholders::_1));
+  }
+}
+
 bool PID::init(const std::string& name, rclcpp::Node::SharedPtr node)
 {
   name_ = name;
@@ -196,10 +214,6 @@ PID::paramCallback(const std::vector<rclcpp::Parameter>& parameters)
         }
         gains_changed = true;
       }
-    }
-    else
-    {
-      RCLCPP_WARN(node_->get_logger(), "PID: unknown parameter: %s", param.get_name().c_str());
     }
   }
 

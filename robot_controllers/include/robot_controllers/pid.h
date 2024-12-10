@@ -57,6 +57,11 @@ public:
    */
   PID(double p, double i, double d, double i_max, double i_min);
 
+  /**
+   *  @brief Copy constructor needed for param callback setup
+   */
+  PID(const PID & pid);
+
   /** @brief Constructor. Starts all gains and limits at zero */
   PID();
 
