@@ -38,6 +38,7 @@
 #define ROBOT_CONTROLLERS__PID_H_
 
 #include <string>
+#include <vector>
 
 #include "rclcpp/rclcpp.hpp"
 
