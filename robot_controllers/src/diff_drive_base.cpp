@@ -302,7 +302,17 @@ void DiffDriveBaseController::update(const rclcpp::Time& now, const rclcpp::Dura
     r = std::max(-max_velocity_r_, std::min(actual_scaling * desired_r_, max_velocity_r_));
   }
 
-  double elapsed = dt.nanoseconds() / 1e9;
+  // Make sure "dt" is never negative, and warn if it is 0.0 (since it really shouldn't be)
+  double elapsed = dt.nanoseconds() / 1e9;  // seconds
+  if (elapsed <= 0.0)
+  {
+    RCLCPP_WARN(rclcpp::get_logger(getName()),
+                "bad dt = %f", dt);
+    // use dt = 0.0 as special value, with current code it won't cause
+    // issues if it shows up once in a while.
+    // however velocities can't change if dt is always zero
+    elapsed = 0.0;
+  }
 
   if (x > last_sent_x_)
   {
