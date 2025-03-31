@@ -1,7 +1,7 @@
 /*********************************************************************
  *  Software License Agreement (BSD License)
  *
- *  Copyright (c) 2020, Michael Ferguson
+ *  Copyright (c) 2020-2024, Michael Ferguson
  *  Copyright (c) 2014-2015, Fetch Robotics Inc.
  *  Copyright (c) 2013, Unbounded Robotics Inc.
  *  All rights reserved.
@@ -204,6 +204,17 @@ void FollowJointTrajectoryController::update(const rclcpp::Time& now, const rclc
   {
     std::lock_guard<std::mutex> lock(sampler_mutex_);
 
+    // Have we been canceled?
+    if (active_goal_->is_canceling())
+    {
+      RCLCPP_ERROR(rclcpp::get_logger(getName()),
+                   "Trajectory cancelled.");
+      auto result = std::make_shared<FollowJointTrajectoryAction::Result>();
+      active_goal_->canceled(result);
+      active_goal_.reset();
+      return;
+    }
+
     // Interpolate trajectory
     TrajectoryPoint p = sampler_->sample(to_sec(now));
     unwindTrajectoryPoint(continuous_, p);
@@ -387,18 +398,11 @@ rclcpp_action::GoalResponse FollowJointTrajectoryController::handle_goal(
 rclcpp_action::CancelResponse FollowJointTrajectoryController::handle_cancel(
     const std::shared_ptr<FollowJointTrajectoryGoal> goal_handle)
 {
-  // Always accept
   if (active_goal_ && active_goal_->get_goal_id() == goal_handle->get_goal_id())
   {
-    RCLCPP_ERROR(rclcpp::get_logger(getName()),
-                 "Trajectory cancelled.");
-    auto result = std::make_shared<FollowJointTrajectoryAction::Result>();
-    active_goal_->canceled(result);
-    active_goal_.reset();
     return rclcpp_action::CancelResponse::ACCEPT;
   }
-
-  return rclcpp_action::CancelResponse::ACCEPT;
+  return rclcpp_action::CancelResponse::REJECT;
 }
 
 void FollowJointTrajectoryController::handle_accepted(
