@@ -57,6 +57,11 @@ public:
    */
   PID(double p, double i, double d, double i_max, double i_min);
 
+  /**
+   *  @brief Copy constructor needed for param callback setup
+   */
+  PID(const PID & pid);
+
   /** @brief Constructor. Starts all gains and limits at zero */
   PID();
 
@@ -93,6 +98,15 @@ protected:
    */
   bool checkGains();
 
+  /**
+   *  @brief Set ROS 2 parameters dynamically at runtime.
+   */
+  rcl_interfaces::msg::SetParametersResult paramCallback(
+    const std::vector<rclcpp::Parameter>& parameters);
+
+  /// Namespace
+  std::string name_;
+
   /// proportial gain
   double p_gain_;
   /// integral gain
@@ -108,6 +122,7 @@ protected:
   /// Last error value, used for calculating error_dot when not provided
   double error_last_;
 
+  rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_cb_;
   rclcpp::Node::SharedPtr node_;
 };
 
