@@ -307,7 +307,7 @@ void DiffDriveBaseController::update(const rclcpp::Time& now, const rclcpp::Dura
   if (elapsed <= 0.0)
   {
     RCLCPP_WARN(rclcpp::get_logger(getName()),
-                "bad dt = %f", dt);
+                "bad dt = %f", elapsed);
     // use dt = 0.0 as special value, with current code it won't cause
     // issues if it shows up once in a while.
     // however velocities can't change if dt is always zero
